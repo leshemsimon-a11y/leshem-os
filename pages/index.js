@@ -1171,18 +1171,30 @@ export default function App(){
 
   return(
     <div dir="rtl" style={{display:"flex",height:"100vh",background:C.iv,overflow:"hidden",fontFamily:C.heb}}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&family=Merriweather:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;}
-        ::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-thumb{background:rgba(54,69,79,0.16);}
-        select option{background:#FAF9F6;}
-        @page{size:A4;margin:0;}
-        @media print{
-          body *{visibility:hidden!important;}
-          #cert-root,#cert-root *,#stone-cert-root,#stone-cert-root *{visibility:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-          #cert-root{position:fixed!important;inset:0!important;width:100%!important;padding:38px 44px 32px!important;box-shadow:none!important;max-width:none!important;}
-          #stone-cert-root{position:fixed!important;inset:0!important;width:100%!important;box-shadow:none!important;max-width:none!important;border:none!important;}
-          .no-print{display:none!important;}
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&family=Merriweather:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* הגדרת גודל בסיס */
+        html { font-size: 16px; } 
+        body { font-size: 16px; }
+
+        /* התאמה למובייל */
+        @media (max-width: 600px) {
+          html { font-size: 14px; }
+          body { padding: 5px; }
+        }
+
+        ::-webkit-scrollbar { width: 3px; } 
+        ::-webkit-scrollbar-thumb { background: rgba(54,69,79,0.16); }
+        select option { background: #FAF9F6; }
+        @page { size: A4; margin: 0; }
+        
+        @media print {
+          body * { visibility: hidden !important; }
+          #cert-root, #cert-root *, #stone-cert-root, #stone-cert-root * { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          #cert-root { position: fixed !important; inset: 0 !important; width: 100% !important; padding: 38px 44px 32px !important; box-shadow: none !important; max-width: none !important; }
+          #stone-cert-root { position: fixed !important; inset: 0 !important; width: 100% !important; box-shadow: none !important; max-width: none !important; border: none !important; }
+          .no-print { display: none !important; }
         }
       `}</style>
       <Sidebar tab={tab} setTab={setTab}/>
