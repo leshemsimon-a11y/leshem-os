@@ -148,7 +148,13 @@ function gemInsight(data){
 /* ── ATOMS ── */
 const GR=({soft,my=0})=><div style={{height:"0.5px",background:soft?"rgba(197,179,88,0.22)":C.gd,marginTop:my,marginBottom:my}}/>;
 const EB=({dark,s={},children})=><div style={{fontFamily:C.heb,fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",color:dark?C.ch:C.chl,marginBottom:5,...s}}>{children}</div>;
-
+function Pills({opts,val,onChange}){
+  return(<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+    {opts.map(([v,l])=>(
+      <button key={v} onClick={()=>onChange(v)} style={{fontFamily:C.heb,fontSize:11,cursor:"pointer",color:val===v?C.iv:C.chm,background:val===v?C.ch:"transparent",border:`0.5px solid ${val===v?C.ch:C.blm}`,padding:"5px 12px",transition:"all 0.12s"}}>{l}</button>
+    ))}
+  </div>);
+}
 function ImgDrop({img,onImg,h=80,label="תמונה",small,className}){
   const [hov,setHov]=useState(false);
   const ref=useRef();
