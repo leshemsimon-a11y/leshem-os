@@ -755,7 +755,7 @@ function StoneCard({stone,score,picked,onPick,onCert,onDragStart,grid}){
 function InventoryBrowser({stones,quoteStone,onPickStone,pickedId}){
   const [q,setQ]=useState(""); const [tf,setTF]=useState("הכול"); const [showM,setSM]=useState(false);
   const [visible,setV]=useState(12); const [vm,setVM]=useState("list");
-  const [certStone,setCertStone].useState(null);
+  const [certStone,setCertStone]=useState(null);
   const sentinel=useRef();
   const TFS=[["הכול","הכול"],["Diamond","יהלום"],["Sapphire","ספיר"],["Ruby","רובי"],["Emerald","אמרלד"]];
   const scored=useMemo(()=>stones.map(s=>({...s,score:matchScore(quoteStone,s)})),[stones,quoteStone]);
