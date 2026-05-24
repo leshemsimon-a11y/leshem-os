@@ -1,10 +1,9 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   Calculator, Gem, FileText, ChevronDown, X, Printer, RotateCcw,
-  Search, TrendingDown, TrendingUp, ArrowLeft, Check, Star,
-  GripVertical, Plus, Minus, AlertCircle, LayoutGrid, List,
-  ImageIcon, Pencil, Lock, FileCheck, Package, ClipboardList,
-  Eye, Database
+  Search, ArrowLeft, Check, Star, GripVertical, Plus, Minus,
+  AlertCircle, LayoutGrid, List, ImageIcon, Pencil, Lock, FileCheck,
+  Package, ClipboardList, Eye, Database, Share2, Download, ShieldCheck
 } from "lucide-react";
 
 /* ── TOKENS & DESIGN SYSTEM ── */
@@ -19,7 +18,7 @@ const C={
 };
 const usd=v=>"$"+new Intl.NumberFormat("en-US",{minimumFractionDigits:0,maximumFractionDigits:0}).format(Math.round(v||0));
 const r2=n=>Math.round(n*100)/100;
-const fmtD=()=>new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"long",year:"numeric"}).format(new Date());
+const fmtD=()=>new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"short",year:"numeric"}).format(new Date());
 const ovr=(o,n)=>o!==""?(parseFloat(o)||0):n;
 const uid=()=>Math.random().toString(36).slice(2,8).toUpperCase();
 
@@ -137,11 +136,12 @@ function gemInsight(data){
 /* ── REUSABLE UI ELEMENTS ── */
 const GR=({soft,my=0})=><div style={{height:"0.5px",background:soft?"rgba(197,179,88,0.2)":C.gd,marginTop:my,marginBottom:my}}/>;
 const EB=({dark,s={},children})=><div style={{fontFamily:C.heb,fontSize:11,fontWeight:600,letterSpacing:"0.05em",color:dark?C.ch:C.chl,marginBottom:5,...s}}>{children}</div>;
+const Divider=()=><div style={{height:"1px",background:C.bl,margin:"16px 0"}}/>;
 
 function Pills({opts,val,onChange}){
   return(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
     {opts.map(([v,l])=>(
-      <button key={v} onClick={()=>onChange(v)} style={{fontFamily:C.heb,fontSize:13,cursor:"pointer",color:val===v?C.iv:C.chm,background:val===v?C.ch:"transparent",border:`0.5px solid ${val===v?C.ch:C.blm}`,padding:"8px 16px",transition:"all 0.12s"}}>{l}</button>
+      <button key={v} onClick={()=>onChange(v)} style={{fontFamily:C.heb,fontSize:13,cursor:"pointer",color:val===v?C.iv:C.chm,background:val===v?C.ch:"transparent",border:`0.5px solid ${val===v?C.ch:C.blm}`,padding:"8px 16px",transition:"all 0.12s",borderRadius:4}}>{l}</button>
     ))}
   </div>);
 }
@@ -217,7 +217,7 @@ function EKpi({label,value,nat,sub,hi,ov:oVal,onOv,onClr}){
     )}
     <div style={{fontFamily:C.heb,fontSize:10.5,color:hi?"rgba(225,215,195,0.32)":C.chx,lineHeight:1.4}}>{sub}</div>
     {value!=null&&<div style={{position:"absolute",top:10,left:10,display:"flex",gap:6,alignItems:"center"}}>
-      {locked&&!ed&&<button onClick={onClr} style={{background:"rgba(197,179,88,0.18)",border:"none",cursor:"pointer",padding:"4px",display:"flex"}}><X size={12} color={C.gdm}/></button>}
+      {locked&&!ed&&<button onClick={onClr} style={{background:"rgba(197,179,88,0.18)",border:"none",cursor:"pointer",padding:"4px",display:"flex",borderRadius:2}}><X size={12} color={C.gdm}/></button>}
       {!ed&&<button onClick={startEdit} style={{background:"transparent",border:"none",cursor:"pointer",padding:"4px",opacity:0.6,display:"flex"}}><Pencil size={12} color={hi?C.gd:C.ch}/></button>}
     </div>}
   </div>);
@@ -239,7 +239,7 @@ function ERow({label,note,nat,ov:oVal,onOv,onClr}){
         <span style={{fontFamily:C.eng,fontSize:12,color:C.chm}}>$</span>
         <input ref={ref} type="number" value={draft} onChange={e=>setDraft(e.target.value)}
           onBlur={commit} onKeyDown={e=>{if(e.key==="Enter")commit();if(e.key==="Escape"){setEd(false);onClr();}}}
-          style={{fontFamily:C.serif,fontSize:14,color:C.ch,background:C.iv2,border:`0.5px solid ${C.blm}`,outline:"none",width:80,padding:"4px 8px",textAlign:"left"}}/>
+          style={{fontFamily:C.serif,fontSize:14,color:C.ch,background:C.iv2,border:`0.5px solid ${C.blm}`,outline:"none",width:80,padding:"4px 8px",textAlign:"left",borderRadius:4}}/>
       </div>):(<span style={{fontFamily:C.serif,fontSize:15,color:locked?C.gdm:C.ch,whiteSpace:"nowrap"}}>{usd(nat)}</span>)}
       {!ed&&<button onClick={startEdit} style={{background:"transparent",border:"none",cursor:"pointer",padding:"4px",opacity:0.6,display:"flex"}}><Pencil size={12} color={C.ch}/></button>}
       {locked&&!ed&&<button onClick={onClr} style={{background:"transparent",border:"none",cursor:"pointer",padding:"4px",display:"flex"}}><X size={12} color={C.gdm}/></button>}
@@ -254,16 +254,19 @@ function QuoteCert({cfg,res,pieceImg}){
     ?`${cfg.stone.ct}ct ${cfg.stone.type}, ${cfg.stone.color}, ${cfg.stone.cla} · ${cfg.centerSetting}`
     :`${cfg.centerCt}ct ${cfg.centerType}${cfg.centerType==="Diamond"?`, ${cfg.centerColor} color, ${cfg.centerClarity} clarity`:""} · ${cfg.centerSetting}`;
   const comps=(cfg.selectedComponents||[]);
+  
   const Row=({l,v,first,it})=>(!v?null:(
-    <div style={{display:"flex",padding:"14px 0",borderTop:first?`0.5px solid rgba(197,179,88,0.25)`:"none",borderBottom:`0.5px solid rgba(197,179,88,0.15)`}}>
+    <div style={{display:"flex",padding:"14px 0",borderTop:first?`0.5px solid rgba(197,179,88,0.25)`:"none",borderBottom:`0.5px solid rgba(197,179,88,0.15)`,position:"relative",zIndex:2}}>
       <div style={{fontFamily:C.eng,fontSize:10,fontWeight:600,color:C.chl,letterSpacing:"0.1em",width:"35%",textTransform:"uppercase"}}>{l}</div>
       <div style={{fontFamily:C.serif,fontSize:13,fontWeight:300,fontStyle:it?"italic":"normal",color:it?C.chm:C.ch,flex:1,lineHeight:1.6}}>{v}</div>
     </div>
   ));
+
   return(
-    <div dir="ltr" id="cert-root" style={{fontFamily:C.eng,background:C.iv,padding:55,maxWidth:720,margin:"0 auto",minHeight:960,boxSizing:"border-box",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
-      <div>
-        {/* Top Header Block */}
+    <div dir="ltr" id="cert-root" style={{fontFamily:C.eng,background:C.iv,padding:55,maxWidth:720,margin:"0 auto",minHeight:1018,boxSizing:"border-box",display:"flex",flexDirection:"column",justifyContent:"space-between",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%, -50%)",fontSize:480,fontFamily:C.serif,color:C.gd,opacity:0.02,pointerEvents:"none",zIndex:0}}>L</div>
+      
+      <div style={{position:"relative",zIndex:2}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:35}}>
           <div>
             <div style={{width:22,height:22,border:`1px solid ${C.gd}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8}}><span style={{fontFamily:C.serif,fontSize:11,color:C.gd}}>L</span></div>
@@ -277,7 +280,6 @@ function QuoteCert({cfg,res,pieceImg}){
         
         <GR/>
         
-        {/* Meta Grid */}
         <div style={{display:"flex",justifyContent:"space-between",margin:"25px 0 35px"}}>
           <div>
             <div style={{fontFamily:C.eng,fontSize:9,color:C.chl,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:4}}>Prepared For</div>
@@ -289,14 +291,12 @@ function QuoteCert({cfg,res,pieceImg}){
           </div>
         </div>
 
-        {/* Dynamic Image Space / Intentional Dead Space */}
-        <div style={{width:"100%",height:190,background:C.iv2,border:`0.5px solid rgba(197,179,88,0.2)`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:45,position:"relative",overflow:"hidden"}}>
+        <div style={{width:"100%",height:220,background:"rgba(240,237,232,0.6)",border:`0.5px solid rgba(197,179,88,0.2)`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:45,position:"relative",overflow:"hidden",borderRadius:2}}>
           {pieceImg?<img src={pieceImg} alt="piece" style={{width:"100%",height:"100%",objectFit:"contain"}}/>:(
             <div style={{fontFamily:C.eng,fontSize:10,color:C.chl,letterSpacing:"2.5px",textTransform:"uppercase",opacity:0.4}}>Fine Jewelry Portfolio Render</div>
           )}
         </div>
 
-        {/* Specification Fields */}
         <div style={{marginBottom:10,fontFamily:C.eng,fontSize:9,color:C.chl,letterSpacing:"2px",textTransform:"uppercase",fontWeight:600}}>Piece Specification</div>
         <Row first l="Metal Matrix" v={cfg.metal}/>
         <Row l="Gross Weight" v={cfg.grams?`${cfg.grams}g  (${res?.gw??cfg.grams}g allocation)`:""}/>
@@ -308,26 +308,24 @@ function QuoteCert({cfg,res,pieceImg}){
         {cfg.notes&&<Row l="Artisanal Notes" v={cfg.notes} it/>}
       </div>
 
-      {/* Pricing Frame */}
-      <div style={{marginTop:40}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 24px",border:`0.5px solid rgba(197,179,88,0.3)`,background:C.iv2,marginBottom:15}}>
+      <div style={{marginTop:40, position:"relative", zIndex:2}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 24px",border:`0.5px solid rgba(197,179,88,0.4)`,background:"rgba(197,179,88,0.05)",marginBottom:15}}>
           <div>
             <div style={{fontFamily:C.eng,fontSize:9,color:C.chl,letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>Total Value Estimate</div>
             <div style={{fontFamily:C.eng,fontSize:10,color:C.chx}}>Includes Premium Fabrication & 18% VAT</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontFamily:C.eng,fontSize:10,color:C.chl,fontWeight:600,marginBottom:2}}>USD</div>
+            <div style={{fontFamily:C.eng,fontSize:10,color:C.gdm,fontWeight:600,marginBottom:2}}>USD</div>
             <div style={{fontFamily:C.serif,fontSize:32,fontWeight:300,color:C.ch,lineHeight:1}}>{res?usd(res.ri):"—"}</div>
           </div>
         </div>
 
-        <div style={{fontFamily:C.eng,fontSize:8.5,color:C.chl,lineHeight:1.8,marginBottom:30,maxWidth:560}}>
-          This valuation is a custom commercial calculation based on precious metal market indices and gemological criteria. Prices reflect initial engineering specs.
+        <div style={{fontFamily:C.eng,fontSize:8.5,color:C.chl,lineHeight:1.8,marginBottom:30,maxWidth:600}}>
+          This valuation is a custom commercial calculation based on precise precious metal market indices and gemological criteria. Prices reflect initial engineering specs and are valid for 7 days.
         </div>
         
         <GR soft/>
 
-        {/* Footer Signature Elements */}
         <div style={{marginTop:25,display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
           <div>
             <div style={{borderBottom:`0.5px solid ${C.chm}`,marginBottom:6,width:140,opacity:0.3}}/>
@@ -354,7 +352,7 @@ function StoneCert({data}){
   const DR=({l,v,accent})=>{
     if(v===null||v===undefined||v==="") return null;
     return(
-      <div style={{display:"flex",borderBottom:`0.5px solid rgba(197,179,88,0.15)`,padding:"11px 0",alignItems:"baseline"}}>
+      <div style={{display:"flex",borderBottom:`0.5px solid rgba(197,179,88,0.15)`,padding:"11px 0",alignItems:"baseline",position:"relative",zIndex:2}}>
         <div style={{fontFamily:C.eng,fontSize:9,fontWeight:600,color:C.chl,letterSpacing:"0.05em",textTransform:"uppercase",width:"42%",flexShrink:0}}>{l}</div>
         <div style={{fontFamily:accent?C.serif:C.eng,fontSize:accent?15:12,fontWeight:accent?300:400,color:accent?C.ch:C.chm}}>{v}</div>
       </div>
@@ -362,9 +360,10 @@ function StoneCert({data}){
   };
 
   return(
-    <div dir="ltr" id="stone-cert-root" style={{fontFamily:C.eng,background:C.iv,maxWidth:720,margin:"0 auto",boxSizing:"border-box",minHeight:960,display:"flex",flexDirection:"column",justifyContent:"space-between",border:`1px solid rgba(197,179,88,0.25)`}}>
-      <div>
-        {/* Luxury Banner */}
+    <div dir="ltr" id="stone-cert-root" style={{fontFamily:C.eng,background:C.iv,maxWidth:720,margin:"0 auto",boxSizing:"border-box",minHeight:1018,display:"flex",flexDirection:"column",justifyContent:"space-between",border:`1px solid rgba(197,179,88,0.25)`,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:"55%",left:"50%",transform:"translate(-50%, -50%)",fontSize:500,fontFamily:C.serif,color:C.gd,opacity:0.02,pointerEvents:"none",zIndex:0}}>L</div>
+
+      <div style={{position:"relative",zIndex:2}}>
         <div style={{background:C.ch,padding:"22px 35px 20px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
@@ -381,33 +380,30 @@ function StoneCert({data}){
           </div>
         </div>
 
-        <div style={{background:C.iv2,padding:"10px 35px",borderBottom:`0.5px solid rgba(197,179,88,0.2)`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{background:"rgba(240,237,232,0.8)",padding:"10px 35px",borderBottom:`0.5px solid rgba(197,179,88,0.2)`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontFamily:C.eng,fontSize:9,color:C.ch,letterSpacing:"1.5px",textTransform:"uppercase"}}>Laboratory Assessment Analysis</div>
           <div style={{fontFamily:C.eng,fontSize:10,fontWeight:600,color:C.gdm}}>{(data.type||"").toUpperCase()}</div>
         </div>
 
-        {/* Main Content Split */}
-        <div style={{display:"flex",padding:"30px 35px"}}>
-          {/* Photos Frame */}
+        <div style={{display:"flex",padding:"35px 35px"}}>
           <div style={{width:"40%",paddingRight:25,borderRight:`0.5px solid rgba(197,179,88,0.2)`,display:"flex",flexDirection:"column",gap:12}}>
             {filledImgs===0?(
               <>
-                <ImgDrop img={imgs[0]} onImg={v=>setImg(0,v)} h={150} label="Primary Micro-Photo"/>
+                <ImgDrop img={imgs[0]} onImg={v=>setImg(0,v)} h={160} label="Primary Micro-Photo"/>
                 <div style={{display:"flex",gap:8}}>
-                  <div style={{flex:1}}><ImgDrop img={imgs[1]} onImg={v=>setImg(1,v)} h={75} label="Ref" small/></div>
-                  <div style={{flex:1}}><ImgDrop img={imgs[2]} onImg={v=>setImg(2,v)} h={75} label="Plot" small/></div>
+                  <div style={{flex:1}}><ImgDrop img={imgs[1]} onImg={v=>setImg(1,v)} h={80} label="Ref" small/></div>
+                  <div style={{flex:1}}><ImgDrop img={imgs[2]} onImg={v=>setImg(2,v)} h={80} label="Plot" small/></div>
                 </div>
               </>
             ):filledImgs===1?(
-              <ImgDrop img={imgs[0]} onImg={v=>setImg(0,v)} h={240} label="Primary Photo"/>
+              <ImgDrop img={imgs[0]} onImg={v=>setImg(0,v)} h={260} label="Primary Photo"/>
             ):(<></>)}
-            <div style={{padding:"10px 12px",background:C.iv2,border:`0.5px solid ${C.bl}`,marginTop:10}}>
-              <div style={{fontFamily:C.eng,fontSize:7.5,color:C.chl,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:3}}>Internal SKU</div>
+            <div style={{padding:"12px 14px",background:"rgba(255,255,255,0.4)",border:`0.5px solid rgba(197,179,88,0.3)`,marginTop:15,borderRadius:4}}>
+              <div style={{fontFamily:C.eng,fontSize:7.5,color:C.chl,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:3}}>Internal SKU Reference</div>
               <div style={{fontFamily:C.eng,fontSize:11,fontWeight:500,color:C.ch}}>{data.sku}</div>
             </div>
           </div>
 
-          {/* Metrics Data Grid */}
           <div style={{flex:1,paddingLeft:30}}>
             <div style={{fontFamily:C.eng,fontSize:9,color:C.gdm,letterSpacing:"2px",textTransform:"uppercase",marginBottom:14,borderBottom:`0.5px solid rgba(197,179,88,0.2)`,paddingBottom:6,fontWeight:600}}>Gemstone Dimensions</div>
             <DR l="Variety" v={data.variety||data.type}/>
@@ -421,29 +417,31 @@ function StoneCert({data}){
           </div>
         </div>
 
-        {/* Narrative Review */}
         {insight&&<>
           <div style={{height:"0.5px",background:`linear-gradient(90deg,transparent,rgba(197,179,88,0.3),transparent)`,margin:"0 35px"}}/>
-          <div style={{padding:"20px 35px"}}>
-            <div style={{fontFamily:C.eng,fontSize:8.5,color:C.chl,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:6,fontWeight:600}}>Gemological Statement</div>
-            <div style={{fontFamily:C.serif,fontSize:12,fontStyle:"italic",color:C.chm,lineHeight:1.8}}>{insight}</div>
+          <div style={{padding:"25px 35px"}}>
+            <div style={{fontFamily:C.eng,fontSize:8.5,color:C.chl,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:8,fontWeight:600}}>Gemological Statement</div>
+            <div style={{fontFamily:C.serif,fontSize:13,fontStyle:"italic",color:C.chm,lineHeight:1.8}}>{insight}</div>
           </div>
         </>}
       </div>
 
-      {/* Footer System */}
-      <div>
+      <div style={{position:"relative",zIndex:2}}>
         <div style={{height:"0.5px",background:`linear-gradient(90deg,transparent,rgba(197,179,88,0.3),transparent)`,margin:"0 35px"}}/>
         <div style={{padding:"25px 35px 35px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:20}}>
             <div>
               <div style={{borderBottom:`0.5px solid ${C.chm}`,marginBottom:6,width:120,opacity:0.3}}/>
               <div style={{fontFamily:C.serif,fontSize:11,fontStyle:"italic",color:C.ch}}>Leshem Simon</div>
               <div style={{fontFamily:C.eng,fontSize:8,color:C.chl,letterSpacing:"1px",textTransform:"uppercase"}}>Certified Diamond Grader</div>
             </div>
-            <div style={{textAlign:"right",fontFamily:C.eng,fontSize:8,color:C.chl,opacity:0.5,lineHeight:1.6}}>
-              LESHEM.S Fine Jewelry Audit | Ramat Gan Center<br/>Verification Security ID: {data.rptNum}
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,opacity:0.7}}>
+              <ShieldCheck size={28} color={C.gdm} strokeWidth={1}/>
+              <div style={{fontFamily:C.eng,fontSize:7,color:C.gdm,letterSpacing:"1px",textTransform:"uppercase"}}>Authentic</div>
             </div>
+          </div>
+          <div style={{fontFamily:C.eng,fontSize:7.5,color:C.chl,opacity:0.55,lineHeight:1.7,borderTop:`0.5px dotted rgba(54,69,79,0.2)`,paddingTop:12}}>
+            This report represents the professional opinion of LESHEM.S Studio gemologists at the time of examination. It is an internal studio audit and is not a guarantee, valuation, or appraisal. LESHEM.S Studio | Tuval St 23, Ramat Gan | VAT: 046240016 | Verification ID: {data.rptNum}
           </div>
         </div>
       </div>
@@ -451,18 +449,26 @@ function StoneCert({data}){
   );
 }
 
+/* ═══════════ MODALS ═══════════ */
 function QuoteCertModal({cfg,res,pieceImg,onClose}){
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();};window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);},[onClose]);
+  async function handleShare() {
+    if(navigator.share) {
+      try { await navigator.share({ title: 'LESHEM.S Quotation', text: `Quotation for ${cfg.clientName || 'Client'}` }); }
+      catch(err) { console.log("Share failed", err); }
+    } else { alert("אפשרות השיתוף אינה נתמכת בדפדפן זה בסלולרי. ניתן להוריד כ-PDF."); }
+  }
   return(
-    <div className="modal-backdrop" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(20,30,36,0.94)",display:"flex",flexDirection:"column",alignItems:"center",overflowY:"auto",padding:"30px 16px"}}>
-      <div className="no-print" style={{width:"100%",maxWidth:720,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <span style={{fontFamily:C.heb,fontSize:13,color:"rgba(225,215,195,0.5)"}}>תצוגת הצעת מחיר סופית ללקוח</span>
-        <div style={{display:"flex",gap:10}}>
-          <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:C.ch,background:C.gd,border:"none",padding:"10px 20px",cursor:"pointer",borderRadius:4,fontWeight:600}}><Printer size={15}/> הדפס תעודה</button>
-          <button onClick={onClose} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:"#fff",background:"transparent",border:"1px solid rgba(255,255,255,0.15)",padding:"10px 16px",cursor:"pointer",borderRadius:4}}><X size={15}/> סגור</button>
+    <div className="modal-backdrop" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(20,30,36,0.95)",display:"flex",flexDirection:"column",alignItems:"center",overflowY:"auto",padding:"30px 16px"}}>
+      <div className="no-print" style={{width:"100%",maxWidth:720,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <span style={{fontFamily:C.heb,fontSize:14,color:"rgba(225,215,195,0.6)",fontWeight:600}}>תצוגת הצעת מחיר / הורדה לשליחה</span>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <button onClick={handleShare} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:"#fff",background:"rgba(255,255,255,0.1)",border:"none",padding:"10px 16px",cursor:"pointer",borderRadius:4}}><Share2 size={16}/> שתף</button>
+          <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:C.ch,background:C.gd,border:"none",padding:"10px 20px",cursor:"pointer",borderRadius:4,fontWeight:600}}><Download size={16}/> הורד כ-PDF / הדפס</button>
+          <button onClick={onClose} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:"#fff",background:"transparent",border:"1px solid rgba(255,255,255,0.2)",padding:"10px 16px",cursor:"pointer",borderRadius:4}}><X size={16}/> סגור</button>
         </div>
       </div>
-      <div className="printable-container" style={{boxShadow:"0 32px 64px rgba(0,0,0,0.5)",width:"100%",maxWidth:720}}><QuoteCert cfg={cfg} res={res} pieceImg={pieceImg}/></div>
+      <div className="printable-container-wrapper" style={{boxShadow:"0 32px 64px rgba(0,0,0,0.6)",width:"100%",maxWidth:720}}><QuoteCert cfg={cfg} res={res} pieceImg={pieceImg}/></div>
     </div>
   );
 }
@@ -475,27 +481,35 @@ function StoneCertModal({stone,onClose}){
       variety:stone.type,species:SPECIES[stone.type]||"",measurements:stone.measurements||"—",treatment:stone.treatment||"None Detected",
       rptNum:`LC-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}-${stone.sku}`};
   },[stone]);
+
+  async function handleShare() {
+    if(navigator.share) {
+      try { await navigator.share({ title: 'LESHEM.S Stone Certificate', text: `Gemological Report for ${data.sku}` }); }
+      catch(err) { console.log("Share failed", err); }
+    } else { alert("אפשרות השיתוף אינה נתמכת בדפדפן זה. ניתן להוריד כ-PDF."); }
+  }
+
   return(
-    <div className="modal-backdrop" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(20,30,36,0.94)",display:"flex",flexDirection:"column",alignItems:"center",overflowY:"auto",padding:"30px 16px"}}>
-      <div className="no-print" style={{width:"100%",maxWidth:720,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <span style={{fontFamily:C.heb,fontSize:13,color:"rgba(225,215,195,0.5)"}}>תצוגת תעודת אבן גמולוגית</span>
-        <div style={{display:"flex",gap:10}}>
-          <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:C.ch,background:C.gd,border:"none",padding:"10px 20px",cursor:"pointer",borderRadius:4,fontWeight:600}}><Printer size={15}/> הדפס תעודה</button>
-          <button onClick={onClose} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:"#fff",background:"transparent",border:"1px solid rgba(255,255,255,0.15)",padding:"10px 16px",cursor:"pointer",borderRadius:4}}><X size={15}/> סגור</button>
+    <div className="modal-backdrop" style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(20,30,36,0.95)",display:"flex",flexDirection:"column",alignItems:"center",overflowY:"auto",padding:"30px 16px"}}>
+      <div className="no-print" style={{width:"100%",maxWidth:720,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <span style={{fontFamily:C.heb,fontSize:14,color:"rgba(225,215,195,0.6)",fontWeight:600}}>תעודת אבן סטודיו / הורדה לשליחה</span>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <button onClick={handleShare} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:"#fff",background:"rgba(255,255,255,0.1)",border:"none",padding:"10px 16px",cursor:"pointer",borderRadius:4}}><Share2 size={16}/> שתף</button>
+          <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:C.ch,background:C.gd,border:"none",padding:"10px 20px",cursor:"pointer",borderRadius:4,fontWeight:600}}><Download size={16}/> הורד כ-PDF / הדפס</button>
+          <button onClick={onClose} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,color:"#fff",background:"transparent",border:"1px solid rgba(255,255,255,0.2)",padding:"10px 16px",cursor:"pointer",borderRadius:4}}><X size={16}/> סגור</button>
         </div>
       </div>
-      <div className="printable-container" style={{boxShadow:"0 32px 64px rgba(0,0,0,0.5)",width:"100%",maxWidth:720}}><StoneCert data={data}/></div>
+      <div className="printable-container-wrapper" style={{boxShadow:"0 32px 64px rgba(0,0,0,0.6)",width:"100%",maxWidth:720}}><StoneCert data={data}/></div>
     </div>
   );
 }
 
-/* ═══════════ DATA ENTRY HUB (Perfect Matrix Correlation) ═══════════ */
+/* ═══════════ DATA ENTRY HUB ═══════════ */
 function DataEntryHub({onAddStone,onAddComponent,onAddClientItem}){
   const [sub,setSub]=useState("stone");
   const [saved,setSaved]=useState(null);
   const toast=(t)=>{setSaved(t);setTimeout(()=>setSaved(null),2500);};
 
-  /* Stones Matrix Entity fields matching precisely with Airtable specifications */
   const [sF,setSF]=useState({sku:"",type:"Diamond",shape:"Round",ct:"",color:"",cla:"",cost:"",supplier:"",purchaseDate:"",measurements:"",treatment:"",img:null});
   const sfA=(f,v)=>setSF(p=>({...p,[f]:v}));
   function saveStone(){
@@ -507,7 +521,6 @@ function DataEntryHub({onAddStone,onAddComponent,onAddClientItem}){
     toast("stone");
   }
 
-  /* Components Matrix Entity fields */
   const [cF,setCF]=useState({name:"",material:"18K Yellow",type:"Chain",cost:"",supplier:"",stockQty:"",img:null});
   const sfB=(f,v)=>setCF(p=>({...p,[f]:v}));
   function saveComp(){
@@ -517,7 +530,6 @@ function DataEntryHub({onAddStone,onAddComponent,onAddClientItem}){
     toast("comp");
   }
 
-  /* Client Intake Entity fields */
   const [iF,setIF]=useState({client:"",desc:"",value:"",img:null});
   const sfC=(f,v)=>setIF(p=>({...p,[f]:v}));
   function saveIntake(){
@@ -530,33 +542,33 @@ function DataEntryHub({onAddStone,onAddComponent,onAddClientItem}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"16px 26px 0",background:C.iv,borderBottom:`0.5px solid ${C.bl}`}}>
-        <div style={{display:"flex",gap:0}}>
-          <button onClick={()=>setSub("stone")} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,padding:"12px 20px",cursor:"pointer",color:sub==="stone"?C.ch:C.chl,background:sub==="stone"?C.iv:C.iv2,border:`0.5px solid ${sub==="stone"?C.blm:C.bl}`,borderBottom:sub==="stone"?"none":`0.5px solid ${C.bl}`}}><Gem size={15}/>אבנים חרשות</button>
-          <button onClick={()=>setSub("comp")} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,padding:"12px 20px",cursor:"pointer",color:sub==="comp"?C.ch:C.chl,background:sub==="comp"?C.iv:C.iv2,border:`0.5px solid ${sub==="comp"?C.blm:C.bl}`,borderBottom:sub==="comp"?"none":`0.5px solid ${C.bl}`}}><Package size={15}/>חלקי תכשיטים ורכיבים</button>
-          <button onClick={()=>setSub("intake")} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,padding:"12px 20px",cursor:"pointer",color:sub==="intake"?C.ch:C.chl,background:sub==="intake"?C.iv:C.iv2,border:`0.5px solid ${sub==="intake"?C.blm:C.bl}`,borderBottom:sub==="intake"?"none":`0.5px solid ${C.bl}`}}><ClipboardList size={15}/>קליטת פריטי לקוח</button>
+        <div style={{display:"flex",gap:0,overflowX:"auto"}} className="no-scrollbar">
+          <button onClick={()=>setSub("stone")} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,padding:"12px 20px",cursor:"pointer",color:sub==="stone"?C.ch:C.chl,background:sub==="stone"?C.iv:C.iv2,border:`0.5px solid ${sub==="stone"?C.blm:C.bl}`,borderBottom:sub==="stone"?"none":`0.5px solid ${C.bl}`,whiteSpace:"nowrap"}}><Gem size={15}/>אבנים חרשות</button>
+          <button onClick={()=>setSub("comp")} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,padding:"12px 20px",cursor:"pointer",color:sub==="comp"?C.ch:C.chl,background:sub==="comp"?C.iv:C.iv2,border:`0.5px solid ${sub==="comp"?C.blm:C.bl}`,borderBottom:sub==="comp"?"none":`0.5px solid ${C.bl}`,whiteSpace:"nowrap"}}><Package size={15}/>רכיבים ושרשראות</button>
+          <button onClick={()=>setSub("intake")} style={{display:"flex",alignItems:"center",gap:8,fontFamily:C.heb,fontSize:14,padding:"12px 20px",cursor:"pointer",color:sub==="intake"?C.ch:C.chl,background:sub==="intake"?C.iv:C.iv2,border:`0.5px solid ${sub==="intake"?C.blm:C.bl}`,borderBottom:sub==="intake"?"none":`0.5px solid ${C.bl}`,whiteSpace:"nowrap"}}><ClipboardList size={15}/>קליטת פריטי לקוח</button>
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"24px 26px 40px"}}>
         {saved&&(
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 18px",border:`1px solid rgba(90,160,100,0.4)`,background:"rgba(90,160,100,0.08)",marginBottom:20,borderRadius:4}}>
-            <Check size={16} color="#4a8e56"/><span style={{fontFamily:C.heb,fontSize:14,color:"#4a8e56"}}>{saved==="stone"?"אבן נוספה בהצלחה לשדות המטריצה למלאי":saved==="comp"?"רכיב נשמר במערכת המלאי":"פריט לקוח נקלט בהצלחה במערכת"}</span>
+            <Check size={16} color="#4a8e56"/><span style={{fontFamily:C.heb,fontSize:14,color:"#4a8e56"}}>{saved==="stone"?"אבן נוספה בהצלחה למלאי":saved==="comp"?"רכיב נשמר במערכת":"פריט לקוח נקלט בהצלחה"}</span>
           </div>
         )}
 
         {sub==="stone"&&(
           <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:650}}>
-            <div style={{fontFamily:C.heb,fontSize:16,fontWeight:600,color:C.ch}}>הזנת אבני חן ויהלומים (טבלת Stones)</div>
+            <div style={{fontFamily:C.heb,fontSize:16,fontWeight:600,color:C.ch}}>הזנת אבני חן ויהלומים</div>
             <div style={{display:"flex",gap:14}} className="mobile-col">
               <Inp label="מק״ט אבן (SKU) *" half placeholder="DIA-RND-101" value={sF.sku} onChange={e=>sfA("sku",e.target.value)}/>
               <Sel label="קטגוריית אבן *" half opts={STYPES} value={sF.type} onChange={e=>sfA("type",e.target.value)}/>
             </div>
             <div style={{display:"flex",gap:14}} className="mobile-col">
-              <Inp label="צורת אבן (Shape)" half placeholder="Round, Oval, Cushion..." value={sF.shape} onChange={e=>sfA("shape",e.target.value)}/>
-              <Inp label="משקל קרט (Carat Weight) *" half type="number" min="0.01" step="0.01" placeholder="0.00" value={sF.ct} onChange={e=>sfA("ct",e.target.value)}/>
+              <Inp label="צורת אבן (Shape)" half placeholder="Round, Oval..." value={sF.shape} onChange={e=>sfA("shape",e.target.value)}/>
+              <Inp label="משקל קרט (Carat) *" half type="number" min="0.01" step="0.01" placeholder="0.00" value={sF.ct} onChange={e=>sfA("ct",e.target.value)}/>
             </div>
             <div style={{display:"flex",gap:14}} className="mobile-col">
-              <Inp label="דירוג צבע (Color)" half placeholder="D, F, G, Royal Blue..." value={sF.color} onChange={e=>sfA("color",e.target.value)}/>
-              <Inp label="דירוג ניקיון (Clarity)" half placeholder="VVS1, VS2, SI1..." value={sF.cla} onChange={e=>sfA("cla",e.target.value)}/>
+              <Inp label="דירוג צבע (Color)" half placeholder="D, F, Royal Blue..." value={sF.color} onChange={e=>sfA("color",e.target.value)}/>
+              <Inp label="דירוג ניקיון (Clarity)" half placeholder="VVS1, VS2..." value={sF.cla} onChange={e=>sfA("cla",e.target.value)}/>
             </div>
             <div style={{display:"flex",gap:14}} className="mobile-col">
               <Inp label="מידות מ״מ (Measurements)" half placeholder="8.1 x 8.1 x 5.0" value={sF.measurements} onChange={e=>sfA("measurements",e.target.value)}/>
@@ -568,15 +580,15 @@ function DataEntryHub({onAddStone,onAddComponent,onAddClientItem}){
               <Inp label="תאריך רכישה" half type="date" value={sF.purchaseDate} onChange={e=>sfA("purchaseDate",e.target.value)}/>
             </div>
             <Inp label="עלות רכישה נטו בדולר ($) *" type="number" placeholder="0.00" value={sF.cost} onChange={e=>sfA("cost",e.target.value)}/>
-            <ImgDrop img={sF.img} onImg={v=>sfA("img",v)} h={120} label="העלה צילום/פקס גמולוגי לאבן"/>
-            <button onClick={saveStone} style={{fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`0.5px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4}}>שמור אבן חדשה במערכת</button>
+            <ImgDrop img={sF.img} onImg={v=>sfA("img",v)} h={120} label="העלה צילום למאגר"/>
+            <button onClick={saveStone} style={{fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`0.5px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4,marginTop:10}}>שמור אבן במערכת</button>
           </div>
         )}
 
         {sub==="comp"&&(
           <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:650}}>
-            <div style={{fontFamily:C.heb,fontSize:16,fontWeight:600,color:C.ch}}>הזנת רכיבים ושרשראות (טבלת Components)</div>
-            <Inp label="שם רכיב / פריט מלאי *" placeholder="שרשרת אנקר 45 ס״מ, סוגר קפיצי..." value={cF.name} onChange={e=>sfB("name",e.target.value)}/>
+            <div style={{fontFamily:C.heb,fontSize:16,fontWeight:600,color:C.ch}}>הזנת רכיבים ושרשראות</div>
+            <Inp label="שם רכיב / פריט מלאי *" placeholder="שרשרת אנקר 45 ס״מ..." value={cF.name} onChange={e=>sfB("name",e.target.value)}/>
             <div style={{display:"flex",gap:14}} className="mobile-col">
               <Sel label="מתכת המשויכת לחלק" half opts={METALS} value={cF.material} onChange={e=>sfB("material",e.target.value)}/>
               <Sel label="סוג רכיב" half opts={["Chain","נעילה","Setting","Finding","Other"]} value={cF.type} onChange={e=>sfB("type",e.target.value)}/>
@@ -588,21 +600,21 @@ function DataEntryHub({onAddStone,onAddComponent,onAddClientItem}){
             </div>
             <Inp label="מחיר עלות פריט קבוע ($) *" type="number" placeholder="0.00" value={cF.cost} onChange={e=>sfB("cost",e.target.value)}/>
             <ImgDrop img={cF.img} onImg={v=>sfB("img",v)} h={120}/>
-            <button onClick={saveComp} style={{fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`0.5px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4}}>שמור רכיב במאגר המערכת</button>
+            <button onClick={saveComp} style={{fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`0.5px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4,marginTop:10}}>שמור רכיב במאגר</button>
           </div>
         )}
 
         {sub==="intake"&&(
           <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:650}}>
-            <div style={{fontFamily:C.heb,fontSize:16,fontWeight:600,color:C.ch}}>קליטת תכשיטי לקוח לסטודיו (Intake Log)</div>
+            <div style={{fontFamily:C.heb,fontSize:16,fontWeight:600,color:C.ch}}>קליטת תכשיטי לקוח לסטודיו</div>
             <Inp label="שם הלקוח המלא *" placeholder="ישראל ישראלי" value={iF.client} onChange={e=>sfC("client",e.target.value)}/>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               <EB>תיאור מצב הפריט ומפרט מוערך</EB>
-              <textarea style={{fontFamily:C.heb,fontSize:14,color:C.ch,background:C.iv2,border:`0.5px solid ${C.blm}`,padding:"12px",outline:"none",resize:"vertical",lineHeight:1.6,minHeight:90,borderRadius:4}} placeholder="טבעת זהב צהוב, משובצת אבן מרכזית, לבדיקת שיבוץ מחדש..." rows={4} value={iF.desc} onChange={e=>sfC("desc",e.target.value)}/>
+              <textarea style={{fontFamily:C.heb,fontSize:14,color:C.ch,background:C.iv2,border:`0.5px solid ${C.blm}`,padding:"12px",outline:"none",resize:"vertical",lineHeight:1.6,minHeight:90,borderRadius:4}} placeholder="טבעת זהב צהוב, משובצת אבן מרכזית..." rows={4} value={iF.desc} onChange={e=>sfC("desc",e.target.value)}/>
             </div>
             <Inp label="שווי פריט מוערך לביטוח הסטודיו ($)" type="number" placeholder="0.00" value={iF.value} onChange={e=>sfC("value",e.target.value)}/>
             <ImgDrop img={iF.img} onImg={v=>sfC("img",v)} h={120} label="צילום מאקרו של פריט הלקוח בעת הקבלה"/>
-            <button onClick={saveIntake} style={{fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`0.5px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4}}>בצע קליטת פריט לסטודיו</button>
+            <button onClick={saveIntake} style={{fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`0.5px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4,marginTop:10}}>בצע קליטת פריט לסטודיו</button>
           </div>
         )}
       </div>
@@ -624,7 +636,7 @@ function ManualCertTab(){
     <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"16px 26px 14px",borderBottom:`0.5px solid ${C.bl}`,background:C.iv}}>
         <div style={{fontFamily:C.heb,fontSize:18,fontWeight:600,color:C.ch,marginBottom:14}}>הפקת תעודה ידנית מהירה</div>
-        <div style={{display:"flex",border:`1px solid ${C.blm}`,width:340,maxWidth:"100%"}}>
+        <div style={{display:"flex",border:`1px solid ${C.blm}`,width:340,maxWidth:"100%",borderRadius:4,overflow:"hidden"}}>
           {[["quote","הצעת מחיר מהירה"],["stone","תעודת אבן עצמאית"]].map(([m,l])=>(
             <button key={m} onClick={()=>setMode(m)} style={{flex:1,fontFamily:C.heb,fontSize:14,cursor:"pointer",color:mode===m?C.iv:C.chl,background:mode===m?C.ch:"transparent",border:"none",padding:"10px 0"}}>{l}</button>
           ))}
@@ -655,7 +667,7 @@ function ManualCertTab(){
               <EB>הערות גמולוגיות / מיוחדות לתעודה</EB>
               <textarea style={{fontFamily:C.heb,fontSize:14,color:C.ch,background:C.iv2,border:`0.5px solid ${C.blm}`,padding:"10px 12px",outline:"none",resize:"vertical",lineHeight:1.6,minHeight:70,borderRadius:4}} rows={4} value={qd.notes} onChange={e=>sfQ("notes",e.target.value)}/>
             </div>
-            <button onClick={()=>setModal(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`1px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4,marginTop:10}}><Eye size={18}/> תצוגה מקדימה ובדיקת שטח מת</button>
+            <button onClick={()=>setModal(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:C.heb,fontSize:14,fontWeight:600,color:C.ch,background:"rgba(197,179,88,0.15)",border:`1px solid rgba(197,179,88,0.5)`,padding:"14px",cursor:"pointer",borderRadius:4,marginTop:10}}><Eye size={18}/> צפה בתעודה / הדפס / שתף</button>
           </div>
         )}
         {mode==="stone"&&(
@@ -1029,8 +1041,8 @@ function QuoteBuilder({stones,components,externalStone,onActiveStoneChange,onExp
         </div>}
 
         <button onClick={()=>res&&onExport(cfg,res,pieceImg)} disabled={!res}
-          style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:C.heb,fontSize:16,fontWeight:600,color:res?C.ch:C.chl,background:res?"rgba(197,179,88,0.14)":C.iv2,border:`1px solid ${res?"rgba(197,179,88,0.48)":C.bl}`,padding:"16px 0",cursor:res?"pointer":"not-allowed",marginBottom:16,borderRadius:4}}>
-          <FileText size={18}/>{res?"הפק תעודת יוקרה (PDF)":"הגדר פרטי מתכת כדי להפיק תעודה"}</button>
+          style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:C.heb,fontSize:16,fontWeight:600,color:res?C.ch:C.iv,background:res?C.gd:C.chx,border:`1px solid ${res?C.gdm:C.bl}`,padding:"16px 0",cursor:res?"pointer":"not-allowed",marginBottom:16,borderRadius:4,boxShadow:res?"0 4px 12px rgba(197,179,88,0.2)":"none"}}>
+          <FileText size={18}/>{res?"הפק תעודת יוקרה (PDF / שיתוף)":"הגדר פרטי מתכת כדי להפיק תעודה"}</button>
       </div>
     </div>
   );
@@ -1089,7 +1101,7 @@ export default function App(){
   const pickFromBrowser=useCallback(stone=>{setPS(stone);setPId(stone.id);setTab("builder");},[]);
   const onActiveChange=useCallback(s=>{setAS(s);if(!s)setPId(null);},[]);
 
-  const TITLES={builder:"מחשבון עלויות וייצור",stones:"מאגר ומטריצת אבנים",data:"הזנת ישירה למאגר",manual:"הפקת תעודה ידנית"};
+  const TITLES={builder:"מחשבון עלויות וייצור",stones:"מאגר ומטריצת אבנים",data:"הזנה ישירה למאגר",manual:"הפקת תעודה ידנית"};
 
   return (
     <div dir="rtl" style={{display:"flex",height:"100vh",background:C.iv,overflow:"hidden",fontFamily:C.heb}} className="app-container">
@@ -1099,59 +1111,40 @@ export default function App(){
         html { font-size: 16px; -webkit-text-size-adjust: 100%; }
         body { font-family: 'Assistant', sans-serif; background: #FAF9F6; line-height: 1.5; color: #36454F; }
 
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* THE CRITICAL MOBILE SCROLLING FIX */
         @media (max-width: 768px) {
           html { font-size: 14px; }
-          .app-container { flex-direction: column !important; }
+          .app-container { flex-direction: column !important; overflow-y: auto !important; height: auto !important; min-height: 100vh; display: block !important; }
           aside { width: 100% !important; min-width: 100% !important; flex-direction: row !important; align-items: center; justify-content: space-between; border-left: none !important; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px !important; }
           aside nav { display: none; }
+          
           .mobile-col { flex-direction: column !important; }
-          .mobile-grid { grid-template-columns: 1fr !important; overflow-y: auto !important; height: auto !important; }
+          
+          /* Converts side-by-side builder to one long scrollable page */
+          .mobile-grid { 
+            display: flex !important; 
+            flex-direction: column !important; 
+            overflow: visible !important; 
+            height: auto !important; 
+          }
+          .mobile-grid > div { 
+            overflow: visible !important; 
+            height: auto !important; 
+            border: none !important; 
+            padding: 16px !important; 
+          }
         }
 
-        /* HARD FIX PRINT LOGIC - REMOVING BLANK SCREEN CONSTRAINTS */
+        /* HARD FIX PRINT LOGIC */
         @media print {
-          html, body {
-            height: auto !important;
-            overflow: visible !important;
-            background: #ffffff !important;
-          }
-          .no-print, .no-print *, .modal-backdrop * {
-            display: none !important;
-          }
-          .modal-backdrop, .app-container, div, main {
-            display: block !important;
-            position: static !important;
-            overflow: visible !important;
-            height: auto !important;
-            max-height: none !important;
-            width: 100% !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          .printable-container {
-            display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 210mm !important; /* Forces standard A4 exact sizing */
-            height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-          }
-          #cert-root, #stone-cert-root {
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: space-between !important;
-            box-sizing: border-box !important;
-            width: 210mm !important;
-            min-height: 295mm !important;
-            padding: 50px !important;
-            background: #FAF9F6 !important;
-            page-break-after: always !important;
-          }
+          html, body { height: auto !important; overflow: visible !important; background: #ffffff !important; margin: 0; padding: 0; }
+          .no-print, .no-print *, .modal-backdrop > div:first-child { display: none !important; }
+          .modal-backdrop, .app-container, div, main { display: block !important; position: static !important; overflow: visible !important; height: auto !important; max-height: none !important; width: 100% !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
+          .printable-container-wrapper { display: block !important; position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+          #cert-root, #stone-cert-root { display: flex !important; flex-direction: column !important; justify-content: space-between !important; box-sizing: border-box !important; width: 210mm !important; min-height: 295mm !important; padding: 50px !important; background: #FAF9F6 !important; margin: 0 auto !important; page-break-after: always !important; }
         }
       `}</style>
 
@@ -1172,14 +1165,17 @@ export default function App(){
             <button onClick={()=>{setRK(k=>k+1);setAS(null);setPS(null);setPId(null);}} style={{display:"flex",alignItems:"center",gap:6,fontFamily:C.heb,fontSize:14,color:C.chl,background:"transparent",border:`1px solid ${C.bl}`,padding:"10px 16px",cursor:"pointer",borderRadius:4}}><RotateCcw size={14}/> אתחל לוח</button>
           </div>
         </div>
-        <div style={{flex:1,overflow:"hidden"}}>
+        
+        {/* Main Content Area */}
+        <div style={{flex:1,overflowY:"auto"}} className="main-content-area">
           {tab==="builder"&&<QuoteBuilder stones={stones} components={components} externalStone={pickedStone} onActiveStoneChange={onActiveChange} onExport={(cfg,res,img)=>setModal({cfg,res,img})} resetKey={resetKey}/>}
           {tab==="stones"&&<InventoryBrowser stones={stones} quoteStone={activeStone} onPickStone={pickFromBrowser} pickedId={pickedId}/>}
           {tab==="data"&&<DataEntryHub onAddStone={addStone} onAddComponent={addComponent} onAddClientItem={addClientItem}/>}
           {tab==="manual"&&<ManualCertTab/>}
         </div>
       </div>
-      {modal&&<QuoteCertModal cfg={modal.cfg} res={modal.res} pieceImg={modal.img} onClose={()=>setModal(null)}/>}
+      {modal&&modal.res&&<QuoteCertModal cfg={modal.cfg} res={modal.res} pieceImg={modal.img} onClose={()=>setModal(null)}/>}
+      {modal&&modal.stone&&<StoneCertModal stone={modal.stone} onClose={()=>setModal(null)}/>}
     </div>
   );
 }
