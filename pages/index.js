@@ -1,36 +1,37 @@
 /**
- * pages/index.js  —  LESHEM.S OS  (UX v2)
+ * pages/index.js  —  LESHEM.S OS  (Report Engine v1)
  *
- * Shell responsibilities (unchanged from v1):
- *   • App-level state: cfg, currency, tab, pieceImg
- *   • sf field-setter, handleReset, handleImageUpload
- *   • Memoised res (calcApp) and fmtFn (fmt)
- *   • <Head>: fonts + PRINT_CSS
- *   • Header, tab bar, routing
+ * Changes from previous version:
+ *   • The "תעודת שמאות" cert tab now renders <ReportEngine> instead
+ *     of the old CertificateEditor + JewelryValuationCertificate.
+ *   • calculatorData memo assembled and passed to ReportEngine.
+ *   • onBack prop wired to setTab("calc").
+ *   • Print button is now inside ReportEngine's toolbar — removed from
+ *     this file's cert tab section.
  *
- * UX v2 visual changes:
- *   • Ivory page background with a subtle top-of-page gold rule
- *   • Header: 56 px, cleaner layout, larger currency toggle buttons
- *   • Tab bar: 48 px height, gold underline on active, clear labels
- *   • Page content: max-width 1 100 px centred, generous padding
- *   • Calculator grid: auto-fit minmax(340 px, 1fr) — 2-col on desktop,
- *     1-col on mobile, no JS/resize listener needed
- *   • Certificate tab: back button 44 px, print button 44 px
- *
- * Zero logic changes.
+ * Unchanged:
+ *   • All calculator state (cfg, currency, tab, pieceImg)
+ *   • All calculator callbacks (sf, res, fmtFn, handleReset, etc.)
+ *   • Header, tab bar, calculator tab layout
+ *   • lib/printCss.js — no changes needed
  */
 
 import { useState, useCallback, useMemo, useRef } from "react";
 import Head from "next/head";
 
-import { DCFG, C }          from "../lib/constants";
-import { calcApp, fmt }     from "../lib/calculations";
-import { PRINT_CSS }        from "../lib/printCss";
-import { CalculatorForm }   from "../components/CalculatorForm";
-import { CostSummary }      from "../components/CostSummary";
-import { Certificate }      from "../components/Certificate";
+// ── Lib
+import { DCFG, C }        from "../lib/constants";
+import { calcApp, fmt }   from "../lib/calculations";
+import { PRINT_CSS }      from "../lib/printCss";
 
-// ─── Global page styles injected once ────────────────────────────────
+// ── Calculator components (unchanged)
+import { CalculatorForm }  from "../components/CalculatorForm";
+import { CostSummary }     from "../components/CostSummary";
+
+// ── Report Engine
+import { ReportEngine }    from "../components/reports/ReportEngine";
+
+// ─── Global page styles ───────────────────────────────────────────────
 const PAGE_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; }
@@ -50,18 +51,18 @@ const PAGE_CSS = `
 // ─────────────────────────────────────────────────────────────────────
 export default function LeshemOS() {
 
-  // ── State ────────────────────────────────────────────────────────────
+  // ── Calculator state ──────────────────────────────────────────────────
   const [cfg,      setCfg]      = useState({ ...DCFG });
   const [currency, setCurrency] = useState("USD");
   const [tab,      setTab]      = useState("calc");
   const [pieceImg, setPieceImg] = useState(null);
 
-  const qNum   = useRef(
+  const qNum    = useRef(
     `LS-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
   );
   const fileRef = useRef(null);
 
-  // ── Callbacks ────────────────────────────────────────────────────────
+  // ── Calculator callbacks ──────────────────────────────────────────────
   const sf = useCallback(
     (field, value) => setCfg((prev) => ({ ...prev, [field]: value })),
     []
@@ -86,6 +87,21 @@ export default function LeshemOS() {
     reader.onload = (ev) => setPieceImg(ev.target.result);
     reader.readAsDataURL(file);
   }, []);
+
+  // ── Calculator data bundle — passed to ReportEngine ──────────────────
+  /**
+   * Memoised so ReportEngine only receives a new reference when
+   * something in the calculator actually changes.
+   * fmtFn is included so report defaults can format the valuation
+   * amount in the user's current currency at the time they open the report.
+   */
+  const calculatorData = useMemo(() => ({
+    cfg,
+    res,
+    fmtFn,
+    pieceImg,
+    qNum: qNum.current,
+  }), [cfg, res, fmtFn, pieceImg]);
 
   // ─────────────────────────────────────────────────────────────────────
   return (
@@ -113,7 +129,7 @@ export default function LeshemOS() {
         }}
       >
 
-        {/* ════════════ HEADER ════════════════════════════════════════ */}
+        {/* ════════ HEADER ════════════════════════════════════════════ */}
         <header
           className="no-print"
           style={{
@@ -124,7 +140,6 @@ export default function LeshemOS() {
             justifyContent: "space-between",
             height:         60,
             flexShrink:     0,
-            // Subtle gold bottom rule
             borderBottom:   `2px solid ${C.gd}`,
           }}
         >
@@ -150,13 +165,12 @@ export default function LeshemOS() {
                 textTransform: "uppercase",
               }}
             >
-              OS v3
+              OS v4
             </span>
           </div>
 
-          {/* Controls: currency + reset */}
+          {/* Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-
             {/* Currency toggle */}
             <div
               style={{
@@ -167,25 +181,20 @@ export default function LeshemOS() {
                 height:       38,
               }}
             >
-              {[
-                ["USD", "$ USD"],
-                ["ILS", "₪ ILS"],
-              ].map(([c, label]) => (
+              {[["USD", "$ USD"], ["ILS", "₪ ILS"]].map(([c, label]) => (
                 <button
                   key={c}
                   onClick={() => setCurrency(c)}
                   style={{
-                    padding:        "0 14px",
-                    height:         "100%",
-                    background:     currency === c ? C.gd : "transparent",
-                    color:          currency === c ? C.ch : C.chx,
-                    border:         "none",
-                    cursor:         "pointer",
-                    fontFamily:     C.heb,
-                    fontSize:       12,
-                    fontWeight:     700,
-                    letterSpacing:  "0.03em",
-                    transition:     "background 0.15s",
+                    padding:    "0 14px",
+                    height:     "100%",
+                    background: currency === c ? C.gd : "transparent",
+                    color:      currency === c ? C.ch : C.chx,
+                    border:     "none",
+                    cursor:     "pointer",
+                    fontFamily: C.heb,
+                    fontSize:   12,
+                    fontWeight: 700,
                   }}
                 >
                   {label}
@@ -196,22 +205,20 @@ export default function LeshemOS() {
             {/* Reset */}
             <button
               onClick={handleReset}
-              aria-label="אפס טופס"
               style={{
-                display:        "flex",
-                alignItems:     "center",
-                gap:            6,
-                height:         38,
-                padding:        "0 14px",
-                background:     "transparent",
-                border:         `1.5px solid ${C.chm}`,
-                borderRadius:   6,
-                color:          C.chx,
-                cursor:         "pointer",
-                fontFamily:     C.heb,
-                fontSize:       12,
-                fontWeight:     600,
-                whiteSpace:     "nowrap",
+                display:      "flex",
+                alignItems:   "center",
+                gap:          6,
+                height:       38,
+                padding:      "0 14px",
+                background:   "transparent",
+                border:       `1.5px solid ${C.chm}`,
+                borderRadius: 6,
+                color:        C.chx,
+                cursor:       "pointer",
+                fontFamily:   C.heb,
+                fontSize:     12,
+                fontWeight:   600,
               }}
             >
               ↺ אפס
@@ -219,7 +226,7 @@ export default function LeshemOS() {
           </div>
         </header>
 
-        {/* ════════════ TAB BAR ════════════════════════════════════════ */}
+        {/* ════════ TAB BAR ════════════════════════════════════════════ */}
         <nav
           className="no-print"
           style={{
@@ -231,29 +238,26 @@ export default function LeshemOS() {
         >
           {[
             ["calc", "🔢", "מחשבון"],
-            ["cert", "📄", "תעודה"],
+            ["cert", "📋", "דוחות"],
           ].map(([t, icon, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               style={{
-                display:        "flex",
-                alignItems:     "center",
-                gap:            8,
-                padding:        "0 24px",
-                height:         48,
-                background:     "transparent",
-                border:         "none",
-                borderBottom:   tab === t
-                  ? `3px solid ${C.gd}`
-                  : "3px solid transparent",
-                color:          tab === t ? C.iv : C.chx,
-                fontFamily:     C.heb,
-                fontSize:       13,
-                fontWeight:     tab === t ? 700 : 400,
-                cursor:         "pointer",
-                letterSpacing:  "0.02em",
-                transition:     "color 0.15s",
+                display:       "flex",
+                alignItems:    "center",
+                gap:           8,
+                padding:       "0 24px",
+                height:        48,
+                background:    "transparent",
+                border:        "none",
+                borderBottom:  tab === t ? `3px solid ${C.gd}` : "3px solid transparent",
+                color:         tab === t ? C.iv : C.chx,
+                fontFamily:    C.heb,
+                fontSize:      13,
+                fontWeight:    tab === t ? 700 : 400,
+                cursor:        "pointer",
+                letterSpacing: "0.02em",
               }}
             >
               <span style={{ fontSize: 16 }}>{icon}</span>
@@ -262,7 +266,7 @@ export default function LeshemOS() {
           ))}
         </nav>
 
-        {/* ════════════ MAIN CONTENT ════════════════════════════════════ */}
+        {/* ════════ MAIN CONTENT ════════════════════════════════════════ */}
         <main
           style={{
             flex:      1,
@@ -270,34 +274,19 @@ export default function LeshemOS() {
             padding:   "24px 16px 48px",
           }}
         >
-          {/* Inner width constraint — centred */}
-          <div
-            style={{
-              maxWidth: 1100,
-              margin:   "0 auto",
-            }}
-          >
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-            {/* ── CALCULATOR TAB ─────────────────────────────────────── */}
+            {/* ── CALCULATOR TAB ──────────────────────────────────────── */}
             {tab === "calc" && (
               <div
                 style={{
                   display:             "grid",
-                  // 2-col on desktop (≥700 px available), 1-col on mobile
                   gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
                   gap:                 20,
                   alignItems:          "start",
                 }}
               >
-                {/* Left — form inputs */}
-                <CalculatorForm
-                  cfg={cfg}
-                  res={res}
-                  sf={sf}
-                  fmtFn={fmtFn}
-                />
-
-                {/* Right — cost summary + client + action */}
+                <CalculatorForm cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} />
                 <CostSummary
                   cfg={cfg}
                   res={res}
@@ -311,78 +300,26 @@ export default function LeshemOS() {
               </div>
             )}
 
-            {/* ── CERTIFICATE TAB ────────────────────────────────────── */}
+            {/* ── REPORTS TAB ─────────────────────────────────────────── */}
+            {/*
+              ReportEngine manages all its own internal routing
+              (type selector → editor + preview).
+              The cert/reports tab just mounts/unmounts it.
+
+              PRINT STRUCTURE:
+              ReportEngine renders its editor column with className="no-print"
+              and its preview column WITHOUT no-print. The preview column's
+              .printable-container is the @media print target.
+              See ReportEngine.jsx for full print architecture comments.
+            */}
             {tab === "cert" && (
-              <div>
-                {/* Toolbar */}
-                <div
-                  className="no-print"
-                  style={{
-                    display:        "flex",
-                    justifyContent: "space-between",
-                    alignItems:     "center",
-                    marginBottom:   20,
-                    gap:            12,
-                    flexWrap:       "wrap",
-                  }}
-                >
-                  <button
-                    onClick={() => setTab("calc")}
-                    style={{
-                      height:       44,
-                      padding:      "0 20px",
-                      background:   "transparent",
-                      border:       "1px solid rgba(54,69,79,0.25)",
-                      borderRadius: 6,
-                      cursor:       "pointer",
-                      fontFamily:   C.heb,
-                      fontSize:     13,
-                      fontWeight:   600,
-                      color:        C.chm,
-                      display:      "flex",
-                      alignItems:   "center",
-                      gap:          8,
-                    }}
-                  >
-                    ← חזור למחשבון
-                  </button>
-
-                  <button
-                    onClick={() => window.print()}
-                    style={{
-                      height:         44,
-                      padding:        "0 24px",
-                      background:     C.ch,
-                      color:          C.iv,
-                      border:         "none",
-                      borderRadius:   6,
-                      cursor:         "pointer",
-                      fontFamily:     C.heb,
-                      fontSize:       14,
-                      fontWeight:     600,
-                      display:        "flex",
-                      alignItems:     "center",
-                      gap:            8,
-                    }}
-                  >
-                    <span style={{ fontSize: 18 }}>🖨️</span>
-                    הדפס / שמור כ-PDF
-                  </button>
-                </div>
-
-                {/* A4 Certificate — className="printable-container" is the print anchor */}
-                <Certificate
-                  cfg={cfg}
-                  res={res}
-                  pieceImg={pieceImg}
-                  fmtFn={fmtFn}
-                  qNum={qNum.current}
-                  currency={currency}
-                />
-              </div>
+              <ReportEngine
+                calculatorData={calculatorData}
+                onBack={() => setTab("calc")}
+              />
             )}
 
-          </div>{/* /max-width container */}
+          </div>
         </main>
       </div>
     </>
