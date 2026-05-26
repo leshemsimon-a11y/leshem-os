@@ -1,22 +1,39 @@
 /**
- * components/reports/ReportEditor.jsx  —  v1.1
+ * components/reports/ReportEditor.jsx  —  v4.2
  *
- * Changes in v1.1:
- *   + Drp component  — select with "Other / custom…" fallback text input
- *   + Replace Image / Remove Image buttons in both image sections
- *   + Dropdowns for: centerStone.type, .certLab, .origin, .cut, .setting;
- *                    valuation.basis, valuation.currency
- *   + Stone report dropdowns: stone.type, .naturalOrLab, .shape,
- *                             .cut, .polish, .symmetry, .certLab
- *   + Verification fields section for both report types
- *   ~ useState added to React imports for Drp local state
- *   ~ hasValue imported from reportUtils for Drp logic
+ * Changes in v4.2:
+ *   + Taxonomy dropdowns from lib/gemology/taxonomy.js
+ *   + ImageSection supports multiple images: add, remove per index, thumbnails
+ *   + Stone editor sections branch on productType:
+ *       natural_diamond     → diamond grading fields
+ *       lab_grown_diamond   → diamond grading + growth method
+ *       fancy_color_diamond → fancy color fields
+ *       colored_gemstone    → gemstone species/variety/treatment/transparency
+ *   + ProductType switcher in stone editor
+ *   ~ Drp component unchanged
+ *   ~ Verification and Credentials sections unchanged
  */
 
 import { useState, useRef, useCallback } from "react";
 import { C }        from "../../lib/constants";
 import { Pnl, LR, GR, StableInp } from "../UI";
 import { hasValue } from "../../lib/reports/reportUtils";
+import {
+  diamondColorGrades,
+  diamondClarityGrades,
+  diamondCutGrades,
+  polishSymmetryGrades,
+  fluorescenceGrades,
+  fancyColorHues,
+  fancyColorIntensities,
+  gemstoneSpecies,
+  gemstoneTransparency,
+  gemstoneTreatments,
+  certificateLabs,
+  stoneShapes,
+  labGrowthMethods,
+  PRODUCT_TYPE_LABELS,
+} from "../../lib/gemology/taxonomy";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const TA = {
@@ -53,20 +70,6 @@ const SEL = {
 const FIELD_GAP = 14;
 
 // ─── Drp — dropdown with manual override ─────────────────────────────────────
-/**
- * A styled <select> with a free-text fallback for custom values.
- *
- * UX:
- *   - If value is in options → select shows that option, no text input
- *   - If value is not in options and not empty → select shows "Other / custom…",
- *     text input visible below showing the current custom value
- *   - User selects "Other / custom…" → text input appears to type freely
- *   - User selects a standard option → text input hides
- *
- * This satisfies both requirements:
- *   ✓ Dropdowns for quick selection of common values
- *   ✓ Manual override/editing for every field
- */
 const OTHER = "__other__";
 
 function Drp({ value, onChange, options, placeholder }) {
@@ -110,35 +113,23 @@ function Drp({ value, onChange, options, placeholder }) {
   );
 }
 
-// ─── Dropdown option lists ────────────────────────────────────────────────────
-const OPT_STONE_TYPE   = ["Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Alexandrite", "Tanzanite", "Spinel", "Aquamarine", "Opal"];
-const OPT_ORIGIN       = ["Natural", "Lab-Grown", "Treated", "Unknown"];
-const OPT_CERT_LAB     = ["GIA", "IGI", "AGS", "HRD", "LESHEM.S", "EGL", "None"];
-const OPT_CUT_GRADE    = ["Excellent", "Very Good", "Good", "Fair", "Poor"];
-const OPT_SETTING      = ["Prong / Claw", "Bezel", "Pavé", "Channel", "Flush / Burnish", "Tension", "Invisible", "Bar"];
-const OPT_VALUATION_BASIS = [
-  "Retail Replacement Value",
-  "Insurance Value",
-  "Fair Market Value",
-  "Liquidation Value",
-];
-const OPT_CURRENCY     = ["USD", "ILS", "EUR", "GBP"];
-const OPT_NATURAL_LAB  = ["Natural", "Lab-Grown"];
-const OPT_SHAPE        = [
-  "Round Brilliant",
-  "Princess",
-  "Oval",
-  "Pear",
-  "Cushion",
-  "Marquise",
-  "Heart",
-  "Emerald Cut",
-  "Radiant",
-  "Asscher",
-  "Old European",
+// ─── Dropdown option lists (non-taxonomy) ─────────────────────────────────────
+const OPT_STONE_TYPE      = ["Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Alexandrite", "Tanzanite", "Spinel", "Aquamarine", "Opal"];
+const OPT_ORIGIN          = ["Natural", "Lab-Grown", "Treated", "Unknown"];
+const OPT_SETTING         = ["Prong / Claw", "Bezel", "Pavé", "Channel", "Flush / Burnish", "Tension", "Invisible", "Bar"];
+const OPT_VALUATION_BASIS = ["Retail Replacement Value", "Insurance Value", "Fair Market Value", "Liquidation Value"];
+const OPT_CURRENCY        = ["USD", "ILS", "EUR", "GBP"];
+const OPT_NATURAL_LAB     = ["Natural", "Lab-Grown"];
+
+// ─── Stone product-type options ───────────────────────────────────────────────
+const STONE_PRODUCT_TYPES = [
+  "natural_diamond",
+  "lab_grown_diamond",
+  "fancy_color_diamond",
+  "colored_gemstone",
 ];
 
-// ─── Shared atom helpers ──────────────────────────────────────────────────────
+// ─── Atom helpers ─────────────────────────────────────────────────────────────
 function inp(value, onChange, placeholder) {
   return (
     <StableInp
@@ -161,7 +152,7 @@ function ta(value, onChange, placeholder, rows = 2) {
   );
 }
 
-// ─── Shared editor sections ───────────────────────────────────────────────────
+// ─── Shared sections ──────────────────────────────────────────────────────────
 function ReportInfoSection({ data, setField }) {
   return (
     <Pnl title="Report Info">
@@ -185,7 +176,7 @@ function CredentialsSection({ data, setField }) {
           {inp(data.credentials?.signatoryName, (v) => setField("credentials.signatoryName", v), "Leshem Simon")}
         </LR>
         <LR label="Title / Credentials">
-          {inp(data.credentials?.title, (v) => setField("credentials.title", v), "Founder · Certified Diamond Grader & Expert Jeweler")}
+          {inp(data.credentials?.title, (v) => setField("credentials.title", v), "Founder · Certified Diamond Grader")}
         </LR>
         <LR label="Contact Line">
           {inp(data.credentials?.companyLine, (v) => setField("credentials.companyLine", v), "LESHEM.S Jewelry · Tuval St 23, Ramat Gan")}
@@ -196,162 +187,224 @@ function CredentialsSection({ data, setField }) {
 }
 
 /**
- * Verification fields.
- * Data model support only — no backend in v1.1.
- *
- * SECURITY NOTE (future):
- *   verificationId must be an unguessable token (UUID/CSPRNG).
- *   verificationUrl must serve only public-approved report data.
- *   Access must be revocable without regenerating the report.
- *   Do NOT expose internal cost data, supplier info, or margins.
+ * Verification fields — data model support only.
+ * Security note: future verificationId must be unguessable token.
+ * verificationUrl must serve only public-approved report data, revocable access.
  */
-function VerificationSection({ data, setField, pathPrefix = "verification" }) {
+function VerificationSection({ data, setField }) {
   return (
     <Pnl title="Verification (Optional)">
       <div
         style={{
-          fontFamily:   C.heb,
-          fontSize:     11,
-          color:        C.chl,
-          marginBottom: 10,
-          lineHeight:   1.5,
-          fontStyle:    "italic",
+          fontFamily: C.heb, fontSize: 11, color: C.chl,
+          marginBottom: 10, lineHeight: 1.5, fontStyle: "italic",
         }}
       >
-        These fields are reserved for future online verification.
-        Leave blank for now — the Verification block only appears when filled.
+        Reserved for future online verification. Leave blank — the block only
+        appears in the report when filled.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
         <LR label="Verification ID">
-          {inp(
-            data.verification?.verificationId,
-            (v) => setField(`${pathPrefix}.verificationId`, v),
-            "Unguessable token — not yet implemented"
-          )}
+          {inp(data.verification?.verificationId, (v) => setField("verification.verificationId", v), "Future unguessable token")}
         </LR>
         <LR label="Verification URL">
-          {inp(
-            data.verification?.verificationUrl,
-            (v) => setField(`${pathPrefix}.verificationUrl`, v),
-            "https://leshem.studio/verify/…"
-          )}
+          {inp(data.verification?.verificationUrl, (v) => setField("verification.verificationUrl", v), "https://leshem.studio/verify/…")}
         </LR>
       </div>
     </Pnl>
   );
 }
 
-// ─── ImageSection — used by both report types ─────────────────────────────────
-function ImageSection({ data, setField, fileInputRef, handleImageUpload, label }) {
-  const hasImg = Array.isArray(data.images) && data.images.length > 0;
+// ─── MultiImageSection ────────────────────────────────────────────────────────
+/**
+ * Handles multiple images.
+ * - Upload button adds to images array
+ * - Each thumbnail has a ✕ Remove button
+ * - File input resets after each upload so same file can be re-added
+ *
+ * @param {object}   data         reportData
+ * @param {function} setField     setField from ReportEngine
+ * @param {string}   label        section panel label
+ */
+function MultiImageSection({ data, setField, label }) {
+  const fileInputRef = useRef(null);
+  const [replaceIndex, setReplaceIndex] = useState(null);
+  const images = Array.isArray(data.images) ? data.images : [];
 
-  const handleRemove = () => setField("images", []);
+  const openPicker = (idx = null) => {
+    setReplaceIndex(idx);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const src = ev.target.result;
+      if (typeof replaceIndex === "number") {
+        setField("images", images.map((img, i) => (i === replaceIndex ? src : img)));
+      } else {
+        setField("images", [...images, src]);
+      }
+      setReplaceIndex(null);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ""; // allow selecting the same file again
+  };
+
+  const handleRemove = (idx) => {
+    setField("images", images.filter((_, i) => i !== idx));
+  };
 
   return (
-    <Pnl title={label || "Image"}>
+    <Pnl title={label || "Images"}>
       <input
         type="file"
         ref={fileInputRef}
         accept="image/*"
-        onChange={handleImageUpload}
+        onChange={handleFileSelect}
         style={{ display: "none" }}
       />
-      <div style={{ display: "flex", gap: 8, marginBottom: hasImg ? 10 : 0 }}>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          style={IMG_BTN}
-        >
-          📷 {hasImg ? "Replace" : "Upload Image"}
-        </button>
-        {hasImg && (
-          <button
-            onClick={handleRemove}
-            style={{ ...IMG_BTN, color: "#b04040", borderColor: "rgba(176,64,64,0.3)" }}
-          >
-            ✕ Remove
-          </button>
-        )}
-      </div>
-      {hasImg && (
+
+      {images.length > 0 && (
         <div
           style={{
-            border:         "1px solid rgba(54,69,79,0.12)",
-            borderRadius:   6,
-            overflow:       "hidden",
-            maxHeight:      140,
-            display:        "flex",
-            alignItems:     "center",
-            justifyContent: "center",
-            background:     "#f8f6f2",
+            display:             "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))",
+            gap:                 10,
+            marginBottom:        12,
           }}
         >
-          <img
-            src={data.images[0]}
-            alt="preview"
-            style={{ maxWidth: "100%", maxHeight: 140, objectFit: "contain" }}
-          />
+          {images.map((src, idx) => (
+            <div key={idx}>
+              <div style={{ position: "relative" }}>
+                <img
+                  src={src}
+                  alt={`image ${idx + 1}`}
+                  style={{
+                    width:        "100%",
+                    aspectRatio:  "1 / 1",
+                    objectFit:    "cover",
+                    borderRadius: 5,
+                    border:       "1px solid rgba(54,69,79,0.14)",
+                    background:   "#f0ede8",
+                    display:      "block",
+                  }}
+                />
+                {idx === 0 && (
+                  <span
+                    style={{
+                      position:     "absolute",
+                      left:         4,
+                      top:          4,
+                      background:   "rgba(197,179,88,0.9)",
+                      color:        "#36454F",
+                      fontFamily:   C.heb,
+                      fontSize:     9,
+                      fontWeight:   700,
+                      padding:      "2px 5px",
+                      borderRadius: 3,
+                    }}
+                  >
+                    HERO
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
+                <button
+                  onClick={() => openPicker(idx)}
+                  style={IMG_ACTION_BTN}
+                >
+                  Replace
+                </button>
+                <button
+                  onClick={() => handleRemove(idx)}
+                  style={{ ...IMG_ACTION_BTN, color: "#9a5b5b" }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
+      )}
+
+      <button
+        onClick={() => openPicker(null)}
+        style={{
+          width:          "100%",
+          height:         44,
+          border:         "1px dashed rgba(54,69,79,0.28)",
+          borderRadius:   6,
+          background:     "transparent",
+          cursor:         "pointer",
+          fontFamily:     C.heb,
+          fontSize:       13,
+          color:          C.chl,
+          display:        "flex",
+          alignItems:     "center",
+          justifyContent: "center",
+          gap:            6,
+        }}
+      >
+        📷 {images.length === 0 ? "Upload Image" : "Add Another Image"}
+      </button>
+
+      {images.length > 0 && (
+        <p
+          style={{
+            fontFamily: C.heb, fontSize: 11, color: C.chl,
+            marginTop: 6, lineHeight: 1.4,
+          }}
+        >
+          {images.length} image{images.length > 1 ? "s" : ""} · first image is the hero image
+        </p>
       )}
     </Pnl>
   );
 }
 
-const IMG_BTN = {
-  flex:           1,
-  height:         44,
-  border:         "1px dashed rgba(54,69,79,0.28)",
-  borderRadius:   6,
-  background:     "transparent",
-  cursor:         "pointer",
-  fontFamily:     C.heb,
-  fontSize:       13,
-  color:          C.chl,
-  display:        "flex",
-  alignItems:     "center",
-  justifyContent: "center",
-  gap:            6,
+const IMG_ACTION_BTN = {
+  flex:       1,
+  height:     28,
+  border:     "1px solid rgba(54,69,79,0.14)",
+  borderRadius: 4,
+  background: "#fff",
+  color:      "#4a5c68",
+  cursor:     "pointer",
+  fontFamily: "'Assistant','Heebo',Arial,sans-serif",
+  fontSize:   11,
+  fontWeight: 600,
 };
 
-// ─── Jewelry Valuation editor sections ───────────────────────────────────────
-function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload }) {
+// ─── Jewelry Valuation editor ─────────────────────────────────────────────────
+function JewelryEditorSections({ data, setField }) {
   return (
     <>
       <ReportInfoSection data={data} setField={setField} />
 
-      {/* Client */}
       <Pnl title="Prepared For">
         <LR label="Client Name">
           {inp(data.preparedFor, (v) => setField("preparedFor", v), "Leave blank to hide")}
         </LR>
       </Pnl>
 
-      {/* Item */}
       <Pnl title="Item">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Item Title">
             {inp(data.itemTitle, (v) => setField("itemTitle", v), "e.g. Diamond Solitaire Ring")}
           </LR>
           <LR label="Professional Description">
-            {ta(
-              data.itemDescription,
-              (v) => setField("itemDescription", v),
-              "Narrative description — auto-filled from calculator data. Edit as needed.",
-              4
-            )}
+            {ta(data.itemDescription, (v) => setField("itemDescription", v),
+              "Narrative description — auto-filled from calculator. Edit as needed.", 4)}
           </LR>
         </div>
       </Pnl>
 
-      {/* Image */}
-      <ImageSection
-        data={data}
-        setField={setField}
-        fileInputRef={fileInputRef}
-        handleImageUpload={handleImageUpload}
-        label="Jewelry Image"
-      />
+      {/* Multi-image */}
+      <MultiImageSection data={data} setField={setField} label="Jewelry Images" />
 
-      {/* Metal */}
       <Pnl title="Metal">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <GR minColWidth={150}>
@@ -364,7 +417,7 @@ function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload
           </GR>
           <GR minColWidth={150}>
             <LR label="Purity / Fineness">
-              {inp(data.metal?.purity, (v) => setField("metal.purity", v), "750 ‰  — leave blank to hide")}
+              {inp(data.metal?.purity, (v) => setField("metal.purity", v), "750 ‰ — leave blank to hide")}
             </LR>
             <LR label="Casting Method">
               {inp(data.metal?.casting, (v) => setField("metal.casting", v), "CAD / Casting")}
@@ -373,17 +426,12 @@ function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload
         </div>
       </Pnl>
 
-      {/* Center Stone */}
       <Pnl title="Center Stone">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <GR minColWidth={150}>
             <LR label="Stone Type">
-              <Drp
-                value={data.centerStone?.type}
-                onChange={(v) => setField("centerStone.type", v)}
-                options={OPT_STONE_TYPE}
-                placeholder="Select type…"
-              />
+              <Drp value={data.centerStone?.type} onChange={(v) => setField("centerStone.type", v)}
+                   options={OPT_STONE_TYPE} placeholder="Select type…" />
             </LR>
             <LR label="Carat Weight">
               {inp(data.centerStone?.carat, (v) => setField("centerStone.carat", v), "1.02 ct")}
@@ -391,51 +439,38 @@ function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload
           </GR>
           <GR minColWidth={150}>
             <LR label="Color Grade">
-              {inp(data.centerStone?.color, (v) => setField("centerStone.color", v), "G")}
+              <Drp value={data.centerStone?.color} onChange={(v) => setField("centerStone.color", v)}
+                   options={diamondColorGrades} placeholder="Select grade…" />
             </LR>
             <LR label="Clarity Grade">
-              {inp(data.centerStone?.clarity, (v) => setField("centerStone.clarity", v), "VS1")}
+              <Drp value={data.centerStone?.clarity} onChange={(v) => setField("centerStone.clarity", v)}
+                   options={diamondClarityGrades} placeholder="Select grade…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Cut Grade">
-              <Drp
-                value={data.centerStone?.cut}
-                onChange={(v) => setField("centerStone.cut", v)}
-                options={OPT_CUT_GRADE}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.centerStone?.cut} onChange={(v) => setField("centerStone.cut", v)}
+                   options={diamondCutGrades} placeholder="Select grade…" />
             </LR>
             <LR label="Setting Style">
-              <Drp
-                value={data.centerStone?.setting}
-                onChange={(v) => setField("centerStone.setting", v)}
-                options={OPT_SETTING}
-                placeholder="Select setting…"
-              />
+              <Drp value={data.centerStone?.setting} onChange={(v) => setField("centerStone.setting", v)}
+                   options={OPT_SETTING} placeholder="Select setting…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Origin">
-              <Drp
-                value={data.centerStone?.origin}
-                onChange={(v) => setField("centerStone.origin", v)}
-                options={OPT_ORIGIN}
-                placeholder="Natural / Lab-Grown…"
-              />
+              <Drp value={data.centerStone?.origin} onChange={(v) => setField("centerStone.origin", v)}
+                   options={OPT_ORIGIN} placeholder="Natural / Lab-Grown…" />
             </LR>
             <LR label="Fluorescence">
-              {inp(data.centerStone?.fluorescence, (v) => setField("centerStone.fluorescence", v), "None — leave blank to hide")}
+              <Drp value={data.centerStone?.fluorescence} onChange={(v) => setField("centerStone.fluorescence", v)}
+                   options={fluorescenceGrades} placeholder="Select…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Certificate Lab">
-              <Drp
-                value={data.centerStone?.certLab}
-                onChange={(v) => setField("centerStone.certLab", v)}
-                options={OPT_CERT_LAB}
-                placeholder="Select lab…"
-              />
+              <Drp value={data.centerStone?.certLab} onChange={(v) => setField("centerStone.certLab", v)}
+                   options={certificateLabs} placeholder="Select lab…" />
             </LR>
             <LR label="Certificate Number">
               {inp(data.centerStone?.certNumber, (v) => setField("centerStone.certNumber", v), "Leave blank to hide")}
@@ -444,31 +479,20 @@ function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload
         </div>
       </Pnl>
 
-      {/* Accent Stones */}
       <Pnl title="Accent / Side Stones">
         <LR label="Description (leave blank to hide)">
-          {ta(
-            data.accentStonesDesc,
-            (v) => setField("accentStonesDesc", v),
-            "e.g. 22 Rubies · 1.10 ct total weight · Pavé",
-            2
-          )}
+          {ta(data.accentStonesDesc, (v) => setField("accentStonesDesc", v),
+            "e.g. 22 Rubies · 1.10 ct total weight · Pavé", 2)}
         </LR>
       </Pnl>
 
-      {/* Workmanship */}
       <Pnl title="Workmanship">
         <LR label="Description (leave blank to hide)">
-          {ta(
-            data.workmanshipDesc,
-            (v) => setField("workmanshipDesc", v),
-            "e.g. CAD production and casting, high-complexity craftsmanship",
-            2
-          )}
+          {ta(data.workmanshipDesc, (v) => setField("workmanshipDesc", v),
+            "e.g. CAD production and casting, high-complexity craftsmanship", 2)}
         </LR>
       </Pnl>
 
-      {/* Valuation */}
       <Pnl title="Valuation">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Valuation Amount">
@@ -476,32 +500,23 @@ function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload
           </LR>
           <GR minColWidth={150}>
             <LR label="Currency">
-              <Drp
-                value={data.valuation?.currency}
-                onChange={(v) => setField("valuation.currency", v)}
-                options={OPT_CURRENCY}
-                placeholder="USD"
-              />
+              <Drp value={data.valuation?.currency} onChange={(v) => setField("valuation.currency", v)}
+                   options={OPT_CURRENCY} placeholder="USD" />
             </LR>
             <LR label="Valuation Date">
               {inp(data.valuation?.date, (v) => setField("valuation.date", v), "26 May 2026")}
             </LR>
           </GR>
           <LR label="Basis">
-            <Drp
-              value={data.valuation?.basis}
-              onChange={(v) => setField("valuation.basis", v)}
-              options={OPT_VALUATION_BASIS}
-              placeholder="Select basis…"
-            />
+            <Drp value={data.valuation?.basis} onChange={(v) => setField("valuation.basis", v)}
+                 options={OPT_VALUATION_BASIS} placeholder="Select basis…" />
           </LR>
         </div>
       </Pnl>
 
-      {/* Notes */}
       <Pnl title="Notes & Remarks">
         <LR label="Notes (leave blank to hide)">
-          {ta(data.notes, (v) => setField("notes", v), "Additional remarks, special instructions…", 3)}
+          {ta(data.notes, (v) => setField("notes", v), "Additional remarks…", 3)}
         </LR>
       </Pnl>
 
@@ -511,76 +526,17 @@ function JewelryEditorSections({ data, setField, fileInputRef, handleImageUpload
   );
 }
 
-// ─── In-House Stone editor sections ──────────────────────────────────────────
-function StoneEditorSections({ data, setField, fileInputRef, handleImageUpload }) {
-  const extReports = data.externalReports || [];
+// ─── Stone editor: productType-conditional field groups ───────────────────────
 
-  const handleAddExtReport = () => {
-    setField("externalReports", [
-      ...extReports,
-      { lab: "", reportNumber: "", attachmentName: "", attachmentUrl: "" },
-    ]);
-  };
-
-  const handleRemoveExtReport = (idx) => {
-    setField("externalReports", extReports.filter((_, i) => i !== idx));
-  };
-
+/** Natural diamond + Lab-grown diamond grading fields (shared) */
+function DiamondGradingFields({ data, setField, showGrowthMethod }) {
   return (
     <>
-      <ReportInfoSection data={data} setField={setField} />
-
-      {/* Image */}
-      <ImageSection
-        data={data}
-        setField={setField}
-        fileInputRef={fileInputRef}
-        handleImageUpload={handleImageUpload}
-        label="Stone Image"
-      />
-
-      {/* Stone Identity */}
-      <Pnl title="Stone Identity">
-        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
-          <GR minColWidth={150}>
-            <LR label="Stone Type">
-              <Drp
-                value={data.stone?.type}
-                onChange={(v) => setField("stone.type", v)}
-                options={OPT_STONE_TYPE}
-                placeholder="Select type…"
-              />
-            </LR>
-            <LR label="Natural / Lab-Grown">
-              <Drp
-                value={data.stone?.naturalOrLab}
-                onChange={(v) => setField("stone.naturalOrLab", v)}
-                options={OPT_NATURAL_LAB}
-                placeholder="Select…"
-              />
-            </LR>
-          </GR>
-          <GR minColWidth={150}>
-            <LR label="Species">
-              {inp(data.stone?.species, (v) => setField("stone.species", v), "Diamond")}
-            </LR>
-            <LR label="Variety">
-              {inp(data.stone?.variety, (v) => setField("stone.variety", v), "Colorless")}
-            </LR>
-          </GR>
-        </div>
-      </Pnl>
-
-      {/* Shape & Weight */}
       <Pnl title="Shape & Weight">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Shape / Cut Style">
-            <Drp
-              value={data.stone?.shape}
-              onChange={(v) => setField("stone.shape", v)}
-              options={OPT_SHAPE}
-              placeholder="Select shape…"
-            />
+            <Drp value={data.stone?.shape} onChange={(v) => setField("stone.shape", v)}
+                 options={stoneShapes} placeholder="Select shape…" />
           </LR>
           <GR minColWidth={150}>
             <LR label="Carat Weight">
@@ -593,92 +549,252 @@ function StoneEditorSections({ data, setField, fileInputRef, handleImageUpload }
         </div>
       </Pnl>
 
-      {/* Color */}
-      <Pnl title="Color">
+      <Pnl title="Grading">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <GR minColWidth={150}>
             <LR label="Color Grade">
-              {inp(data.stone?.color, (v) => setField("stone.color", v), "G")}
+              <Drp value={data.stone?.color} onChange={(v) => setField("stone.color", v)}
+                   options={diamondColorGrades} placeholder="Select grade…" />
             </LR>
-            <LR label="Color Description">
-              {inp(data.stone?.colorDescription, (v) => setField("stone.colorDescription", v), "Fancy Vivid Blue — leave blank to hide")}
+            <LR label="Clarity Grade">
+              <Drp value={data.stone?.clarity} onChange={(v) => setField("stone.clarity", v)}
+                   options={diamondClarityGrades} placeholder="Select grade…" />
             </LR>
           </GR>
-        </div>
-      </Pnl>
-
-      {/* Clarity & Cut */}
-      <Pnl title="Clarity & Cut">
-        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <GR minColWidth={150}>
-            <LR label="Clarity Grade">
-              {inp(data.stone?.clarity, (v) => setField("stone.clarity", v), "VS1")}
-            </LR>
             <LR label="Cut Grade">
-              <Drp
-                value={data.stone?.cut}
-                onChange={(v) => setField("stone.cut", v)}
-                options={OPT_CUT_GRADE}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.cut} onChange={(v) => setField("stone.cut", v)}
+                   options={diamondCutGrades} placeholder="Select grade…" />
+            </LR>
+            <LR label="Fluorescence">
+              <Drp value={data.stone?.fluorescence} onChange={(v) => setField("stone.fluorescence", v)}
+                   options={fluorescenceGrades} placeholder="Select…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Polish">
-              <Drp
-                value={data.stone?.polish}
-                onChange={(v) => setField("stone.polish", v)}
-                options={OPT_CUT_GRADE}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.polish} onChange={(v) => setField("stone.polish", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
             </LR>
             <LR label="Symmetry">
-              <Drp
-                value={data.stone?.symmetry}
-                onChange={(v) => setField("stone.symmetry", v)}
-                options={OPT_CUT_GRADE}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.symmetry} onChange={(v) => setField("stone.symmetry", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
             </LR>
           </GR>
+          {showGrowthMethod && (
+            <LR label="Growth Method">
+              <Drp value={data.stone?.growthMethod} onChange={(v) => setField("stone.growthMethod", v)}
+                   options={labGrowthMethods} placeholder="CVD / HPHT…" />
+            </LR>
+          )}
         </div>
       </Pnl>
 
-      {/* Additional Properties */}
-      <Pnl title="Additional Properties">
-        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
-          <GR minColWidth={150}>
-            <LR label="Fluorescence">
-              {inp(data.stone?.fluorescence, (v) => setField("stone.fluorescence", v), "None")}
-            </LR>
-            <LR label="Treatment">
-              {inp(data.stone?.treatment, (v) => setField("stone.treatment", v), "None")}
-            </LR>
-          </GR>
-          <LR label="Country of Origin">
-            {inp(data.stone?.countryOfOrigin, (v) => setField("stone.countryOfOrigin", v), "Leave blank to hide")}
-          </LR>
-        </div>
-      </Pnl>
-
-      {/* Laboratory */}
       <Pnl title="Laboratory Reference">
         <GR minColWidth={150}>
           <LR label="Certificate Lab">
-            <Drp
-              value={data.stone?.certLab}
-              onChange={(v) => setField("stone.certLab", v)}
-              options={OPT_CERT_LAB}
-              placeholder="Select lab…"
-            />
+            <Drp value={data.stone?.certLab} onChange={(v) => setField("stone.certLab", v)}
+                 options={certificateLabs} placeholder="Select lab…" />
           </LR>
           <LR label="Certificate Number">
             {inp(data.stone?.certNumber, (v) => setField("stone.certNumber", v), "Leave blank to hide")}
           </LR>
         </GR>
       </Pnl>
+    </>
+  );
+}
 
-      {/* External Reports */}
+/** Fancy color diamond fields */
+function FancyColorFields({ data, setField }) {
+  return (
+    <>
+      <Pnl title="Shape & Weight">
+        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+          <LR label="Shape / Cut Style">
+            <Drp value={data.stone?.shape} onChange={(v) => setField("stone.shape", v)}
+                 options={stoneShapes} placeholder="Select shape…" />
+          </LR>
+          <GR minColWidth={150}>
+            <LR label="Carat Weight">
+              {inp(data.stone?.carat, (v) => setField("stone.carat", v), "1.02")}
+            </LR>
+            <LR label="Measurements">
+              {inp(data.stone?.measurements, (v) => setField("stone.measurements", v), "6.42 × 6.44 × 3.90 mm")}
+            </LR>
+          </GR>
+        </div>
+      </Pnl>
+
+      <Pnl title="Fancy Color Grading">
+        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+          <GR minColWidth={150}>
+            <LR label="Color Hue">
+              <Drp value={data.stone?.fancyColorHue} onChange={(v) => setField("stone.fancyColorHue", v)}
+                   options={fancyColorHues} placeholder="Select hue…" />
+            </LR>
+            <LR label="Color Intensity">
+              <Drp value={data.stone?.fancyColorIntensity} onChange={(v) => setField("stone.fancyColorIntensity", v)}
+                   options={fancyColorIntensities} placeholder="Select intensity…" />
+            </LR>
+          </GR>
+          <GR minColWidth={150}>
+            <LR label="Color Origin">
+              {inp(data.stone?.fancyColorOrigin, (v) => setField("stone.fancyColorOrigin", v), "Natural — leave blank to hide")}
+            </LR>
+            <LR label="Clarity Grade">
+              <Drp value={data.stone?.clarity} onChange={(v) => setField("stone.clarity", v)}
+                   options={diamondClarityGrades} placeholder="Select grade…" />
+            </LR>
+          </GR>
+          <GR minColWidth={150}>
+            <LR label="Polish">
+              <Drp value={data.stone?.polish} onChange={(v) => setField("stone.polish", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
+            </LR>
+            <LR label="Symmetry">
+              <Drp value={data.stone?.symmetry} onChange={(v) => setField("stone.symmetry", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
+            </LR>
+          </GR>
+          <LR label="Fluorescence">
+            <Drp value={data.stone?.fluorescence} onChange={(v) => setField("stone.fluorescence", v)}
+                 options={fluorescenceGrades} placeholder="Select…" />
+          </LR>
+        </div>
+      </Pnl>
+
+      <Pnl title="Laboratory Reference">
+        <GR minColWidth={150}>
+          <LR label="Certificate Lab">
+            <Drp value={data.stone?.certLab} onChange={(v) => setField("stone.certLab", v)}
+                 options={certificateLabs} placeholder="Select lab…" />
+          </LR>
+          <LR label="Certificate Number">
+            {inp(data.stone?.certNumber, (v) => setField("stone.certNumber", v), "Leave blank to hide")}
+          </LR>
+        </GR>
+      </Pnl>
+    </>
+  );
+}
+
+/** Colored gemstone fields */
+function ColoredGemstoneFields({ data, setField }) {
+  return (
+    <>
+      <Pnl title="Identification">
+        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+          <GR minColWidth={150}>
+            <LR label="Species">
+              <Drp value={data.stone?.species} onChange={(v) => setField("stone.species", v)}
+                   options={gemstoneSpecies} placeholder="Select species…" />
+            </LR>
+            <LR label="Variety">
+              {inp(data.stone?.variety, (v) => setField("stone.variety", v), "e.g. Pigeon Blood")}
+            </LR>
+          </GR>
+        </div>
+      </Pnl>
+
+      <Pnl title="Shape & Weight">
+        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+          <LR label="Shape / Cut Style">
+            <Drp value={data.stone?.shape} onChange={(v) => setField("stone.shape", v)}
+                 options={stoneShapes} placeholder="Select shape…" />
+          </LR>
+          <GR minColWidth={150}>
+            <LR label="Carat Weight">
+              {inp(data.stone?.carat, (v) => setField("stone.carat", v), "2.15")}
+            </LR>
+            <LR label="Measurements">
+              {inp(data.stone?.measurements, (v) => setField("stone.measurements", v), "8.10 × 6.20 × 4.80 mm")}
+            </LR>
+          </GR>
+        </div>
+      </Pnl>
+
+      <Pnl title="Color & Appearance">
+        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+          <LR label="Color Description">
+            {inp(data.stone?.colorDescription, (v) => setField("stone.colorDescription", v), "Vivid red with purplish hue")}
+          </LR>
+          <LR label="Transparency">
+            <Drp value={data.stone?.transparency} onChange={(v) => setField("stone.transparency", v)}
+                 options={gemstoneTransparency} placeholder="Select…" />
+          </LR>
+        </div>
+      </Pnl>
+
+      <Pnl title="Treatment & Origin">
+        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+          <LR label="Treatment">
+            <Drp value={data.stone?.treatment} onChange={(v) => setField("stone.treatment", v)}
+                 options={gemstoneTreatments} placeholder="Select treatment…" />
+          </LR>
+          <LR label="Country of Origin">
+            {inp(data.stone?.countryOfOrigin, (v) => setField("stone.countryOfOrigin", v), "Mozambique — leave blank to hide")}
+          </LR>
+        </div>
+      </Pnl>
+    </>
+  );
+}
+
+// ─── Stone Editor (productType-aware) ─────────────────────────────────────────
+function StoneEditorSections({ data, setField }) {
+  const pt          = data.productType || "natural_diamond";
+  const extReports  = data.externalReports || [];
+
+  const handleAddExtReport = () =>
+    setField("externalReports", [...extReports, { lab: "", reportNumber: "", attachmentName: "", attachmentUrl: "" }]);
+
+  const handleRemoveExtReport = (idx) =>
+    setField("externalReports", extReports.filter((_, i) => i !== idx));
+
+  return (
+    <>
+      <ReportInfoSection data={data} setField={setField} />
+
+      {/* Product type switcher */}
+      <Pnl title="Stone Category">
+        <LR label="Stone Type">
+          <select
+            value={pt}
+            onChange={(e) => setField("productType", e.target.value)}
+            style={SEL}
+          >
+            {STONE_PRODUCT_TYPES.map((t) => (
+              <option key={t} value={t}>{PRODUCT_TYPE_LABELS[t]}</option>
+            ))}
+          </select>
+        </LR>
+        {(pt === "natural_diamond" || pt === "lab_grown_diamond") && (
+          <LR label="Natural / Lab-Grown" style={{ marginTop: 10 }}>
+            <Drp value={data.stone?.naturalOrLab} onChange={(v) => setField("stone.naturalOrLab", v)}
+                 options={["Natural", "Lab-Grown"]} placeholder="Select…" />
+          </LR>
+        )}
+      </Pnl>
+
+      {/* Multi-image */}
+      <MultiImageSection data={data} setField={setField} label="Stone Images" />
+
+      {/* Conditional field groups by productType */}
+      {pt === "natural_diamond" && (
+        <DiamondGradingFields data={data} setField={setField} showGrowthMethod={false} />
+      )}
+      {pt === "lab_grown_diamond" && (
+        <DiamondGradingFields data={data} setField={setField} showGrowthMethod={true} />
+      )}
+      {pt === "fancy_color_diamond" && (
+        <FancyColorFields data={data} setField={setField} />
+      )}
+      {pt === "colored_gemstone" && (
+        <ColoredGemstoneFields data={data} setField={setField} />
+      )}
+
+      {/* External Lab Reports */}
       <Pnl title="External Lab Reports">
         {extReports.length === 0 && (
           <p style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 12 }}>
@@ -689,11 +805,8 @@ function StoneEditorSections({ data, setField, fileInputRef, handleImageUpload }
           <div
             key={idx}
             style={{
-              border:       "1px solid rgba(54,69,79,0.1)",
-              borderRadius: 6,
-              padding:      "12px 14px",
-              marginBottom: 10,
-              background:   "#FAFAF8",
+              border: "1px solid rgba(54,69,79,0.1)", borderRadius: 6,
+              padding: "12px 14px", marginBottom: 10, background: "#FAFAF8",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -725,19 +838,10 @@ function StoneEditorSections({ data, setField, fileInputRef, handleImageUpload }
         <button
           onClick={handleAddExtReport}
           style={{
-            width:          "100%",
-            height:         40,
-            border:         "1px dashed rgba(54,69,79,0.25)",
-            borderRadius:   6,
-            background:     "transparent",
-            cursor:         "pointer",
-            fontFamily:     C.heb,
-            fontSize:       13,
-            color:          C.chl,
-            display:        "flex",
-            alignItems:     "center",
-            justifyContent: "center",
-            gap:            6,
+            width: "100%", height: 40, border: "1px dashed rgba(54,69,79,0.25)",
+            borderRadius: 6, background: "transparent", cursor: "pointer",
+            fontFamily: C.heb, fontSize: 13, color: C.chl,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
           }}
         >
           + Add External Report
@@ -759,39 +863,11 @@ function StoneEditorSections({ data, setField, fileInputRef, handleImageUpload }
 
 // ─── ReportEditor (main export) ───────────────────────────────────────────────
 export function ReportEditor({ reportType, reportData, setField }) {
-  const fileInputRef = useRef(null);
-
-  const handleImageUpload = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader  = new FileReader();
-    reader.onload = (ev) => setField("images", [ev.target.result]);
-    reader.readAsDataURL(file);
-    // Reset input so the same file can be selected again after removal
-    e.target.value = "";
-  }, [setField]);
-
   if (reportType === "jewelry_valuation") {
-    return (
-      <JewelryEditorSections
-        data={reportData}
-        setField={setField}
-        fileInputRef={fileInputRef}
-        handleImageUpload={handleImageUpload}
-      />
-    );
+    return <JewelryEditorSections data={reportData} setField={setField} />;
   }
-
   if (reportType === "inhouse_stone") {
-    return (
-      <StoneEditorSections
-        data={reportData}
-        setField={setField}
-        fileInputRef={fileInputRef}
-        handleImageUpload={handleImageUpload}
-      />
-    );
+    return <StoneEditorSections data={reportData} setField={setField} />;
   }
-
   return null;
 }
