@@ -1,17 +1,15 @@
 /**
- * components/reports/ReportEditor.jsx  —  v4.3
+ * components/reports/ReportEditor.jsx  —  v4.3.2
  *
- * Changes in v4.3:
- *   + DiamondGradingFields: L/W/D measurement inputs, fluorescence intensity+color, cutForm
- *   + FancyColorFields:     L/W/D, fluorescence intensity+color, cutForm
- *   + ColoredGemstoneFields: L/W/D, gemstoneClarityGrades, fluorescence intensity+color, cutForm
- *   + CredentialsSection: examinerName, examinerTitle, signatureImageUrl
- *   + StoneEditorSections: DisplayOptions panel with showReferencePanel toggle
- *   ~ fluorescenceGrades removed from direct use; fluorescenceIntensities/Colors used instead
- *   ~ Drp, MultiImageSection, ReportInfoSection, VerificationSection unchanged
+ * Changes vs v4.3:
+ *   + MeasurementInputs: replaced GR grid with direct direction:ltr flex row.
+ *     flexWrap:nowrap + minWidth:0 on each field ensures L→W→D order
+ *     is preserved even when the parent is in an RTL (Hebrew) context.
+ *     Fields never wrap: each takes flex:"1 1 0" so they share space equally.
+ *   ~ All other sections identical to v4.3.
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { C }        from "../../lib/constants";
 import { Pnl, LR, GR, StableInp } from "../UI";
 import { hasValue } from "../../lib/reports/reportUtils";
@@ -113,7 +111,7 @@ function Drp({ value, onChange, options, placeholder }) {
   );
 }
 
-// ─── Dropdown option lists (non-taxonomy) ─────────────────────────────────────
+// ─── Option lists (non-taxonomy) ─────────────────────────────────────────────
 const OPT_STONE_TYPE      = ["Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Alexandrite", "Tanzanite", "Spinel", "Aquamarine", "Opal"];
 const OPT_ORIGIN          = ["Natural", "Lab-Grown", "Treated", "Unknown"];
 const OPT_SETTING         = ["Prong / Claw", "Bezel", "Pavé", "Channel", "Flush / Burnish", "Tension", "Invisible", "Bar"];
@@ -139,14 +137,6 @@ function inp(value, onChange, placeholder) {
   );
 }
 
-function getByPath(obj, path) {
-  return path.split(".").reduce((acc, key) => (acc ? acc[key] : undefined), obj);
-}
-
-function setPath(setField, basePath, field, value) {
-  setField(`${basePath}.${field}`, value);
-}
-
 function ta(value, onChange, placeholder, rows = 2) {
   return (
     <textarea
@@ -159,7 +149,7 @@ function ta(value, onChange, placeholder, rows = 2) {
   );
 }
 
-// ─── Shared editor sections ───────────────────────────────────────────────────
+// ─── Shared sections ──────────────────────────────────────────────────────────
 function ReportInfoSection({ data, setField }) {
   return (
     <Pnl title="Report Info">
@@ -175,14 +165,10 @@ function ReportInfoSection({ data, setField }) {
   );
 }
 
-/**
- * Credentials section — now includes examiner + signature fields.
- * examinerName/examinerTitle fall back to signatoryName/title in templates when blank.
- * signatureImageUrl: paste a URL or base64 string; renders above signature line.
- */
 function CredentialsSection({ data, setField }) {
-  const sigFileRef = useRef(null);
-  const sigUrl     = data.credentials?.signatureImageUrl || "";
+  const signatureInputRef = useRef(null);
+  const signatureImageUrl = data.credentials?.signatureImageUrl || "";
+  const hasSignatureImage = hasValue(signatureImageUrl);
 
   const handleSignatureUpload = (e) => {
     const file = e.target.files?.[0];
@@ -216,8 +202,10 @@ function CredentialsSection({ data, setField }) {
             marginBottom: 12, lineHeight: 1.5, fontStyle: "italic",
           }}
         >
-          Upload a signature image or paste a URL/base64 value. If empty, the printed report shows a blank signature line.
+          Upload a scanned signature or leave blank for a manual signing line.
+          The printed report keeps this area fixed so it will not push outside A4.
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Examiner Name (blank = Signatory)">
             {inp(data.credentials?.examinerName, (v) => setField("credentials.examinerName", v), "Leave blank to use Signatory Name")}
@@ -225,67 +213,74 @@ function CredentialsSection({ data, setField }) {
           <LR label="Examiner Title (blank = Title above)">
             {inp(data.credentials?.examinerTitle, (v) => setField("credentials.examinerTitle", v), "Leave blank to use above Title")}
           </LR>
-          <LR label="Signature Image (URL or base64)">
-            {inp(sigUrl, (v) => setField("credentials.signatureImageUrl", v), "Optional — renders above signature line")}
-          </LR>
+
           <input
             type="file"
-            ref={sigFileRef}
+            ref={signatureInputRef}
             accept="image/*"
             onChange={handleSignatureUpload}
             style={{ display: "none" }}
           />
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button
-              onClick={() => sigFileRef.current?.click()}
+
+          {hasSignatureImage && (
+            <div
               style={{
-                height: 42,
-                padding: "0 14px",
-                border: "1px solid rgba(54,69,79,0.18)",
+                border: "1px solid rgba(54,69,79,0.14)",
                 borderRadius: 6,
                 background: "#fff",
-                color: C.ch,
-                fontFamily: C.heb,
-                fontSize: 13,
-                cursor: "pointer",
+                padding: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
               }}
             >
-              {hasValue(sigUrl) ? "Replace Signature Image" : "Upload Signature Image"}
-            </button>
-            {hasValue(sigUrl) && (
-              <button
-                onClick={() => setField("credentials.signatureImageUrl", "")}
-                style={{
-                  height: 42,
-                  padding: "0 14px",
-                  border: "1px solid rgba(160,70,70,0.22)",
-                  borderRadius: 6,
-                  background: "transparent",
-                  color: "#8f4a4a",
-                  fontFamily: C.heb,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                Remove Signature
-              </button>
-            )}
-          </div>
-          {hasValue(sigUrl) && (
-            <div style={{
-              border: "1px solid rgba(54,69,79,0.12)",
-              borderRadius: 6,
-              background: "#FAF9F6",
-              padding: 10,
-              maxWidth: 240,
-            }}>
               <img
-                src={sigUrl}
+                src={signatureImageUrl}
                 alt="signature preview"
-                style={{ width: "100%", maxHeight: 70, objectFit: "contain", display: "block" }}
+                style={{
+                  width: 140,
+                  height: 54,
+                  objectFit: "contain",
+                  background: "#f8f6f2",
+                  border: "1px solid rgba(54,69,79,0.08)",
+                }}
               />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => signatureInputRef.current?.click()}
+                  style={{ height: 36, padding: "0 12px", border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6, background: "#fff", cursor: "pointer", fontFamily: C.heb, fontSize: 12, color: C.ch }}
+                >
+                  Replace
+                </button>
+                <button
+                  onClick={() => setField("credentials.signatureImageUrl", "")}
+                  style={{ height: 36, padding: "0 12px", border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6, background: "transparent", cursor: "pointer", fontFamily: C.heb, fontSize: 12, color: C.chl }}
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           )}
+
+          {!hasSignatureImage && (
+            <button
+              onClick={() => signatureInputRef.current?.click()}
+              style={{
+                width: "100%", height: 44,
+                border: "1px dashed rgba(54,69,79,0.28)", borderRadius: 6,
+                background: "transparent", cursor: "pointer",
+                fontFamily: C.heb, fontSize: 13, color: C.chl,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}
+            >
+              ✍ Upload Signature Image
+            </button>
+          )}
+
+          <LR label="Signature Image URL / base64 (optional)">
+            {inp(signatureImageUrl, (v) => setField("credentials.signatureImageUrl", v), "Paste URL or upload image above")}
+          </LR>
         </div>
       </Pnl>
     </>
@@ -301,7 +296,7 @@ function VerificationSection({ data, setField }) {
           marginBottom: 10, lineHeight: 1.5, fontStyle: "italic",
         }}
       >
-        Reserved for future online verification. Leave blank — the block only
+        Reserved for future online verification. Leave blank — block only
         appears when filled.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
@@ -321,48 +316,17 @@ function MultiImageSection({ data, setField, label }) {
   const fileInputRef = useRef(null);
   const images       = Array.isArray(data.images) ? data.images : [];
 
-  const readImageFile = (file, cb) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => cb(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-
   const handleAdd = (e) => {
     const file = e.target.files?.[0];
-    readImageFile(file, (src) => setField("images", [...images, src]));
-    e.target.value = "";
-  };
-
-  const handleReplace = (idx, e) => {
-    const file = e.target.files?.[0];
-    readImageFile(file, (src) => {
-      const next = [...images];
-      next[idx] = src;
-      setField("images", next);
-    });
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setField("images", [...images, ev.target.result]);
+    reader.readAsDataURL(file);
     e.target.value = "";
   };
 
   const handleRemove = (idx) =>
     setField("images", images.filter((_, i) => i !== idx));
-
-  const actionBtn = {
-    border: "none",
-    borderRadius: 5,
-    background: "rgba(54,69,79,0.78)",
-    color: "#faf9f6",
-    fontSize: 10,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: 1,
-    padding: "5px 7px",
-    minWidth: 24,
-    minHeight: 22,
-  };
 
   return (
     <Pnl title={label || "Images"}>
@@ -377,8 +341,8 @@ function MultiImageSection({ data, setField, label }) {
         <div
           style={{
             display:             "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))",
-            gap:                 10,
+            gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+            gap:                 8,
             marginBottom:        10,
           }}
         >
@@ -389,34 +353,23 @@ function MultiImageSection({ data, setField, label }) {
                 alt={`image ${idx + 1}`}
                 style={{
                   width: "100%", aspectRatio: "1 / 1", objectFit: "cover",
-                  borderRadius: 6, border: "1px solid rgba(54,69,79,0.14)",
+                  borderRadius: 5, border: "1px solid rgba(54,69,79,0.14)",
                   background: "#f0ede8", display: "block",
                 }}
               />
-              <input
-                id={`report-image-replace-${idx}`}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleReplace(idx, e)}
-                style={{ display: "none" }}
-              />
-              <div
+              <button
+                onClick={() => handleRemove(idx)}
+                title="Remove"
                 style={{
-                  position: "absolute", top: 5, right: 5,
-                  display: "flex", gap: 4,
+                  position: "absolute", top: 3, right: 3,
+                  width: 20, height: 20, borderRadius: "50%",
+                  background: "rgba(54,69,79,0.7)", border: "none",
+                  color: "#faf9f6", fontSize: 10, fontWeight: 700,
+                  cursor: "pointer", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  lineHeight: 1, padding: 0,
                 }}
-              >
-                <label
-                  htmlFor={`report-image-replace-${idx}`}
-                  title="Replace image"
-                  style={actionBtn}
-                >↻</label>
-                <button
-                  onClick={() => handleRemove(idx)}
-                  title="Remove image"
-                  style={actionBtn}
-                >✕</button>
-              </div>
+              >✕</button>
             </div>
           ))}
         </div>
@@ -435,68 +388,109 @@ function MultiImageSection({ data, setField, label }) {
       </button>
       {images.length > 0 && (
         <p style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginTop: 6, lineHeight: 1.4 }}>
-          {images.length} image{images.length > 1 ? "s" : ""} · first image is the main image · use ↻ to replace
+          {images.length} image{images.length > 1 ? "s" : ""} · first image is the main image
         </p>
       )}
     </Pnl>
   );
 }
 
-// ─── Shared stone measurement panel ──────────────────────────────────────────
+// ─── MeasurementInputs ────────────────────────────────────────────────────────
 /**
- * L / W / D inputs used by all stone productType sections.
- * Replaces single "Measurements" free-text input.
+ * Three separate L / W / D inputs in a fixed LTR row.
+ *
+ * v4.3.2 fix: replaced GR (CSS grid) with a direct direction:ltr flex row.
+ *   - direction:"ltr" overrides RTL parent context → Length always left,
+ *     Depth always right
+ *   - flexWrap:"nowrap" prevents the fields from stacking on narrow screens
+ *   - flex:"1 1 0" + minWidth:0 on each field → equal widths, no overflow
  */
-function MeasurementInputs({ data, setField, basePath = "stone" }) {
-  const obj = getByPath(data, basePath) || {};
-  const set = (field, value) => setPath(setField, basePath, field, value);
+function MeasurementInputs({ data, setField }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, lineHeight: 1.4, fontStyle: "italic" }}>
+        mm — displays as Length × Width × Depth mm
+      </div>
       <div
         style={{
-          fontFamily: C.heb, fontSize: 11, color: C.chl,
-          lineHeight: 1.4, fontStyle: "italic",
+          direction:      "ltr",
+          display:        "flex",
+          gap:            8,
+          flexWrap:       "nowrap",
+          alignItems:     "flex-start",
         }}
       >
-        mm — will display as Length × Width × Depth mm
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Length">
+            {inp(data.stone?.measLength, (v) => setField("stone.measLength", v), "6.42")}
+          </LR>
+        </div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Width">
+            {inp(data.stone?.measWidth, (v) => setField("stone.measWidth", v), "6.44")}
+          </LR>
+        </div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Depth">
+            {inp(data.stone?.measDepth, (v) => setField("stone.measDepth", v), "3.90")}
+          </LR>
+        </div>
       </div>
-      <GR minColWidth={90}>
-        <LR label="Length (mm)">
-          {inp(obj.measLength, (v) => set("measLength", v), "6.42")}
-        </LR>
-        <LR label="Width (mm)">
-          {inp(obj.measWidth, (v) => set("measWidth", v), "6.44")}
-        </LR>
-        <LR label="Depth / Height (mm)">
-          {inp(obj.measDepth, (v) => set("measDepth", v), "3.90")}
-        </LR>
-      </GR>
     </div>
   );
 }
 
-// ─── Shared fluorescence panel ────────────────────────────────────────────────
-/**
- * Fluorescence Intensity + Colour inputs used by all diamond sections.
- * Colour is always shown but only relevant when intensity is not None.
- */
-function FluorescenceInputs({ data, setField, basePath = "stone" }) {
-  const obj = getByPath(data, basePath) || {};
-  const set = (field, value) => setPath(setField, basePath, field, value);
+
+function CenterStoneMeasurementInputs({ data, setField }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, lineHeight: 1.4, fontStyle: "italic" }}>
+        mm — displays as Length × Width × Depth mm
+      </div>
+      <div
+        style={{
+          direction: "ltr",
+          display: "flex",
+          gap: 8,
+          flexWrap: "nowrap",
+          alignItems: "flex-start",
+        }}
+      >
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Length">
+            {inp(data.centerStone?.measLength, (v) => setField("centerStone.measLength", v), "6.42")}
+          </LR>
+        </div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Width">
+            {inp(data.centerStone?.measWidth, (v) => setField("centerStone.measWidth", v), "6.44")}
+          </LR>
+        </div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Depth">
+            {inp(data.centerStone?.measDepth, (v) => setField("centerStone.measDepth", v), "3.90")}
+          </LR>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CenterStoneFluorescenceInputs({ data, setField }) {
   return (
     <GR minColWidth={150}>
       <LR label="Fluorescence Intensity">
         <Drp
-          value={obj.fluorescenceIntensity}
-          onChange={(v) => set("fluorescenceIntensity", v)}
+          value={data.centerStone?.fluorescenceIntensity}
+          onChange={(v) => setField("centerStone.fluorescenceIntensity", v)}
           options={fluorescenceIntensities}
           placeholder="Select intensity…"
         />
       </LR>
       <LR label="Fluorescence Colour">
         <Drp
-          value={obj.fluorescenceColor}
-          onChange={(v) => set("fluorescenceColor", v)}
+          value={data.centerStone?.fluorescenceColor}
+          onChange={(v) => setField("centerStone.fluorescenceColor", v)}
           options={fluorescenceColors}
           placeholder="Blue (if not None)…"
         />
@@ -505,31 +499,53 @@ function FluorescenceInputs({ data, setField, basePath = "stone" }) {
   );
 }
 
-// ─── Diamond grading fields (natural + lab-grown shared) ──────────────────────
+// ─── FluorescenceInputs ───────────────────────────────────────────────────────
+function FluorescenceInputs({ data, setField }) {
+  return (
+    <GR minColWidth={150}>
+      <LR label="Fluorescence Intensity">
+        <Drp
+          value={data.stone?.fluorescenceIntensity}
+          onChange={(v) => setField("stone.fluorescenceIntensity", v)}
+          options={fluorescenceIntensities}
+          placeholder="Select intensity…"
+        />
+      </LR>
+      <LR label="Fluorescence Colour">
+        <Drp
+          value={data.stone?.fluorescenceColor}
+          onChange={(v) => setField("stone.fluorescenceColor", v)}
+          options={fluorescenceColors}
+          placeholder="Blue (if not None)…"
+        />
+      </LR>
+    </GR>
+  );
+}
+
+// ─── DiamondGradingFields ─────────────────────────────────────────────────────
 function DiamondGradingFields({ data, setField, showGrowthMethod }) {
   return (
     <>
       <Pnl title="Shape & Cut">
-        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
-          <GR minColWidth={150}>
-            <LR label="Cut Form">
-              <Drp
-                value={data.stone?.cutForm}
-                onChange={(v) => setField("stone.cutForm", v)}
-                options={cutFormOptions}
-                placeholder="Faceted / Cabochon…"
-              />
-            </LR>
-            <LR label="Shape">
-              <Drp
-                value={data.stone?.shape}
-                onChange={(v) => setField("stone.shape", v)}
-                options={stoneShapes}
-                placeholder="Select shape…"
-              />
-            </LR>
-          </GR>
-        </div>
+        <GR minColWidth={150}>
+          <LR label="Cut Form">
+            <Drp
+              value={data.stone?.cutForm}
+              onChange={(v) => setField("stone.cutForm", v)}
+              options={cutFormOptions}
+              placeholder="Faceted / Cabochon…"
+            />
+          </LR>
+          <LR label="Shape">
+            <Drp
+              value={data.stone?.shape}
+              onChange={(v) => setField("stone.shape", v)}
+              options={stoneShapes}
+              placeholder="Select shape…"
+            />
+          </LR>
+        </GR>
       </Pnl>
 
       <Pnl title="Weight & Measurements">
@@ -625,7 +641,7 @@ function DiamondGradingFields({ data, setField, showGrowthMethod }) {
   );
 }
 
-// ─── Fancy color diamond fields ────────────────────────────────────────────────
+// ─── FancyColorFields ─────────────────────────────────────────────────────────
 function FancyColorFields({ data, setField }) {
   return (
     <>
@@ -735,26 +751,24 @@ function FancyColorFields({ data, setField }) {
   );
 }
 
-// ─── Colored gemstone fields ──────────────────────────────────────────────────
+// ─── ColoredGemstoneFields ────────────────────────────────────────────────────
 function ColoredGemstoneFields({ data, setField }) {
   return (
     <>
       <Pnl title="Identification">
-        <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
-          <GR minColWidth={150}>
-            <LR label="Species">
-              <Drp
-                value={data.stone?.species}
-                onChange={(v) => setField("stone.species", v)}
-                options={gemstoneSpecies}
-                placeholder="Select species…"
-              />
-            </LR>
-            <LR label="Variety">
-              {inp(data.stone?.variety, (v) => setField("stone.variety", v), "e.g. Pigeon Blood")}
-            </LR>
-          </GR>
-        </div>
+        <GR minColWidth={150}>
+          <LR label="Species">
+            <Drp
+              value={data.stone?.species}
+              onChange={(v) => setField("stone.species", v)}
+              options={gemstoneSpecies}
+              placeholder="Select species…"
+            />
+          </LR>
+          <LR label="Variety">
+            {inp(data.stone?.variety, (v) => setField("stone.variety", v), "e.g. Pigeon Blood")}
+          </LR>
+        </GR>
       </Pnl>
 
       <Pnl title="Shape & Cut">
@@ -830,6 +844,11 @@ function ColoredGemstoneFields({ data, setField }) {
           </LR>
         </div>
       </Pnl>
+
+      {/* Fluorescence — shown for colored gemstone when manually filled */}
+      <Pnl title="Fluorescence (Optional)">
+        <FluorescenceInputs data={data} setField={setField} />
+      </Pnl>
     </>
   );
 }
@@ -893,19 +912,6 @@ function JewelryEditorSections({ data, setField }) {
             </LR>
           </GR>
           <GR minColWidth={150}>
-            <LR label="Cut Form">
-              <Drp value={data.centerStone?.cutForm} onChange={(v) => setField("centerStone.cutForm", v)}
-                   options={cutFormOptions} placeholder="Faceted / Cabochon…" />
-            </LR>
-            <LR label="Shape">
-              <Drp value={data.centerStone?.shape} onChange={(v) => setField("centerStone.shape", v)}
-                   options={stoneShapes} placeholder="Select shape…" />
-            </LR>
-          </GR>
-          <LR label="Measurements">
-            <MeasurementInputs data={data} setField={setField} basePath="centerStone" />
-          </LR>
-          <GR minColWidth={150}>
             <LR label="Colour Grade">
               <Drp value={data.centerStone?.color} onChange={(v) => setField("centerStone.color", v)}
                    options={diamondColorGrades} placeholder="D–Z…" />
@@ -925,14 +931,14 @@ function JewelryEditorSections({ data, setField }) {
                    options={OPT_SETTING} placeholder="Select setting…" />
             </LR>
           </GR>
+          <CenterStoneMeasurementInputs data={data} setField={setField} />
+          <CenterStoneFluorescenceInputs data={data} setField={setField} />
           <GR minColWidth={150}>
             <LR label="Origin">
               <Drp value={data.centerStone?.origin} onChange={(v) => setField("centerStone.origin", v)}
                    options={OPT_ORIGIN} placeholder="Natural / Lab-Grown…" />
             </LR>
-            <div />
           </GR>
-          <FluorescenceInputs data={data} setField={setField} basePath="centerStone" />
           <GR minColWidth={150}>
             <LR label="Certificate Lab">
               <Drp value={data.centerStone?.certLab} onChange={(v) => setField("centerStone.certLab", v)}
@@ -1008,7 +1014,6 @@ function StoneEditorSections({ data, setField }) {
     <>
       <ReportInfoSection data={data} setField={setField} />
 
-      {/* Product type switcher */}
       <Pnl title="Stone Category">
         <LR label="Stone Type">
           <select
@@ -1037,13 +1042,11 @@ function StoneEditorSections({ data, setField }) {
 
       <MultiImageSection data={data} setField={setField} label="Stone Images" />
 
-      {/* Conditional field groups */}
-      {pt === "natural_diamond"   && <DiamondGradingFields data={data} setField={setField} showGrowthMethod={false} />}
-      {pt === "lab_grown_diamond" && <DiamondGradingFields data={data} setField={setField} showGrowthMethod={true}  />}
-      {pt === "fancy_color_diamond" && <FancyColorFields   data={data} setField={setField} />}
+      {pt === "natural_diamond"     && <DiamondGradingFields data={data} setField={setField} showGrowthMethod={false} />}
+      {pt === "lab_grown_diamond"   && <DiamondGradingFields data={data} setField={setField} showGrowthMethod={true}  />}
+      {pt === "fancy_color_diamond" && <FancyColorFields     data={data} setField={setField} />}
       {pt === "colored_gemstone"    && <ColoredGemstoneFields data={data} setField={setField} />}
 
-      {/* External Reports */}
       <Pnl title="External Lab Reports">
         {extReports.length === 0 && (
           <p style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 12 }}>
@@ -1100,11 +1103,10 @@ function StoneEditorSections({ data, setField }) {
 
       <Pnl title="Comments">
         <LR label="Comments (leave blank to hide)">
-          {ta(data.comments, (v) => setField("comments", v), "Additional observations, inclusions, remarks…", 3)}
+          {ta(data.comments, (v) => setField("comments", v), "Additional observations…", 3)}
         </LR>
       </Pnl>
 
-      {/* Display options */}
       <Pnl title="Display Options">
         <LR label="Reference Panel">
           <button

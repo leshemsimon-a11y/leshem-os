@@ -1,19 +1,19 @@
 /**
- * components/reports/templates/InHouseStoneReport.jsx  —  v4.3
+ * components/reports/templates/InHouseStoneReport.jsx  —  v4.3.2
  *
  * LESHEM.S — In-House Stone Report
  *
- * Changes in v4.3:
- *   + Structured measurements: formatMeasurements(measL, measW, measD, legacy)
- *   + Structured fluorescence: formatFluorescence(intensity, color, legacy)
- *   + cutForm field: displayed as "Faceted Oval" via formatCutForm
- *   + gemstoneClarityGrades: shown in ColoredGemstoneFields (not diamond grades)
- *   + ReferencePanel component: subtle educational panel per productType
- *     Shown when displaySettings?.showReferencePanel !== false
- *   + Upgraded SignatureBlock: image support, 12mm blank signing space, wider line
- *   ~ productType routing unchanged from v4.2
- *   ~ dir="ltr" preserved
- *   ~ GradeRow empty-field contract unchanged
+ * Changes vs v4.3:
+ *   + ColoredGemstoneFields: fluorescence row added.
+ *     `formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence)`
+ *     is computed and shown when non-empty — "if manually filled" per spec.
+ *     The field is displayed inside the Colour & Appearance grading block.
+ *   + Root div: WebkitPrintColorAdjust + printColorAdjust added to inline style.
+ *   + SignatureBlock: same fixed-height refactor as JewelryValuationReport v4.3.2.
+ *     18mm fixed container for image/signing area, then line, then name/title.
+ *   ~ All other field groups unchanged from v4.3.
+ *   ~ ReferencePanel unchanged.
+ *   ~ dir="ltr" preserved.
  *
  * Print: className="printable-container" — lib/printCss.js anchor.
  */
@@ -34,10 +34,8 @@ const MONO  = "'Courier New',Courier,monospace";
 const CH    = "#36454F";
 const CHM   = "#4a5c68";
 const CHL   = "#7a8e98";
-const CHX   = "#a8bcc4";
 const IV    = "#FAF9F6";
 const IV2   = "#F0EDE8";
-const GD    = "#C5B358";
 const SG    = "#8aab8e";
 const SGD   = "#5d8a62";
 
@@ -72,7 +70,10 @@ function SectionBlock({ title, children, marginBottom = "5mm" }) {
     <div style={{ marginBottom }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2.5mm" }}>
         <div style={{ width: 2, height: 12, background: SG, borderRadius: 1, flexShrink: 0 }} />
-        <span style={{ fontFamily: SANS, fontSize: 7.5, fontWeight: 700, color: CHL, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+        <span style={{
+          fontFamily: SANS, fontSize: 7.5, fontWeight: 700, color: CHL,
+          letterSpacing: "0.2em", textTransform: "uppercase",
+        }}>
           {title}
         </span>
         <div style={{ flex: 1, height: "0.5px", background: "rgba(54,69,79,0.1)" }} />
@@ -107,7 +108,7 @@ function GradingHeader() {
   );
 }
 
-// ─── GradingBlock (right column) ─────────────────────────────────────────────
+// ─── GradingBlock ────────────────────────────────────────────────────────────
 function GradingBlock({ children }) {
   return (
     <div style={{ background: IV2, padding: "0 3.5mm 3mm", border: "0.5px solid rgba(138,171,142,0.28)" }}>
@@ -120,33 +121,60 @@ function GradingBlock({ children }) {
 }
 
 // ─── SignatureBlock ───────────────────────────────────────────────────────────
+/**
+ * Fixed-height signature area — same design as JewelryValuationReport v4.3.2.
+ * 18mm fixed container: image aligned to bottom, or blank space for pen signing.
+ */
 function SignatureBlock({ credentials }) {
   const c            = credentials || {};
   const displayName  = hasValue(c.examinerName)  ? c.examinerName  : (c.signatoryName || "");
-  const displayTitle = hasValue(c.examinerTitle) ? c.examinerTitle : (c.title || "");
+  const displayTitle = hasValue(c.examinerTitle) ? c.examinerTitle : (c.title         || "");
   const hasSigImg    = hasValue(c.signatureImageUrl);
 
   return (
     <div>
-      {hasSigImg ? (
-        <div style={{ marginBottom: "3mm", height: "16mm", display: "flex", alignItems: "flex-end" }}>
+      {/* Fixed 18mm container: image at bottom, or blank signing space */}
+      <div
+        style={{
+          height:        "18mm",
+          display:       "flex",
+          alignItems:    "flex-end",
+          paddingBottom: "1mm",
+          overflow:      "hidden",
+          boxSizing:     "border-box",
+        }}
+      >
+        {hasSigImg && (
           <img
             src={c.signatureImageUrl}
             alt="signature"
-            style={{ maxWidth: "32mm", maxHeight: "16mm", objectFit: "contain", objectPosition: "bottom left", display: "block" }}
+            style={{
+              maxWidth:       "36mm",
+              maxHeight:      "16mm",
+              width:          "auto",
+              height:         "auto",
+              objectFit:      "contain",
+              objectPosition: "bottom left",
+              display:        "block",
+            }}
           />
-        </div>
-      ) : (
-        <div style={{ height: "12mm" }} aria-hidden="true" />
-      )}
-      <div style={{ width: "48mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
+        )}
+      </div>
+
+      {/* Signature line */}
+      <div style={{ width: "50mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
+
       {hasValue(displayName) && (
         <div style={{ fontFamily: SERIF, fontSize: 12, color: CH, fontStyle: "italic", lineHeight: 1.3 }}>
           {displayName}
         </div>
       )}
       {hasValue(displayTitle) && (
-        <div style={{ fontFamily: SANS, fontSize: 7.5, color: CHL, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 4, lineHeight: 1.5 }}>
+        <div style={{
+          fontFamily: SANS, fontSize: 7.5, color: CHL,
+          letterSpacing: "0.07em", textTransform: "uppercase",
+          marginTop: 4, lineHeight: 1.5,
+        }}>
           {displayTitle}
         </div>
       )}
@@ -155,55 +183,28 @@ function SignatureBlock({ credentials }) {
 }
 
 // ─── ReferencePanel ──────────────────────────────────────────────────────────
-/**
- * Subtle professional reference panel shown at the bottom of stone reports.
- * One of four variants depending on productType.
- * Hidden when displaySettings.showReferencePanel === false.
- * Design: ivory-on-ivory, 7pt text, sage accent border — never decorative.
- */
 const PANEL_STYLE = {
   border:       "0.5px solid rgba(138,171,142,0.35)",
   background:   "rgba(240,237,232,0.55)",
   padding:      "3.5mm 4.5mm",
   marginBottom: "5mm",
 };
-
 const PANEL_TITLE = {
-  fontFamily:    SANS,
-  fontSize:      6.5,
-  fontWeight:    700,
-  color:         CHL,
-  letterSpacing: "0.22em",
-  textTransform: "uppercase",
-  marginBottom:  "3mm",
-  paddingBottom: "1.5mm",
-  borderBottom:  "0.5px solid rgba(138,171,142,0.3)",
+  fontFamily: SANS, fontSize: 6.5, fontWeight: 700, color: CHL,
+  letterSpacing: "0.22em", textTransform: "uppercase",
+  marginBottom: "3mm", paddingBottom: "1.5mm",
+  borderBottom: "0.5px solid rgba(138,171,142,0.3)",
 };
-
 const PANEL_ROW = {
-  display:    "flex",
-  gap:        "3mm",
-  alignItems: "baseline",
-  marginBottom: "2mm",
+  display: "flex", gap: "3mm", alignItems: "baseline", marginBottom: "2mm",
 };
-
 const PANEL_LABEL = {
-  fontFamily:    SANS,
-  fontSize:      7,
-  fontWeight:    700,
-  color:         CHL,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  whiteSpace:    "nowrap",
-  width:         "18mm",
-  flexShrink:    0,
+  fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL,
+  letterSpacing: "0.1em", textTransform: "uppercase",
+  whiteSpace: "nowrap", width: "18mm", flexShrink: 0,
 };
-
 const PANEL_VALUE = {
-  fontFamily: SANS,
-  fontSize:   7.5,
-  color:      CHM,
-  lineHeight: 1.55,
+  fontFamily: SANS, fontSize: 7.5, color: CHM, lineHeight: 1.55,
 };
 
 function ReferencePanel({ productType }) {
@@ -211,11 +212,11 @@ function ReferencePanel({ productType }) {
     return (
       <div style={PANEL_STYLE}>
         <div style={PANEL_TITLE}>Diamond Quality Reference</div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Colour</span>
           <span style={PANEL_VALUE}>D–F Colorless · G–J Near Colorless · K–M Faint · N–R Very Light · S–Z Light</span>
         </div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Clarity</span>
           <span style={PANEL_VALUE}>FL · IF · VVS1–VVS2 (Eye Clean) · VS1–VS2 (Eye Clean) · SI1–SI2 · I1–I2–I3</span>
         </div>
@@ -226,16 +227,15 @@ function ReferencePanel({ productType }) {
       </div>
     );
   }
-
   if (productType === "lab_grown_diamond") {
     return (
       <div style={PANEL_STYLE}>
         <div style={PANEL_TITLE}>Laboratory-Grown Diamond Notes</div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Growth Methods</span>
           <span style={PANEL_VALUE}>CVD — Chemical Vapor Deposition · HPHT — High Pressure High Temperature</span>
         </div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Grading</span>
           <span style={PANEL_VALUE}>Identical 4C grading standards apply · Certifiable by IGI, GIA, and other laboratories</span>
         </div>
@@ -246,16 +246,15 @@ function ReferencePanel({ productType }) {
       </div>
     );
   }
-
   if (productType === "fancy_color_diamond") {
     return (
       <div style={PANEL_STYLE}>
         <div style={PANEL_TITLE}>Fancy Colour Grading Reference</div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Intensity Scale</span>
           <span style={PANEL_VALUE}>Faint · Very Light · Light · Fancy Light · Fancy · Fancy Intense · Fancy Vivid · Fancy Deep · Fancy Dark</span>
         </div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Primary Hues</span>
           <span style={PANEL_VALUE}>Yellow · Pink · Blue · Green · Orange · Purple · Red · Brown · Gray · Black</span>
         </div>
@@ -266,16 +265,15 @@ function ReferencePanel({ productType }) {
       </div>
     );
   }
-
   if (productType === "colored_gemstone") {
     return (
       <div style={PANEL_STYLE}>
         <div style={PANEL_TITLE}>Colored Gemstone Quality Factors</div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Colour</span>
           <span style={PANEL_VALUE}>Hue, saturation, and tone are the three primary components · Vivid, evenly-distributed color is most valued</span>
         </div>
-        <div style={{ ...PANEL_ROW }}>
+        <div style={PANEL_ROW}>
           <span style={PANEL_LABEL}>Treatment</span>
           <span style={PANEL_VALUE}>All enhancements must be disclosed · Heat treatment, oiling, and irradiation affect durability and value</span>
         </div>
@@ -286,12 +284,10 @@ function ReferencePanel({ productType }) {
       </div>
     );
   }
-
   return null;
 }
 
-// ─── productType-specific field groups ───────────────────────────────────────
-
+// ─── NaturalDiamondFields ────────────────────────────────────────────────────
 function NaturalDiamondFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
@@ -299,8 +295,8 @@ function NaturalDiamondFields({ st }) {
   const cfLabel    = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
 
   const hasMeasurements = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(measStr);
-  const hasGrading      = hasValue(st.color)  || hasValue(st.clarity)  || hasValue(st.cut) ||
-                          hasValue(st.polish) || hasValue(st.symmetry) || hasValue(fluorStr);
+  const hasGrading      = hasValue(st.color)   || hasValue(st.clarity)   || hasValue(st.cut) ||
+                          hasValue(st.polish)  || hasValue(st.symmetry)  || hasValue(fluorStr);
   const hasLab          = hasValue(st.certLab) || hasValue(st.certNumber);
 
   if (!hasMeasurements && !hasGrading && !hasLab) return null;
@@ -311,9 +307,9 @@ function NaturalDiamondFields({ st }) {
         {hasMeasurements && (
           <SectionBlock title="Weight & Shape" marginBottom={hasLab ? "4mm" : "0"}>
             <GradeTable>
-              {hasValue(cutFormStr)  && <GradeRow label={cfLabel}       value={cutFormStr}               />}
-              {hasValue(st.carat)    && <GradeRow label="Carat Weight"  value={`${st.carat} ct`} highlight />}
-              {hasValue(measStr)     && <GradeRow label="Measurements"  value={measStr}          noBorder />}
+              {hasValue(cutFormStr) && <GradeRow label={cfLabel}       value={cutFormStr}               />}
+              {hasValue(st.carat)   && <GradeRow label="Carat Weight"  value={`${st.carat} ct`} highlight />}
+              {hasValue(measStr)    && <GradeRow label="Measurements"  value={measStr}          noBorder />}
             </GradeTable>
           </SectionBlock>
         )}
@@ -344,6 +340,7 @@ function NaturalDiamondFields({ st }) {
   );
 }
 
+// ─── LabDiamondFields ────────────────────────────────────────────────────────
 function LabDiamondFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
@@ -351,8 +348,8 @@ function LabDiamondFields({ st }) {
   const cfLabel    = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
 
   const hasMeasurements = hasValue(cutFormStr)  || hasValue(st.carat) || hasValue(measStr) || hasValue(st.growthMethod);
-  const hasGrading      = hasValue(st.color)    || hasValue(st.clarity)  || hasValue(st.cut) ||
-                          hasValue(st.polish)   || hasValue(st.symmetry) || hasValue(fluorStr);
+  const hasGrading      = hasValue(st.color)    || hasValue(st.clarity)   || hasValue(st.cut) ||
+                          hasValue(st.polish)   || hasValue(st.symmetry)  || hasValue(fluorStr);
   const hasLab          = hasValue(st.certLab)  || hasValue(st.certNumber);
 
   if (!hasMeasurements && !hasGrading && !hasLab) return null;
@@ -397,6 +394,7 @@ function LabDiamondFields({ st }) {
   );
 }
 
+// ─── FancyColorDiamondFields ─────────────────────────────────────────────────
 function FancyColorDiamondFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
@@ -407,9 +405,9 @@ function FancyColorDiamondFields({ st }) {
 
   const hasMeasurements = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(measStr);
   const hasFancyGrading = hasValue(fancyGradeStr) || hasValue(st.fancyColorOrigin) ||
-                          hasValue(st.clarity)    || hasValue(st.polish) ||
+                          hasValue(st.clarity)    || hasValue(st.polish)   ||
                           hasValue(st.symmetry)   || hasValue(fluorStr);
-  const hasLab          = hasValue(st.certLab)   || hasValue(st.certNumber);
+  const hasLab          = hasValue(st.certLab)    || hasValue(st.certNumber);
 
   if (!hasMeasurements && !hasFancyGrading && !hasLab) return null;
 
@@ -452,21 +450,32 @@ function FancyColorDiamondFields({ st }) {
   );
 }
 
+// ─── ColoredGemstoneFields ───────────────────────────────────────────────────
+/**
+ * v4.3.2: fluorescence row added.
+ * `fluorStr` computed from structured fields with legacy fallback.
+ * Displayed in the Colour & Appearance grading block when non-empty.
+ * Spec: "colored gemstone if manually filled — Fluorescence: Medium Blue"
+ */
 function ColoredGemstoneFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
   const cutFormStr = formatCutForm(st.cutForm, st.shape);
   const cfLabel    = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
+  // Fluorescence — only rendered when manually filled (formatFluorescence returns "" when empty)
+  const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
 
-  const hasIdentity   = hasValue(st.species)  || hasValue(st.variety);
-  const hasMeasure    = hasValue(cutFormStr)   || hasValue(st.carat) || hasValue(measStr);
-  const hasAppearance = hasValue(st.colorDescription) || hasValue(st.transparency) || hasValue(st.clarity);
-  const hasTreatment  = hasValue(st.treatment)        || hasValue(st.countryOfOrigin);
+  const hasIdentity   = hasValue(st.species)           || hasValue(st.variety);
+  const hasMeasure    = hasValue(cutFormStr)            || hasValue(st.carat) || hasValue(measStr);
+  const hasAppearance = hasValue(st.colorDescription)  || hasValue(st.transparency) ||
+                        hasValue(st.clarity)           || hasValue(fluorStr);
+  const hasTreatment  = hasValue(st.treatment)         || hasValue(st.countryOfOrigin);
 
   if (!hasIdentity && !hasMeasure && !hasAppearance && !hasTreatment) return null;
 
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginBottom: "5mm" }}>
+        {/* Left column */}
         <div>
           {hasIdentity && (
             <SectionBlock title="Identification" marginBottom="4mm">
@@ -486,6 +495,8 @@ function ColoredGemstoneFields({ st }) {
             </SectionBlock>
           )}
         </div>
+
+        {/* Right column */}
         {(hasAppearance || hasTreatment) && (
           <div>
             {hasAppearance && (
@@ -494,9 +505,19 @@ function ColoredGemstoneFields({ st }) {
                   <GradingHeader />
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <tbody>
-                      {hasValue(st.colorDescription) && <GradeRow label="Colour Description" value={st.colorDescription} highlight />}
-                      {hasValue(st.transparency)     && <GradeRow label="Transparency"        value={st.transparency}              />}
-                      {hasValue(st.clarity)          && <GradeRow label="Clarity"             value={st.clarity}          noBorder />}
+                      {hasValue(st.colorDescription) && (
+                        <GradeRow label="Colour Description" value={st.colorDescription} highlight />
+                      )}
+                      {hasValue(st.transparency) && (
+                        <GradeRow label="Transparency" value={st.transparency} />
+                      )}
+                      {hasValue(st.clarity) && (
+                        <GradeRow label="Clarity" value={st.clarity} />
+                      )}
+                      {/* Fluorescence — shown if manually filled */}
+                      {hasValue(fluorStr) && (
+                        <GradeRow label="Fluorescence" value={fluorStr} noBorder />
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -523,22 +544,23 @@ export function InHouseStoneReport({ data }) {
   const d  = data;
   const st = d.stone || {};
 
-  const pt          = d.productType || "natural_diamond";
-  const ptLabel     = PRODUCT_TYPE_LABELS[pt] || "Stone Report";
+  const pt           = d.productType  || "natural_diamond";
+  const ptLabel      = PRODUCT_TYPE_LABELS[pt] || "Stone Report";
   const showRefPanel = d.displaySettings?.showReferencePanel !== false;
 
   // Multi-image
-  const images         = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
-  const reportImages   = images.slice(0, 3);
-  const hasImages      = reportImages.length > 0;
-  const heroImg        = reportImages[0] || null;
-  const secondaryImgs  = reportImages.slice(1);
+  const images        = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
+  const reportImages  = images.slice(0, 3);
+  const hasImages     = reportImages.length > 0;
+  const heroImg       = reportImages[0] || null;
+  const secondaryImgs = reportImages.slice(1);
 
   const hasExtReports =
     Array.isArray(d.externalReports) && d.externalReports.length > 0 &&
     d.externalReports.some((r) => hasValue(r.lab) || hasValue(r.reportNumber));
   const hasComments     = hasValue(d.comments);
-  const hasVerification = hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
+  const hasVerification =
+    hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
 
   const KNOWN_TYPES = ["natural_diamond", "lab_grown_diamond", "fancy_color_diamond", "colored_gemstone"];
 
@@ -547,10 +569,19 @@ export function InHouseStoneReport({ data }) {
       className="printable-container"
       dir="ltr"
       style={{
-        width: "210mm", maxWidth: "100%", height: "297mm",
-        background: IV, fontFamily: SANS, color: CH,
-        position: "relative", overflow: "hidden", boxSizing: "border-box", margin: "0 auto",
-        pageBreakInside: "avoid",
+        width:    "210mm",
+        maxWidth: "100%",
+        minHeight: "297mm",
+        background: IV,
+        fontFamily: SANS,
+        color:      CH,
+        position:   "relative",
+        overflow:   "hidden",        // screen: clip watermark; print CSS overrides to visible
+        boxSizing:  "border-box",
+        margin:     "0 auto",
+        // Print fidelity: preserve backgrounds in PDF
+        WebkitPrintColorAdjust: "exact",
+        printColorAdjust:       "exact",
       }}
     >
       {/* Watermark */}
@@ -566,14 +597,7 @@ export function InHouseStoneReport({ data }) {
       <div style={{ height: 4, background: `linear-gradient(90deg, ${SGD} 0%, ${SG} 60%, #b0c8b2 100%)` }} />
 
       {/* Content */}
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        padding: "9mm 13mm 8mm",
-        transform: "scale(0.92)",
-        transformOrigin: "top left",
-        width: "108.7%",
-      }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
 
         {/* ── HEADER ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
@@ -593,12 +617,12 @@ export function InHouseStoneReport({ data }) {
               {ptLabel}
             </div>
             {hasValue(d.reportNumber) && (
-              <div style={{ fontFamily: SANS, fontSize: 8.5, color: CHL, marginTop: 4, letterSpacing: "0.04em" }}>
+              <div style={{ fontFamily: SANS, fontSize: 8.5, color: "#7a8e98", marginTop: 4, letterSpacing: "0.04em" }}>
                 Report No. <span style={{ color: CH, fontWeight: 600 }}>{d.reportNumber}</span>
               </div>
             )}
             {hasValue(d.reportDate) && (
-              <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, marginTop: 2 }}>{d.reportDate}</div>
+              <div style={{ fontFamily: SANS, fontSize: 8, color: "#7a8e98", marginTop: 2 }}>{d.reportDate}</div>
             )}
           </div>
         </div>
@@ -609,7 +633,6 @@ export function InHouseStoneReport({ data }) {
         {/* ── IMAGES ── */}
         {hasImages && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "5mm", gap: "2mm" }}>
-            {/* Hero */}
             <div style={{
               width: "55mm", height: "55mm",
               border: "0.5px solid rgba(54,69,79,0.16)", background: IV2,
@@ -617,7 +640,6 @@ export function InHouseStoneReport({ data }) {
             }}>
               <img src={heroImg} alt="stone" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
-            {/* Secondary strip */}
             {secondaryImgs.length > 0 && (
               <div style={{ display: "flex", gap: "2mm" }}>
                 {secondaryImgs.map((src, i) => (
@@ -720,9 +742,14 @@ export function InHouseStoneReport({ data }) {
 
         {/* ── FOOTER ── */}
         <div style={{
-          borderTop: "0.5px solid rgba(138,171,142,0.55)", paddingTop: "5mm", marginTop: "4mm",
-          display: "flex", justifyContent: "space-between", alignItems: "flex-end",
-          flexWrap: "wrap", gap: "6mm",
+          borderTop:      "0.5px solid rgba(138,171,142,0.55)",
+          paddingTop:     "5mm",
+          marginTop:      "4mm",
+          display:        "flex",
+          justifyContent: "space-between",
+          alignItems:     "flex-end",
+          flexWrap:       "wrap",
+          gap:            "6mm",
         }}>
           <SignatureBlock credentials={d.credentials} />
           <div style={{ textAlign: "right", maxWidth: "70mm" }}>
@@ -738,7 +765,7 @@ export function InHouseStoneReport({ data }) {
           </div>
         </div>
 
-      </div>
+      </div>{/* /content */}
     </div>
   );
 }

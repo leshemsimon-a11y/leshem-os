@@ -1,21 +1,23 @@
 /**
- * components/reports/templates/JewelryValuationReport.jsx  —  v4.3
+ * components/reports/templates/JewelryValuationReport.jsx  —  v4.3.2
  *
  * LESHEM.S — Jewelry Valuation Report
  *
- * Changes in v4.3:
- *   + Multi-image equal-size grid:
- *       1 image  → single square (full 52mm column)
- *       2 images → equal side-by-side (each ~25mm wide)
- *       3 images → equal side-by-side (each ~16mm wide)
- *       max 3 images shown; 4+ silently truncated
- *       0 images → image column hidden, title spans full width
- *   + Upgraded signature area:
- *       signatureImageUrl → rendered above signature line (max 32mm × 16mm)
- *       No image → 12mm blank signing space
- *       examinerName / examinerTitle with fallback to signatoryName / title
- *       Wider signature line (48mm), larger name text
- *   ~ All other sections unchanged from v4.2
+ * Changes vs v4.3:
+ *   + Root div: WebkitPrintColorAdjust + printColorAdjust added to inline style.
+ *     Belt-and-suspenders alongside printCss.js — preserves backgrounds in PDF
+ *     when the print CSS hasn't injected yet (first render, server-side, etc.)
+ *   + SignatureBlock refactored to fixed-height:
+ *       Fixed 18mm container for the image/signing area, always the same height.
+ *       With image:    image aligned to bottom of 18mm box (max 16mm × 36mm).
+ *       Without image: 18mm empty space for manual pen signing.
+ *       Container overflow:hidden prevents oversized images from bleeding.
+ *       Name and title always in the same position below the line.
+ *   ~ Multi-image equal-size grid unchanged from v4.3:
+ *       1 image  → single full-width square (52mm column)
+ *       2–3 images → flex:"1 1 0" equal-width row
+ *       4+ images → silently truncated to 3 (slice 0,3)
+ *   ~ All other sections identical to v4.3.
  *
  * Print: className="printable-container" — lib/printCss.js anchor.
  * Direction: dir="ltr" explicit on root.
@@ -25,7 +27,6 @@ import {
   hasValue,
   formatMeasurements,
   formatFluorescence,
-  formatCutForm,
 } from "../../../lib/reports/reportUtils";
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
@@ -82,7 +83,12 @@ function SpecSubGroup({ label, rows }) {
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {visible.map((r, i) => (
-            <SpecRow key={r.label} label={r.label} value={r.value} noBorder={i === visible.length - 1} />
+            <SpecRow
+              key={r.label}
+              label={r.label}
+              value={r.value}
+              noBorder={i === visible.length - 1}
+            />
           ))}
         </tbody>
       </table>
@@ -95,7 +101,10 @@ function SectionTitle({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: "3mm" }}>
       <div style={{ width: 2, height: 13, background: GD, borderRadius: 1, flexShrink: 0 }} />
-      <span style={{ fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+      <span style={{
+        fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL,
+        letterSpacing: "0.22em", textTransform: "uppercase",
+      }}>
         {children}
       </span>
       <div style={{ flex: 1, height: "0.5px", background: "rgba(54,69,79,0.1)" }} />
@@ -105,59 +114,78 @@ function SectionTitle({ children }) {
 
 // ─── SignatureBlock ───────────────────────────────────────────────────────────
 /**
- * Signature area used in the footer.
+ * Fixed-height signature area.
  *
- * When signatureImageUrl exists:
- *   - Image renders at max 32mm × 16mm, left-aligned
- *   - 4mm gap then signature line
+ * Layout (always the same total height):
+ *   ┌─────────────────────────────┐  ← 18mm fixed container
+ *   │                             │
+ *   │  [sig image if exists]      │  ← image aligned to bottom, max 16mm tall
+ *   └─────────────────────────────┘
+ *   ── 50mm line ─────────────────   ← 0.5px rule, 3mm below container
+ *   Examiner Name                    ← italic serif 12pt
+ *   EXAMINER TITLE                   ← caps sans 7.5pt
  *
- * When no image:
- *   - 12mm blank space (enough for manual pen signing)
- *   - Then signature line
- *
- * Name and title use examinerName/examinerTitle with fallback to signatoryName/title.
+ * When no image: the 18mm container is empty — provides blank signing space.
+ * Container overflow:hidden prevents oversized images from bleeding.
+ * Name uses examinerName → signatoryName fallback (hasValue check).
  */
 function SignatureBlock({ credentials }) {
-  const c          = credentials || {};
+  const c            = credentials || {};
   const displayName  = hasValue(c.examinerName)  ? c.examinerName  : (c.signatoryName || "");
-  const displayTitle = hasValue(c.examinerTitle) ? c.examinerTitle : (c.title || "");
+  const displayTitle = hasValue(c.examinerTitle) ? c.examinerTitle : (c.title         || "");
   const hasSigImg    = hasValue(c.signatureImageUrl);
 
   return (
     <div>
-      {/* Signature image or blank signing space */}
-      {hasSigImg ? (
-        <div style={{ marginBottom: "3mm", height: "16mm", display: "flex", alignItems: "flex-end" }}>
+      {/* Fixed 18mm signature image / blank signing space */}
+      <div
+        style={{
+          height:      "18mm",
+          display:     "flex",
+          alignItems:  "flex-end",
+          paddingBottom: "1mm",
+          overflow:    "hidden",
+          boxSizing:   "border-box",
+        }}
+      >
+        {hasSigImg && (
           <img
             src={c.signatureImageUrl}
             alt="signature"
             style={{
-              maxWidth: "32mm", maxHeight: "16mm",
-              objectFit: "contain", objectPosition: "bottom left",
-              display: "block",
+              maxWidth:       "36mm",
+              maxHeight:      "16mm",
+              width:          "auto",
+              height:         "auto",
+              objectFit:      "contain",
+              objectPosition: "bottom left",
+              display:        "block",
             }}
           />
-        </div>
-      ) : (
-        <div style={{ height: "12mm" }} aria-hidden="true" />
-      )}
+        )}
+        {/* No image → empty 18mm space for manual pen signing */}
+      </div>
 
       {/* Signature line */}
-      <div style={{ width: "48mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
+      <div style={{ width: "50mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
 
-      {/* Name */}
+      {/* Examiner name */}
       {hasValue(displayName) && (
         <div style={{ fontFamily: SERIF, fontSize: 12, color: CH, fontStyle: "italic", lineHeight: 1.3 }}>
           {displayName}
         </div>
       )}
 
-      {/* Title */}
+      {/* Examiner title */}
       {hasValue(displayTitle) && (
         <div style={{
-          fontFamily: SANS, fontSize: 7.5, color: CHL,
-          letterSpacing: "0.07em", textTransform: "uppercase",
-          marginTop: 4, lineHeight: 1.5,
+          fontFamily:    SANS,
+          fontSize:      7.5,
+          color:         CHL,
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+          marginTop:     4,
+          lineHeight:    1.5,
         }}>
           {displayTitle}
         </div>
@@ -171,41 +199,22 @@ export function JewelryValuationReport({ data }) {
   if (!data) return null;
   const d = data;
 
-  // Normalise images — handle legacy single-string gracefully
-  const images = Array.isArray(d.images)
-    ? d.images.filter(Boolean)
-    : (d.images ? [d.images] : []);
-  const reportImages = images.slice(0, 3);  // max 3 in report
+  // Images: normalise, deduplicate, max 3 shown in report
+  const images       = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
+  const reportImages = images.slice(0, 3);
   const hasImages    = reportImages.length > 0;
 
-  // ── Presence guards ──
+  // ── Presence guards ──────────────────────────────────────────────────────
   const hasDescription = hasValue(d.itemDescription);
   const hasItemTitle   = hasValue(d.itemTitle);
   const hasItem        = hasItemTitle || hasImages;
 
-  const hasMetal = hasValue(d.metal?.alloy) || hasValue(d.metal?.weight) ||
-                   hasValue(d.metal?.purity) || hasValue(d.metal?.casting);
+  const hasMetal =
+    hasValue(d.metal?.alloy)  || hasValue(d.metal?.weight) ||
+    hasValue(d.metal?.purity) || hasValue(d.metal?.casting);
 
-  const hasCenterStone =
-    hasValue(d.centerStone?.type)  || hasValue(d.centerStone?.carat)  ||
-    hasValue(d.centerStone?.shape) || hasValue(d.centerStone?.cutForm)||
-    hasValue(d.centerStone?.measLength) || hasValue(d.centerStone?.measWidth) || hasValue(d.centerStone?.measDepth) || hasValue(d.centerStone?.measurements) ||
-    hasValue(d.centerStone?.color) || hasValue(d.centerStone?.clarity)||
-    hasValue(d.centerStone?.cut)   || hasValue(d.centerStone?.setting)||
-    hasValue(d.centerStone?.fluorescence) || hasValue(d.centerStone?.fluorescenceIntensity) || hasValue(d.centerStone?.fluorescenceColor) || hasValue(d.centerStone?.origin)  ||
-    hasValue(d.centerStone?.certLab)       || hasValue(d.centerStone?.certNumber);
-
-  const hasSpecs = hasMetal || hasCenterStone ||
-                   hasValue(d.accentStonesDesc) || hasValue(d.workmanshipDesc);
-
-  const hasValuation  = d.valuation?.enabled !== false && hasValue(d.valuation?.amount);
-  const hasVerification =
-    hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
-  const hasNotes       = hasValue(d.notes);
-  const hasPreparedFor = hasValue(d.preparedFor);
-
-  const certStr = [d.centerStone?.certLab, d.centerStone?.certNumber].filter(hasValue).join("  ");
-  const centerCutForm = formatCutForm(d.centerStone?.cutForm, d.centerStone?.shape);
+  const certStr = [d.centerStone?.certLab, d.centerStone?.certNumber]
+    .filter(hasValue).join("  ");
   const centerMeasurements = formatMeasurements(
     d.centerStone?.measLength,
     d.centerStone?.measWidth,
@@ -218,15 +227,46 @@ export function JewelryValuationReport({ data }) {
     d.centerStone?.fluorescence
   );
 
+  const hasCenterStone =
+    hasValue(d.centerStone?.type)        || hasValue(d.centerStone?.carat)  ||
+    hasValue(d.centerStone?.color)       || hasValue(d.centerStone?.clarity)||
+    hasValue(d.centerStone?.cut)         || hasValue(d.centerStone?.setting)||
+    hasValue(centerMeasurements)          || hasValue(centerFluorescence)    ||
+    hasValue(d.centerStone?.origin)       ||
+    hasValue(d.centerStone?.certLab)      || hasValue(d.centerStone?.certNumber);
+
+  const hasSpecs =
+    hasMetal || hasCenterStone ||
+    hasValue(d.accentStonesDesc) || hasValue(d.workmanshipDesc);
+
+  const hasValuation =
+    d.valuation?.enabled !== false && hasValue(d.valuation?.amount);
+
+  const hasVerification =
+    hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
+
+  const hasNotes       = hasValue(d.notes);
+  const hasPreparedFor = hasValue(d.preparedFor);
+
+
   return (
     <div
       className="printable-container"
       dir="ltr"
       style={{
-        width: "210mm", maxWidth: "100%", height: "297mm",
-        background: IV, fontFamily: SANS, color: CH,
-        position: "relative", overflow: "hidden", boxSizing: "border-box", margin: "0 auto",
-        pageBreakInside: "avoid",
+        width:    "210mm",
+        maxWidth: "100%",
+        minHeight: "297mm",
+        background: IV,
+        fontFamily: SANS,
+        color:      CH,
+        position:   "relative",
+        overflow:   "hidden",        // screen: clip watermark bleed
+        boxSizing:  "border-box",
+        margin:     "0 auto",
+        // Print fidelity: preserve backgrounds in PDF (belt+suspenders with printCss.js)
+        WebkitPrintColorAdjust: "exact",
+        printColorAdjust:       "exact",
       }}
     >
       {/* Watermark */}
@@ -239,17 +279,13 @@ export function JewelryValuationReport({ data }) {
       }}>LS</div>
 
       {/* Security strip */}
-      <div style={{ height: 4, background: `linear-gradient(90deg, ${GD} 0%, #b8a24a 55%, ${SG} 100%)` }} />
+      <div style={{
+        height: 4,
+        background: `linear-gradient(90deg, ${GD} 0%, #b8a24a 55%, ${SG} 100%)`,
+      }} />
 
       {/* Content */}
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        padding: "9mm 13mm 8mm",
-        transform: "scale(0.92)",
-        transformOrigin: "top left",
-        width: "108.7%",
-      }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
 
         {/* ── HEADER ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
@@ -295,15 +331,13 @@ export function JewelryValuationReport({ data }) {
         {hasItem && (
           <div style={{ marginBottom: "5mm" }}>
             <SectionTitle>Item</SectionTitle>
-            <div
-              style={{
-                display:             "grid",
-                gridTemplateColumns: hasImages ? "52mm 1fr" : "1fr",
-                gap:                 "5mm",
-                alignItems:          "start",
-              }}
-            >
-              {/* Image column — equal-size grid */}
+            <div style={{
+              display:             "grid",
+              gridTemplateColumns: hasImages ? "52mm 1fr" : "1fr",
+              gap:                 "5mm",
+              alignItems:          "start",
+            }}>
+              {/* Image column */}
               {hasImages && (
                 <div>
                   {reportImages.length === 1 ? (
@@ -391,7 +425,6 @@ export function JewelryValuationReport({ data }) {
               {hasCenterStone && (
                 <SpecSubGroup label="Center Stone" rows={[
                   { label: "Type",              value: d.centerStone?.type },
-                  { label: "Cut / Form",        value: centerCutForm },
                   { label: "Carat Weight",      value: d.centerStone?.carat },
                   { label: "Measurements",      value: centerMeasurements },
                   { label: "Colour Grade",      value: d.centerStone?.color },
@@ -486,9 +519,14 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── FOOTER ── */}
         <div style={{
-          borderTop: "0.5px solid rgba(197,179,88,0.45)", paddingTop: "5mm", marginTop: "4mm",
-          display: "flex", justifyContent: "space-between", alignItems: "flex-end",
-          flexWrap: "wrap", gap: "6mm",
+          borderTop: "0.5px solid rgba(197,179,88,0.45)",
+          paddingTop: "5mm",
+          marginTop:  "4mm",
+          display:    "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-end",
+          flexWrap:   "wrap",
+          gap:        "6mm",
         }}>
           <SignatureBlock credentials={d.credentials} />
 
@@ -505,7 +543,7 @@ export function JewelryValuationReport({ data }) {
           </div>
         </div>
 
-      </div>
+      </div>{/* /content */}
     </div>
   );
 }

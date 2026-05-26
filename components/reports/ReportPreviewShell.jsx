@@ -1,61 +1,96 @@
 /**
- * components/reports/ReportPreviewShell.jsx
+ * components/reports/ReportPreviewShell.jsx  —  v4.3.2
  *
- * Thin shell that:
- *   1. Resolves which template to render based on reportType
- *   2. Provides a screen-view wrapper (light shadow, centred)
- *   3. Is NOT wrapped in no-print — its child template carries
- *      className="printable-container" which is the @media print anchor
+ * Routes reportType → correct template component.
+ * Adds a screen-only print/save button (hidden when printing via .no-print).
  *
- * Props:
- *   reportType  {string}  "jewelry_valuation" | "inhouse_stone"
- *   reportData  {object}  Current report data from ReportEngine state
+ * Changes vs v1:
+ *   + Print / Save PDF button with className="no-print"
+ *   + Empty state placeholder when no reportType selected
+ *   ~ Props interface unchanged: { reportType, reportData }
+ *
+ * The .printable-container class lives on the template root divs
+ * (JewelryValuationReport, InHouseStoneReport) — not on this shell.
+ * This shell wrapper is intentionally unstyled so it never interferes with
+ * the printable area.
  */
 
+import { C } from "../../lib/constants";
 import { JewelryValuationReport } from "./templates/JewelryValuationReport";
-import { InHouseStoneReport }     from "./templates/InHouseStoneReport";
+import { InHouseStoneReport }      from "./templates/InHouseStoneReport";
 
-export function ReportPreviewShell({ reportType, reportData }) {
-  // Resolve the correct template
-  let Template = null;
-  if (reportType === "jewelry_valuation") Template = JewelryValuationReport;
-  if (reportType === "inhouse_stone")     Template = InHouseStoneReport;
-
-  if (!Template) {
-    return (
-      <div
-        style={{
-          width:          "210mm",
-          maxWidth:       "100%",
-          minHeight:      "297mm",
-          background:     "#FAF9F6",
-          border:         "1px solid rgba(54,69,79,0.12)",
-          borderRadius:   4,
-          display:        "flex",
-          alignItems:     "center",
-          justifyContent: "center",
-          fontFamily:     "'DM Sans',sans-serif",
-          fontSize:       13,
-          color:          "#7a8e98",
-        }}
-      >
-        No template for this report type yet.
-      </div>
-    );
-  }
-
+// ─── PrintBar ────────────────────────────────────────────────────────────────
+function PrintBar() {
   return (
-    // Screen wrapper — gives the A4 preview a subtle depth
     <div
+      className="no-print"
       style={{
-        boxShadow:   "0 2px 20px rgba(54,69,79,0.12)",
-        borderRadius: 2,
-        overflow:    "hidden",
-        width:       "210mm",
-        maxWidth:    "100%",
+        padding:        "0 0 12px",
+        display:        "flex",
+        justifyContent: "flex-end",
+        alignItems:     "center",
       }}
     >
-      <Template data={reportData} />
+      <button
+        onClick={() => window.print()}
+        style={{
+          height:         38,
+          padding:        "0 18px",
+          border:         "1px solid rgba(54,69,79,0.22)",
+          borderRadius:   6,
+          background:     C.ch,
+          color:          "#FAF9F6",
+          fontFamily:     C.heb,
+          fontSize:       13,
+          letterSpacing:  "0.04em",
+          cursor:         "pointer",
+          display:        "flex",
+          alignItems:     "center",
+          gap:            7,
+          flexShrink:     0,
+        }}
+      >
+        🖨 Print / Save PDF
+      </button>
+    </div>
+  );
+}
+
+// ─── EmptyState ──────────────────────────────────────────────────────────────
+function EmptyState() {
+  return (
+    <div
+      style={{
+        width:          "210mm",
+        maxWidth:       "100%",
+        minHeight:      "120mm",
+        background:     "#F5F3EF",
+        border:         "1px dashed rgba(54,69,79,0.18)",
+        display:        "flex",
+        alignItems:     "center",
+        justifyContent: "center",
+      }}
+    >
+      <p style={{ fontFamily: C.heb, fontSize: 13, color: "rgba(54,69,79,0.38)", margin: 0 }}>
+        Select a report type to preview
+      </p>
+    </div>
+  );
+}
+
+// ─── ReportPreviewShell ───────────────────────────────────────────────────────
+export function ReportPreviewShell({ reportType, reportData }) {
+  return (
+    <div>
+      <PrintBar />
+
+      {reportType === "jewelry_valuation" && (
+        <JewelryValuationReport data={reportData} />
+      )}
+      {reportType === "inhouse_stone" && (
+        <InHouseStoneReport data={reportData} />
+      )}
+      {!reportType && <EmptyState />}
     </div>
   );
 }
