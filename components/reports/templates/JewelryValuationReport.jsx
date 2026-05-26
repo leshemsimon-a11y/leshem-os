@@ -1,24 +1,29 @@
 /**
- * components/reports/templates/JewelryValuationReport.jsx  —  v4.2
+ * components/reports/templates/JewelryValuationReport.jsx  —  v4.3
  *
  * LESHEM.S — Jewelry Valuation Report
  *
- * Changes in v4.2:
- *   + Multi-image support:
- *       images[0] → hero (large, 52mm square, existing behavior)
- *       images[1..3] → secondary strip below hero (up to 3 shown, ~14mm each)
- *       images[4+] → silently truncated (A4 constraint)
- *       No images → image column hidden completely (layout becomes 1-col)
- *   ~ All other sections unchanged from v1.1
+ * Changes in v4.3:
+ *   + Multi-image equal-size grid:
+ *       1 image  → single square (full 52mm column)
+ *       2 images → equal side-by-side (each ~25mm wide)
+ *       3 images → equal side-by-side (each ~16mm wide)
+ *       max 3 images shown; 4+ silently truncated
+ *       0 images → image column hidden, title spans full width
+ *   + Upgraded signature area:
+ *       signatureImageUrl → rendered above signature line (max 32mm × 16mm)
+ *       No image → 12mm blank signing space
+ *       examinerName / examinerTitle with fallback to signatoryName / title
+ *       Wider signature line (48mm), larger name text
+ *   ~ All other sections unchanged from v4.2
  *
- * Print:
- *   className="printable-container" — lib/printCss.js anchor.
- *   dir="ltr" explicit on root.
+ * Print: className="printable-container" — lib/printCss.js anchor.
+ * Direction: dir="ltr" explicit on root.
  */
 
 import { hasValue } from "../../../lib/reports/reportUtils";
 
-// ─── Design tokens ─────────────────────────────────────────────────────────
+// ─── Design tokens ──────────────────────────────────────────────────────────
 const SERIF = "'Merriweather','Times New Roman',Georgia,serif";
 const SANS  = "'DM Sans',Helvetica,Arial,sans-serif";
 const MONO  = "'Courier New',Courier,monospace";
@@ -31,75 +36,48 @@ const IV2   = "#F0EDE8";
 const GD    = "#C5B358";
 const SG    = "#8aab8e";
 
-// ─── SpecRow ─────────────────────────────────────────────────────────────────
+// ─── SpecRow ────────────────────────────────────────────────────────────────
 function SpecRow({ label, value, noBorder }) {
   if (!hasValue(value)) return null;
   return (
     <tr>
-      <td
-        style={{
-          padding:       "4.5px 12px 4.5px 0",
-          fontFamily:    SANS,
-          fontSize:      8.5,
-          color:         CHL,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          whiteSpace:    "nowrap",
-          verticalAlign: "top",
-          width:         "38%",
-          borderBottom:  noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
-        }}
-      >
+      <td style={{
+        padding: "4.5px 12px 4.5px 0", fontFamily: SANS, fontSize: 8.5, color: CHL,
+        letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap",
+        verticalAlign: "top", width: "38%",
+        borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
+      }}>
         {label}
       </td>
-      <td
-        style={{
-          padding:      "4.5px 0 4.5px 12px",
-          fontFamily:   SANS,
-          fontSize:     11,
-          color:        CH,
-          verticalAlign: "top",
-          lineHeight:   1.55,
-          borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
-        }}
-      >
+      <td style={{
+        padding: "4.5px 0 4.5px 12px", fontFamily: SANS, fontSize: 11, color: CH,
+        verticalAlign: "top", lineHeight: 1.55,
+        borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
+      }}>
         {value}
       </td>
     </tr>
   );
 }
 
-// ─── SpecSubGroup ─────────────────────────────────────────────────────────────
+// ─── SpecSubGroup ────────────────────────────────────────────────────────────
 function SpecSubGroup({ label, rows }) {
   const visible = rows.filter((r) => hasValue(r.value));
   if (visible.length === 0) return null;
-
   return (
     <div style={{ marginBottom: "3.5mm" }}>
-      <div
-        style={{
-          fontFamily:    SANS,
-          fontSize:      6.5,
-          fontWeight:    700,
-          color:         CHL,
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          marginBottom:  "2mm",
-          paddingBottom: "1mm",
-          borderBottom:  "0.5px solid rgba(197,179,88,0.22)",
-        }}
-      >
+      <div style={{
+        fontFamily: SANS, fontSize: 6.5, fontWeight: 700, color: CHL,
+        letterSpacing: "0.22em", textTransform: "uppercase",
+        marginBottom: "2mm", paddingBottom: "1mm",
+        borderBottom: "0.5px solid rgba(197,179,88,0.22)",
+      }}>
         {label}
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {visible.map((r, i) => (
-            <SpecRow
-              key={r.label}
-              label={r.label}
-              value={r.value}
-              noBorder={i === visible.length - 1}
-            />
+            <SpecRow key={r.label} label={r.label} value={r.value} noBorder={i === visible.length - 1} />
           ))}
         </tbody>
       </table>
@@ -107,25 +85,78 @@ function SpecSubGroup({ label, rows }) {
   );
 }
 
-// ─── SectionTitle ─────────────────────────────────────────────────────────────
+// ─── SectionTitle ────────────────────────────────────────────────────────────
 function SectionTitle({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: "3mm" }}>
-      <div
-        style={{
-          width: 2, height: 13, background: GD,
-          borderRadius: 1, flexShrink: 0,
-        }}
-      />
-      <span
-        style={{
-          fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL,
-          letterSpacing: "0.22em", textTransform: "uppercase",
-        }}
-      >
+      <div style={{ width: 2, height: 13, background: GD, borderRadius: 1, flexShrink: 0 }} />
+      <span style={{ fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL, letterSpacing: "0.22em", textTransform: "uppercase" }}>
         {children}
       </span>
       <div style={{ flex: 1, height: "0.5px", background: "rgba(54,69,79,0.1)" }} />
+    </div>
+  );
+}
+
+// ─── SignatureBlock ───────────────────────────────────────────────────────────
+/**
+ * Signature area used in the footer.
+ *
+ * When signatureImageUrl exists:
+ *   - Image renders at max 32mm × 16mm, left-aligned
+ *   - 4mm gap then signature line
+ *
+ * When no image:
+ *   - 12mm blank space (enough for manual pen signing)
+ *   - Then signature line
+ *
+ * Name and title use examinerName/examinerTitle with fallback to signatoryName/title.
+ */
+function SignatureBlock({ credentials }) {
+  const c          = credentials || {};
+  const displayName  = hasValue(c.examinerName)  ? c.examinerName  : (c.signatoryName || "");
+  const displayTitle = hasValue(c.examinerTitle) ? c.examinerTitle : (c.title || "");
+  const hasSigImg    = hasValue(c.signatureImageUrl);
+
+  return (
+    <div>
+      {/* Signature image or blank signing space */}
+      {hasSigImg ? (
+        <div style={{ marginBottom: "3mm", height: "16mm", display: "flex", alignItems: "flex-end" }}>
+          <img
+            src={c.signatureImageUrl}
+            alt="signature"
+            style={{
+              maxWidth: "32mm", maxHeight: "16mm",
+              objectFit: "contain", objectPosition: "bottom left",
+              display: "block",
+            }}
+          />
+        </div>
+      ) : (
+        <div style={{ height: "12mm" }} aria-hidden="true" />
+      )}
+
+      {/* Signature line */}
+      <div style={{ width: "48mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
+
+      {/* Name */}
+      {hasValue(displayName) && (
+        <div style={{ fontFamily: SERIF, fontSize: 12, color: CH, fontStyle: "italic", lineHeight: 1.3 }}>
+          {displayName}
+        </div>
+      )}
+
+      {/* Title */}
+      {hasValue(displayTitle) && (
+        <div style={{
+          fontFamily: SANS, fontSize: 7.5, color: CHL,
+          letterSpacing: "0.07em", textTransform: "uppercase",
+          marginTop: 4, lineHeight: 1.5,
+        }}>
+          {displayTitle}
+        </div>
+      )}
     </div>
   );
 }
@@ -135,48 +166,38 @@ export function JewelryValuationReport({ data }) {
   if (!data) return null;
   const d = data;
 
-  // images[] normalised — handle legacy single-string (shouldn't happen, but safe)
+  // Normalise images — handle legacy single-string gracefully
   const images = Array.isArray(d.images)
     ? d.images.filter(Boolean)
     : (d.images ? [d.images] : []);
-  const heroImg        = images[0]  || null;
-  const secondaryImgs  = images.slice(1, 4);   // max 3 secondary, A4 constraint
-  const hasImages      = images.length > 0;
+  const reportImages = images.slice(0, 3);  // max 3 in report
+  const hasImages    = reportImages.length > 0;
 
-  // ── Presence guards ──────────────────────────────────────────────────────
+  // ── Presence guards ──
   const hasDescription = hasValue(d.itemDescription);
   const hasItemTitle   = hasValue(d.itemTitle);
   const hasItem        = hasItemTitle || hasImages;
 
-  const hasMetal =
-    hasValue(d.metal?.alloy)  || hasValue(d.metal?.weight) ||
-    hasValue(d.metal?.purity) || hasValue(d.metal?.casting);
+  const hasMetal = hasValue(d.metal?.alloy) || hasValue(d.metal?.weight) ||
+                   hasValue(d.metal?.purity) || hasValue(d.metal?.casting);
 
   const hasCenterStone =
     hasValue(d.centerStone?.type)  || hasValue(d.centerStone?.carat)  ||
     hasValue(d.centerStone?.color) || hasValue(d.centerStone?.clarity)||
     hasValue(d.centerStone?.cut)   || hasValue(d.centerStone?.setting)||
-    hasValue(d.centerStone?.fluorescence)  ||
-    hasValue(d.centerStone?.origin)        ||
-    hasValue(d.centerStone?.certLab)       ||
-    hasValue(d.centerStone?.certNumber);
+    hasValue(d.centerStone?.fluorescence)  || hasValue(d.centerStone?.origin)  ||
+    hasValue(d.centerStone?.certLab)       || hasValue(d.centerStone?.certNumber);
 
-  const hasSpecs =
-    hasMetal || hasCenterStone ||
-    hasValue(d.accentStonesDesc) || hasValue(d.workmanshipDesc);
+  const hasSpecs = hasMetal || hasCenterStone ||
+                   hasValue(d.accentStonesDesc) || hasValue(d.workmanshipDesc);
 
-  const hasValuation =
-    d.valuation?.enabled !== false && hasValue(d.valuation?.amount);
-
+  const hasValuation  = d.valuation?.enabled !== false && hasValue(d.valuation?.amount);
   const hasVerification =
-    hasValue(d.verification?.verificationId) ||
-    hasValue(d.verification?.verificationUrl);
-
+    hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
   const hasNotes       = hasValue(d.notes);
   const hasPreparedFor = hasValue(d.preparedFor);
 
-  const certStr = [d.centerStone?.certLab, d.centerStone?.certNumber]
-    .filter(hasValue).join("  ");
+  const certStr = [d.centerStone?.certLab, d.centerStone?.certNumber].filter(hasValue).join("  ");
 
   return (
     <div
@@ -185,8 +206,7 @@ export function JewelryValuationReport({ data }) {
       style={{
         width: "210mm", maxWidth: "100%", minHeight: "297mm",
         background: IV, fontFamily: SANS, color: CH,
-        position: "relative", overflow: "hidden",
-        boxSizing: "border-box", margin: "0 auto",
+        position: "relative", overflow: "hidden", boxSizing: "border-box", margin: "0 auto",
       }}
     >
       {/* Watermark */}
@@ -199,10 +219,7 @@ export function JewelryValuationReport({ data }) {
       }}>LS</div>
 
       {/* Security strip */}
-      <div style={{
-        height: 4,
-        background: `linear-gradient(90deg, ${GD} 0%, #b8a24a 55%, ${SG} 100%)`,
-      }} />
+      <div style={{ height: 4, background: `linear-gradient(90deg, ${GD} 0%, #b8a24a 55%, ${SG} 100%)` }} />
 
       {/* Content */}
       <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
@@ -259,40 +276,33 @@ export function JewelryValuationReport({ data }) {
                 alignItems:          "start",
               }}
             >
-              {/* Image column */}
+              {/* Image column — equal-size grid */}
               {hasImages && (
                 <div>
-                  {/* Hero image */}
-                  <div
-                    style={{
-                      border:      "0.5px solid rgba(54,69,79,0.16)",
-                      background:  IV2,
-                      aspectRatio: "1 / 1",
-                      overflow:    "hidden",
-                      display:     "flex",
-                      alignItems:  "center",
-                      justifyContent: "center",
-                      marginBottom: secondaryImgs.length > 0 ? "2mm" : 0,
-                    }}
-                  >
-                    <img
-                      src={heroImg}
-                      alt={d.itemTitle || "jewelry"}
-                      style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                    />
-                  </div>
-
-                  {/* Secondary images strip — max 3, 14mm each */}
-                  {secondaryImgs.length > 0 && (
+                  {reportImages.length === 1 ? (
+                    // Single image: full-width square
+                    <div style={{
+                      border: "0.5px solid rgba(54,69,79,0.16)", background: IV2,
+                      aspectRatio: "1 / 1", overflow: "hidden",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <img
+                        src={reportImages[0]}
+                        alt={d.itemTitle || "jewelry"}
+                        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                      />
+                    </div>
+                  ) : (
+                    // 2–3 images: equal-width row
                     <div style={{ display: "flex", gap: "1.5mm" }}>
-                      {secondaryImgs.map((src, idx) => (
+                      {reportImages.map((src, idx) => (
                         <div
                           key={idx}
                           style={{
                             flex:        "1 1 0",
                             aspectRatio: "1 / 1",
                             overflow:    "hidden",
-                            border:      "0.5px solid rgba(54,69,79,0.12)",
+                            border:      "0.5px solid rgba(54,69,79,0.16)",
                             background:  IV2,
                             display:     "flex",
                             alignItems:  "center",
@@ -301,8 +311,8 @@ export function JewelryValuationReport({ data }) {
                         >
                           <img
                             src={src}
-                            alt={`view ${idx + 2}`}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            alt={`view ${idx + 1}`}
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
                           />
                         </div>
                       ))}
@@ -313,13 +323,11 @@ export function JewelryValuationReport({ data }) {
 
               {/* Title */}
               {hasItemTitle && (
-                <div
-                  style={{
-                    fontFamily: SERIF, fontSize: 15, fontWeight: 700, color: CH,
-                    letterSpacing: "0.03em", lineHeight: 1.35,
-                    paddingTop: hasImages ? "1mm" : 0,
-                  }}
-                >
+                <div style={{
+                  fontFamily: SERIF, fontSize: 15, fontWeight: 700, color: CH,
+                  letterSpacing: "0.03em", lineHeight: 1.35,
+                  paddingTop: hasImages ? "1mm" : 0,
+                }}>
                   {d.itemTitle}
                 </div>
               )}
@@ -357,7 +365,7 @@ export function JewelryValuationReport({ data }) {
                 <SpecSubGroup label="Center Stone" rows={[
                   { label: "Type",              value: d.centerStone?.type },
                   { label: "Carat Weight",      value: d.centerStone?.carat },
-                  { label: "Color Grade",       value: d.centerStone?.color },
+                  { label: "Colour Grade",      value: d.centerStone?.color },
                   { label: "Clarity Grade",     value: d.centerStone?.clarity },
                   { label: "Cut Grade",         value: d.centerStone?.cut },
                   { label: "Setting Style",     value: d.centerStone?.setting },
@@ -382,8 +390,8 @@ export function JewelryValuationReport({ data }) {
             <SectionTitle>Valuation Summary</SectionTitle>
             <div style={{
               background: CH, padding: "6mm 6.5mm",
-              display: "flex", justifyContent: "space-between",
-              alignItems: "center", flexWrap: "wrap", gap: "4mm",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              flexWrap: "wrap", gap: "4mm",
             }}>
               <div>
                 <div style={{ fontFamily: SANS, fontSize: 6.5, color: CHX, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
@@ -437,7 +445,11 @@ export function JewelryValuationReport({ data }) {
         {hasNotes && (
           <div style={{ marginBottom: "5.5mm" }}>
             <SectionTitle>Notes &amp; Remarks</SectionTitle>
-            <p style={{ fontFamily: SANS, fontSize: 10, color: CHM, lineHeight: 1.82, margin: 0, padding: "3mm 4mm", background: IV2, borderLeft: `2px solid ${GD}`, fontStyle: "italic" }}>
+            <p style={{
+              fontFamily: SANS, fontSize: 10, color: CHM, lineHeight: 1.82,
+              margin: 0, padding: "3mm 4mm", background: IV2,
+              borderLeft: `2px solid ${GD}`, fontStyle: "italic",
+            }}>
               {d.notes}
             </p>
           </div>
@@ -445,23 +457,12 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── FOOTER ── */}
         <div style={{
-          borderTop: "0.5px solid rgba(197,179,88,0.45)", paddingTop: "4.5mm", marginTop: "4mm",
+          borderTop: "0.5px solid rgba(197,179,88,0.45)", paddingTop: "5mm", marginTop: "4mm",
           display: "flex", justifyContent: "space-between", alignItems: "flex-end",
-          flexWrap: "wrap", gap: "5mm",
+          flexWrap: "wrap", gap: "6mm",
         }}>
-          <div>
-            <div style={{ width: "40mm", height: "0.5px", background: "rgba(54,69,79,0.28)", marginBottom: 6 }} />
-            {hasValue(d.credentials?.signatoryName) && (
-              <div style={{ fontFamily: SERIF, fontSize: 11, color: CH, fontStyle: "italic", lineHeight: 1.3 }}>
-                {d.credentials.signatoryName}
-              </div>
-            )}
-            {hasValue(d.credentials?.title) && (
-              <div style={{ fontFamily: SANS, fontSize: 7.5, color: CHL, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3, lineHeight: 1.45 }}>
-                {d.credentials.title}
-              </div>
-            )}
-          </div>
+          <SignatureBlock credentials={d.credentials} />
+
           <div style={{ textAlign: "right", maxWidth: "70mm" }}>
             {hasValue(d.credentials?.companyLine) && (
               <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, lineHeight: 1.55, marginBottom: 5 }}>
