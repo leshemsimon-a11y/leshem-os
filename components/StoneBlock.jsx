@@ -1,21 +1,14 @@
 /**
- * components/StoneBlock.jsx
+ * components/StoneBlock.jsx  —  UX v2
  *
- * SsBlock — one side-stone configuration row.
- *
- * Renders the four fields for a single melee / side-stone group:
- *   stone type, carat per piece, count, and manual price with a
- *   Total / Per-Carat toggle.
- *
- * Used twice inside CalculatorForm.jsx:
- *   <SsBlock cfg={cfg} sf={sf} prefix="ss1" label="שורה א׳" />
- *   <SsBlock cfg={cfg} sf={sf} prefix="ss2" label="שורה ב׳" />
+ * One side-stone configuration block (ss1 or ss2).
+ * Visual layout updated for larger atoms; zero logic changes.
  *
  * Props:
- *   cfg    {object}   Full quote config — reads [prefix]Type/Ct/Count/etc.
- *   sf     {function} Field setter: sf(fieldName, value)
- *   prefix {string}   "ss1" or "ss2"
- *   label  {string}   Hebrew section heading
+ *   cfg    {object}    Full quote config
+ *   sf     {function}  Field setter: sf(fieldName, value)
+ *   prefix {string}    "ss1" | "ss2"
+ *   label  {string}    Hebrew section heading, e.g. "שורה א׳"
  */
 
 import { C, STYPES, SETTINGS } from "../lib/constants";
@@ -32,25 +25,28 @@ export function SsBlock({ cfg, sf, prefix, label }) {
   return (
     <div
       style={{
-        borderTop:  `0.5px solid rgba(54,69,79,0.08)`,
-        paddingTop: 8,
+        borderTop:  "1px solid rgba(54,69,79,0.08)",
+        paddingTop: 20,
         marginTop:  4,
       }}
     >
-      {/* Row label */}
+      {/* Sub-section label */}
       <div
         style={{
-          fontFamily:   C.heb,
-          fontSize:     10,
-          color:        C.chl,
-          marginBottom: 6,
+          fontFamily:    C.heb,
+          fontSize:      11,
+          fontWeight:    700,
+          color:         C.chl,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom:  16,
         }}
       >
         {label}
       </div>
 
-      {/* Type + carat per piece */}
-      <GR>
+      {/* Type + carat — 160 px min so they stay side-by-side on most screens */}
+      <GR minColWidth={160}>
         <LR label="סוג">
           <Sel
             value={cfg[typeF]}
@@ -58,7 +54,7 @@ export function SsBlock({ cfg, sf, prefix, label }) {
             options={STYPES}
           />
         </LR>
-        <LR label="ct / יח׳">
+        <LR label="קראט / יחידה">
           <StableInp
             value={cfg[ctF]}
             onChange={(v) => sf(ctF, v)}
@@ -68,7 +64,7 @@ export function SsBlock({ cfg, sf, prefix, label }) {
       </GR>
 
       {/* Count + manual price with mode toggle */}
-      <GR>
+      <GR minColWidth={160}>
         <LR label="כמות">
           <StableInp
             value={cfg[countF]}
@@ -78,24 +74,29 @@ export function SsBlock({ cfg, sf, prefix, label }) {
           />
         </LR>
         <LR label="מחיר ידני">
-          <div style={{ display: "flex", gap: 4, alignItems: "flex-end" }}>
-            <StableInp
-              value={cfg[manF]}
-              onChange={(v) => sf(manF, v)}
-              placeholder="—"
-            />
-            <PriceModeToggle
-              mode={cfg[pmF]}
-              onChange={(v) => sf(pmF, v)}
-              labels={["סה״כ", "לct"]}
-              vals={["total", "per_carat"]}
-            />
+          {/* Input + toggle stacked — fits any column width */}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              <StableInp
+                value={cfg[manF]}
+                onChange={(v) => sf(manF, v)}
+                placeholder="—  (אוטומטי)"
+              />
+            </div>
+            <div style={{ paddingTop: 6 }}>
+              <PriceModeToggle
+                mode={cfg[pmF]}
+                onChange={(v) => sf(pmF, v)}
+                labels={["סה״כ", "לct"]}
+                vals={["total", "per_carat"]}
+              />
+            </div>
           </div>
         </LR>
       </GR>
 
       {/* Setting */}
-      <LR label="הגדרה">
+      <LR label="הגדרה (Setting)">
         <Sel
           value={cfg[setF]}
           onChange={(v) => sf(setF, v)}

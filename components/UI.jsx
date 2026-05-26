@@ -1,37 +1,47 @@
 /**
- * components/UI.jsx
+ * components/UI.jsx  —  LESHEM.S OS · UI Atoms  (UX v2)
  *
- * Primitive UI atoms shared across the app.
+ * Changes from v1:
+ *   • Inputs / selects: 48 px height, full 1 px border, 6 px radius, 16 px font
+ *   • Labels: 13 px, semi-bold, 8 px margin-bottom
+ *   • Pnl: white card on ivory page, 10 px radius, 24 px padding, gold-bar title
+ *   • GR: auto-fit minmax(200 px, 1fr) — single-column on mobile automatically
+ *   • PriceModeToggle: 36 px height, 11 px font, clearly readable
+ *   • StableInp: blur-commit behaviour unchanged — only visual shell updated
  *
- * Exports (in dependency order, simplest first):
- *   GR                — two-column grid row
- *   LR                — label + field wrapper
- *   Sel               — thin borderless-bottom select
- *   Pnl               — titled bordered panel
- *   PriceModeToggle   — two-button "Total / Per-unit" toggle
- *   StableInp         — blur-commit decimal / text input (focus-safe)
- *
- * All components are defined at module scope.
- * None of them import from each other in a circular way.
- * Zero business logic — pure presentation.
+ * Zero business logic. Zero React state (except StableInp draft).
  */
 
 import { useState, useRef, useEffect } from "react";
 import { C } from "../lib/constants";
 
+// ─── Shared token overrides for UX v2 ────────────────────────────────
+const INPUT_HEIGHT   = 48;
+const LABEL_SIZE     = 13;
+const INPUT_FONT     = 16;
+const CARD_RADIUS    = 10;
+const CARD_PAD_V     = 24;
+const CARD_PAD_H     = 24;
+const FIELD_GAP      = 16;   // vertical gap between LR rows inside a card
+const GRID_GAP       = 16;   // gap between columns in GR
+const BORDER_COLOR   = "rgba(54,69,79,0.18)";
+const BORDER_FOCUS   = C.gd;
+const CARD_BG        = "#FFFFFF";
+
 // ─── GR ──────────────────────────────────────────────────────────────
 /**
- * Two-column equal-width grid with an 8px gap.
- * Used to pair label+field rows horizontally.
+ * Responsive two-column grid.
+ * On screens narrower than ~440 px the two columns collapse into one
+ * because minmax(200px, 1fr) cannot fit side-by-side — no JS/hooks needed.
  */
-export function GR({ children }) {
+export function GR({ children, minColWidth = 200 }) {
   return (
     <div
       style={{
         display:             "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap:                 8,
-        marginBottom:        8,
+        gridTemplateColumns: `repeat(auto-fit, minmax(${minColWidth}px, 1fr))`,
+        gap:                 GRID_GAP,
+        marginBottom:        FIELD_GAP,
       }}
     >
       {children}
@@ -41,10 +51,10 @@ export function GR({ children }) {
 
 // ─── LR ──────────────────────────────────────────────────────────────
 /**
- * Label (top) + children (below) stacked vertically.
+ * Label (top) + field (below).
  *
- * @prop {string}  label   — Field label text (Hebrew)
- * @prop {number}  [mt]    — Optional top margin (pixels)
+ * @prop {string}  label
+ * @prop {number}  [mt]    Optional top margin (px) for manual spacing
  * @prop {node}    children
  */
 export function LR({ label, children, mt }) {
@@ -53,19 +63,22 @@ export function LR({ label, children, mt }) {
       style={{
         display:       "flex",
         flexDirection: "column",
-        gap:           2,
-        marginTop:     mt,
+        gap:           8,
+        marginTop:     mt ?? 0,
       }}
     >
-      <span
+      <label
         style={{
-          fontFamily: C.heb,
-          fontSize:   10,
-          color:      C.chl,
+          fontFamily:  C.heb,
+          fontSize:    LABEL_SIZE,
+          fontWeight:  600,
+          color:       C.chm,
+          lineHeight:  1,
+          userSelect:  "none",
         }}
       >
         {label}
-      </span>
+      </label>
       {children}
     </div>
   );
@@ -73,76 +86,114 @@ export function LR({ label, children, mt }) {
 
 // ─── Sel ─────────────────────────────────────────────────────────────
 /**
- * Bottom-border-only select element styled to match the app's
- * "no-chrome, just the content" aesthetic.
+ * 48 px select with full border and clear chevron.
  *
  * @prop {string}   value
  * @prop {function} onChange(value: string)
  * @prop {string[]} options
- * @prop {object}   [style]  — additional inline styles
+ * @prop {object}   [style]
  */
 export function Sel({ value, onChange, options, style }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        width:             "100%",
-        border:            "none",
-        borderBottom:      `0.5px solid rgba(54,69,79,0.2)`,
-        background:        "transparent",
-        padding:           "4px 2px",
-        fontFamily:        C.heb,
-        fontSize:          12,
-        color:             C.ch,
-        outline:           "none",
-        cursor:            "pointer",
-        appearance:        "none",
-        WebkitAppearance:  "none",
-        ...style,
-      }}
-    >
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
+    <div style={{ position: "relative", width: "100%" }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width:            "100%",
+          height:           INPUT_HEIGHT,
+          border:           `1px solid ${BORDER_COLOR}`,
+          borderRadius:     6,
+          background:       CARD_BG,
+          padding:          "0 40px 0 14px",   // right room for chevron
+          fontFamily:       C.heb,
+          fontSize:         INPUT_FONT,
+          color:            C.ch,
+          outline:          "none",
+          cursor:           "pointer",
+          appearance:       "none",
+          WebkitAppearance: "none",
+          ...style,
+        }}
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+      {/* Custom chevron */}
+      <span
+        aria-hidden="true"
+        style={{
+          position:      "absolute",
+          left:          12,
+          top:           "50%",
+          transform:     "translateY(-50%)",
+          pointerEvents: "none",
+          fontSize:      11,
+          color:         C.chl,
+        }}
+      >
+        ▾
+      </span>
+    </div>
   );
 }
 
 // ─── Pnl ─────────────────────────────────────────────────────────────
 /**
- * Titled bordered panel — the primary grouping container.
+ * White card section with a gold-accented title bar.
  *
- * @prop {string} [title]  — Section heading (Hebrew, uppercase via CSS)
+ * @prop {string} [title]   Section heading (Hebrew/English)
  * @prop {node}   children
- * @prop {object} [style]  — Additional inline styles on the wrapper div
+ * @prop {object} [style]   Extra inline styles on the wrapper
  */
 export function Pnl({ title, children, style }) {
   return (
     <div
       style={{
-        border:       `0.5px solid rgba(54,69,79,0.12)`,
-        padding:      "12px 14px",
-        marginBottom: 10,
+        background:   CARD_BG,
+        border:       `1px solid rgba(54,69,79,0.12)`,
+        borderRadius: CARD_RADIUS,
+        padding:      `${CARD_PAD_V}px ${CARD_PAD_H}px`,
+        marginBottom: 16,
         ...style,
       }}
     >
       {title && (
         <div
           style={{
-            fontFamily:    C.heb,
-            fontSize:      10,
-            color:         C.chl,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom:  10,
-            paddingBottom: 6,
-            borderBottom:  `0.5px solid rgba(54,69,79,0.1)`,
+            display:       "flex",
+            alignItems:    "center",
+            gap:           10,
+            marginBottom:  20,
+            paddingBottom: 14,
+            borderBottom:  `1px solid rgba(54,69,79,0.08)`,
           }}
         >
-          {title}
+          {/* Gold accent bar */}
+          <div
+            style={{
+              width:        3,
+              height:       18,
+              background:   C.gd,
+              borderRadius: 2,
+              flexShrink:   0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily:    C.heb,
+              fontSize:      12,
+              fontWeight:    700,
+              color:         C.ch,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            {title}
+          </span>
         </div>
       )}
       {children}
@@ -152,13 +203,13 @@ export function Pnl({ title, children, style }) {
 
 // ─── PriceModeToggle ─────────────────────────────────────────────────
 /**
- * Two-button toggle for switching between a total price and a
- * per-unit (per carat / per gram) price entry mode.
+ * Two-button mode toggle: "Total" vs "Per Carat / Per Gram".
+ * Minimum 36 px height, clear active state.
  *
- * @prop {string}   mode          — Current mode value (must match one of vals)
- * @prop {function} onChange(v)   — Called with the new mode string
- * @prop {string[]} labels        — Button labels, e.g. ["סה״כ", "לct"]
- * @prop {string[]} [vals]        — Mode values, default ["total", "per_unit"]
+ * @prop {string}   mode           Current mode value
+ * @prop {function} onChange(v)
+ * @prop {string[]} labels         e.g. ["סה״כ", "לct"]
+ * @prop {string[]} [vals]         default ["total", "per_unit"]
  */
 export function PriceModeToggle({ mode, onChange, labels, vals }) {
   const v = vals ?? ["total", "per_unit"];
@@ -166,10 +217,11 @@ export function PriceModeToggle({ mode, onChange, labels, vals }) {
     <div
       style={{
         display:      "flex",
-        border:       `0.5px solid rgba(54,69,79,0.2)`,
-        borderRadius: 3,
+        border:       `1px solid ${BORDER_COLOR}`,
+        borderRadius: 6,
         overflow:     "hidden",
         flexShrink:   0,
+        height:       36,
       }}
     >
       {v.map((m, i) => (
@@ -177,13 +229,18 @@ export function PriceModeToggle({ mode, onChange, labels, vals }) {
           key={m}
           onClick={() => onChange(m)}
           style={{
-            padding:    "3px 6px",
+            flex:       1,
+            minWidth:   44,
+            padding:    "0 10px",
             cursor:     "pointer",
             border:     "none",
             background: mode === m ? C.ch : "transparent",
-            color:      mode === m ? C.iv : C.chl,
+            color:      mode === m ? C.iv  : C.chl,
             fontFamily: C.heb,
-            fontSize:   9,
+            fontSize:   11,
+            fontWeight: mode === m ? 700 : 400,
+            whiteSpace: "nowrap",
+            transition: "background 0.15s, color 0.15s",
           }}
         >
           {labels[i]}
@@ -195,25 +252,19 @@ export function PriceModeToggle({ mode, onChange, labels, vals }) {
 
 // ─── StableInp ───────────────────────────────────────────────────────
 /**
- * Focus-safe decimal / text input.
+ * Focus-safe decimal / text input — blur-commit pattern unchanged.
  *
- * Problem solved:
- *   Standard controlled React inputs lose focus when the parent
- *   re-renders mid-keystroke (e.g. formula recalculation triggered
- *   by every character).
+ * Visual shell updated to match 48 px height, full border, 16 px font.
+ * Behaviour is identical to v1:
+ *   • Local `draft` state holds what the user is typing.
+ *   • Parent `onChange` is called ONLY on blur or Enter.
+ *   • External `value` synced into draft only on programmatic change (reset).
  *
- * Solution — blur-commit pattern:
- *   • A local `draft` state mirrors what the user is currently typing.
- *   • `onChange` (the parent setter) is called ONLY on blur or Enter.
- *   • The external `value` prop is synced into `draft` ONLY when it
- *     changes programmatically (detected via a committed ref), which
- *     happens only on resets — never during an active typing session.
- *
- * @prop {string}   value           — Committed value from parent state
- * @prop {function} onChange(v)     — Called with draft string on blur/Enter
+ * @prop {string}   value
+ * @prop {function} onChange(v: string)
  * @prop {string}   [placeholder]
- * @prop {string}   [inputMode]     — "decimal" (default) | "numeric" | "text"
- * @prop {object}   [style]         — Additional inline styles
+ * @prop {string}   [inputMode]     "decimal" (default) | "numeric" | "text"
+ * @prop {object}   [style]         Extra inline styles
  */
 export function StableInp({
   value,
@@ -226,8 +277,6 @@ export function StableInp({
   const [draft, setDraft] = useState(value ?? "");
   const committed         = useRef(value);
 
-  // Sync external value → draft only when the parent changes it
-  // programmatically (e.g. reset), not on every keystroke.
   useEffect(() => {
     if (value !== committed.current) {
       committed.current = value;
@@ -255,14 +304,19 @@ export function StableInp({
       }}
       style={{
         width:        "100%",
-        border:       "none",
-        borderBottom: `0.5px solid rgba(54,69,79,0.2)`,
-        background:   "transparent",
-        padding:      "4px 2px",
+        height:       INPUT_HEIGHT,
+        border:       `1px solid ${BORDER_COLOR}`,
+        borderRadius: 6,
+        background:   CARD_BG,
+        padding:      "0 14px",
         fontFamily:   C.heb,
-        fontSize:     12,
+        fontSize:     INPUT_FONT,
         color:        C.ch,
         outline:      "none",
+        boxSizing:    "border-box",
+        // Focus ring via CSS pseudo-class isn't possible in inline styles,
+        // so we rely on the browser default outline only being suppressed here;
+        // onFocus/onBlur border change can be added if needed without changing logic.
         ...style,
       }}
       {...rest}

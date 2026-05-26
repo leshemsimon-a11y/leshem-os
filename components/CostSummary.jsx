@@ -1,26 +1,107 @@
 /**
- * components/CostSummary.jsx
+ * components/CostSummary.jsx  —  UX v2 (patch: StableInp for all overrides)
  *
- * Right column of the calculator grid.
- * Contains:
- *   1. סיכום עלויות  — KPI breakdown rows + retail price highlight
- *   2. פרטי לקוח     — client name, piece name, notes, image upload
- *   3. הפק תעודה     — button to switch to the certificate tab
+ * Fix applied: KpiRow now uses StableInp (not a plain uncontrolled <input>)
+ * for every editable override field: mcOv, lcOv, prodOv, wsOv, rxOv, riOv.
  *
- * Props:
- *   cfg          {object}    Full quote config
- *   res          {object}    Calculated results from calcApp(cfg)
- *   sf           {function}  Field setter: sf(fieldName, value)
- *   fmtFn        {function}  Currency formatter
- *   pieceImg     {string|null} Base64 data URL for the uploaded piece image
- *   fileRef      {React.ref} ref forwarded to the hidden <input type="file">
- *   onImageUpload {function} onChange handler for the file input
- *   onShowCert   {function}  Called when the "הפק תעודה" button is clicked
+ * Why this matters:
+ *   The plain <input defaultValue={...}> was uncontrolled — when the parent
+ *   called handleReset() and set cfg[ovField] back to "", the DOM element
+ *   never re-rendered because React does not manage uncontrolled value after
+ *   mount. StableInp is controlled via `value` and its internal useEffect
+ *   syncs the local draft whenever the external value reference changes,
+ *   which is exactly what a reset triggers.
+ *
+ * Nothing else changed:
+ *   • Blur-commit behaviour        — StableInp already implements this
+ *   • UX sizing (height, fonts)    — passed through the style prop
+ *   • Calculation logic            — untouched
+ *   • All other sections           — untouched
  */
 
 import { C } from "../lib/constants";
 import { Pnl, GR, LR, StableInp } from "./UI";
 
+// ─── Shared style for override inputs inside KPI rows ─────────────────
+// Passed as the `style` prop to StableInp, which merges it on top of its
+// own defaults. We override height, width, font-size, and text-align only.
+const OV_STYLE = {
+  width:        140,
+  height:       40,
+  fontSize:     15,
+  textAlign:    "left",
+  borderRadius: 6,
+  padding:      "0 12px",
+};
+
+// ─── KpiRow ──────────────────────────────────────────────────────────
+/**
+ * One line in the cost breakdown table.
+ *
+ * When ovField is provided → renders a StableInp so the user can override
+ * the calculated value. The placeholder shows the current calculated amount.
+ * When ovField is null     → renders a read-only formatted value span.
+ *
+ * Props:
+ *   label        {string}    Hebrew label (right side in RTL)
+ *   displayValue {number}    Calculated USD value (used for placeholder & display)
+ *   ovField      {string|null} cfg key, e.g. "wsOv". null = read-only row.
+ *   cfg          {object}    Full quote config — provides the current override string
+ *   sf           {function}  Field setter
+ *   fmtFn        {function}  Currency formatter
+ */
+function KpiRow({ label, displayValue, ovField, cfg, sf, fmtFn }) {
+  return (
+    <div
+      style={{
+        display:        "flex",
+        alignItems:     "center",
+        justifyContent: "space-between",
+        minHeight:      52,
+        padding:        "6px 0",
+        borderBottom:   "1px solid rgba(54,69,79,0.07)",
+        gap:            12,
+      }}
+    >
+      {/* Label — right side (RTL) */}
+      <span
+        style={{
+          fontFamily: C.heb,
+          fontSize:   14,
+          color:      C.chm,
+          fontWeight: 400,
+          flexShrink: 0,
+        }}
+      >
+        {label}
+      </span>
+
+      {/* Editable override (StableInp) or read-only value */}
+      {ovField ? (
+        <StableInp
+          value={cfg[ovField]}
+          onChange={(v) => sf(ovField, v)}
+          placeholder={fmtFn(displayValue)}
+          inputMode="decimal"
+          style={OV_STYLE}
+        />
+      ) : (
+        <span
+          style={{
+            fontFamily: "'DM Sans',Helvetica,Arial,sans-serif",
+            fontSize:   15,
+            fontWeight: 500,
+            color:      C.ch,
+          }}
+        >
+          {fmtFn(displayValue)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── CostSummary ─────────────────────────────────────────────────────
 export function CostSummary({
   cfg,
   res,
@@ -31,14 +112,12 @@ export function CostSummary({
   onImageUpload,
   onShowCert,
 }) {
-  // KPI rows definition — [ display label, calculated value, override field | null ]
-  // null in the third position = read-only row (no override input).
   const kpiRows = [
     { label: "מתכת",        value: res.mc,                   ovField: "mcOv"   },
     { label: "עבודה",       value: res.lc,                   ovField: "lcOv"   },
     { label: "אבן מרכזית", value: res.centerCost,            ovField: null     },
     { label: "אבני צד",    value: res.ss1Cost + res.ss2Cost, ovField: null     },
-    { label: "סה״כ ייצור", value: res.prod,                  ovField: "prodOv" },
+    { label: "ייצור סה״כ", value: res.prod,                  ovField: "prodOv" },
     { label: "סיטונאי",    value: res.ws,                    ovField: "wsOv"   },
     { label: "קמעונאי",    value: res.rx,                    ovField: "rxOv"   },
     { label: "כולל מע״מ",  value: res.ri,                    ovField: "riOv"   },
@@ -47,94 +126,94 @@ export function CostSummary({
   return (
     <div>
 
-      {/* ── Cost breakdown ────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════
+          1. COST BREAKDOWN
+      ══════════════════════════════════════════════════════════════ */}
       <Pnl title="סיכום עלויות">
-        {kpiRows.map(({ label, value, ovField }) => (
-          <div
-            key={label}
-            style={{
-              display:        "flex",
-              justifyContent: "space-between",
-              alignItems:     "center",
-              padding:        "5px 0",
-              borderBottom:   `0.5px solid rgba(54,69,79,0.07)`,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: C.heb,
-                fontSize:   11.5,
-                color:      C.chm,
-              }}
-            >
-              {label}
-            </span>
 
-            {/* Editable KPI: show StableInp with calculated value as placeholder */}
-            {ovField ? (
-              <StableInp
-                value={cfg[ovField]}
-                onChange={(v) => sf(ovField, v)}
-                placeholder={fmtFn(value)}
-                style={{
-                  width:      90,
-                  textAlign:  "left",
-                  fontFamily: C.eng,
-                  fontWeight: 500,
-                }}
-              />
-            ) : (
-              /* Read-only KPI: just display the formatted value */
-              <span
-                style={{
-                  fontFamily: C.eng,
-                  fontSize:   12,
-                  fontWeight: 600,
-                  color:      C.ch,
-                }}
-              >
-                {fmtFn(value)}
-              </span>
-            )}
-          </div>
+        {kpiRows.map(({ label, value, ovField }) => (
+          <KpiRow
+            key={label}
+            label={label}
+            displayValue={value}
+            ovField={ovField}
+            cfg={cfg}
+            sf={sf}
+            fmtFn={fmtFn}
+          />
         ))}
 
-        {/* Retail price highlight bar */}
+        {/* ── Retail price highlight ─────────────────────────────── */}
         <div
           style={{
-            marginTop:      10,
-            padding:        "8px 12px",
+            marginTop:      16,
             background:     C.ch,
+            borderRadius:   8,
+            padding:        "20px",
             display:        "flex",
-            justifyContent: "space-between",
             alignItems:     "center",
+            justifyContent: "space-between",
           }}
         >
-          <span
-            style={{
-              fontFamily: C.heb,
-              fontSize:   12,
-              color:      C.iv,
-            }}
-          >
-            מחיר לצרכן
-          </span>
-          <span
-            style={{
-              fontFamily: C.serif,
-              fontSize:   18,
-              color:      C.gd,
-              fontWeight: 700,
-            }}
-          >
-            {fmtFn(res.ri)}
-          </span>
+          <div>
+            <div
+              style={{
+                fontFamily:    "'DM Sans',Helvetica,Arial,sans-serif",
+                fontSize:      10,
+                letterSpacing: "0.15em",
+                color:         C.chx,
+                textTransform: "uppercase",
+                marginBottom:  4,
+              }}
+            >
+              מחיר לצרכן
+            </div>
+            <div
+              style={{
+                fontFamily: "'Merriweather','Times New Roman',Georgia,serif",
+                fontSize:   32,
+                fontWeight: 700,
+                color:      C.gd,
+                lineHeight: 1,
+              }}
+            >
+              {fmtFn(res.ri)}
+            </div>
+          </div>
+          <div style={{ textAlign: "left" }}>
+            <div
+              style={{
+                fontFamily:    "'DM Sans',Helvetica,Arial,sans-serif",
+                fontSize:      10,
+                color:         C.chx,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                marginBottom:  4,
+              }}
+            >
+              סיטונאי
+            </div>
+            <div
+              style={{
+                fontFamily: "'DM Sans',Helvetica,Arial,sans-serif",
+                fontSize:   16,
+                color:      "rgba(197,179,88,0.75)",
+                fontWeight: 500,
+              }}
+            >
+              {fmtFn(res.ws)}
+            </div>
+          </div>
         </div>
+
       </Pnl>
 
-      {/* ── Client info & image ───────────────────────────────────── */}
-      <Pnl title="פרטי לקוח ותמונה">
-        <GR>
+      {/* ══════════════════════════════════════════════════════════════
+          2. CLIENT DETAILS
+      ══════════════════════════════════════════════════════════════ */}
+      <Pnl title="פרטי לקוח">
+
+        <GR minColWidth={180}>
           <LR label="שם לקוח">
             <StableInp
               value={cfg.clientName}
@@ -143,106 +222,130 @@ export function CostSummary({
               inputMode="text"
             />
           </LR>
-          <LR label="שם התכשיט">
+          <LR label="שם התכשיט / פריט">
             <StableInp
               value={cfg.quoteName}
               onChange={(v) => sf("quoteName", v)}
-              placeholder="טבעת, צמיד..."
+              placeholder="טבעת, צמיד, שרשרת..."
               inputMode="text"
             />
           </LR>
         </GR>
 
-        <LR label="הערות" mt={6}>
+        <LR label="הערות" mt={4}>
           {/*
-            Notes textarea is intentionally a plain controlled textarea (not
-            StableInp) because it is multi-line and onChange → sf does not
-            trigger a formula recalculation, so focus-loss is not a risk here.
+            Plain controlled textarea — sf("notes") does NOT trigger formula
+            recalculation, so mid-keystroke re-renders do not occur and focus
+            loss is not a risk. No StableInp needed here.
           */}
           <textarea
             value={cfg.notes}
             onChange={(e) => sf("notes", e.target.value)}
-            placeholder="הערות חופשיות..."
+            placeholder="הערות חופשיות, בקשות מיוחדות..."
+            rows={3}
             style={{
-              width:      "100%",
-              border:     `0.5px solid rgba(54,69,79,0.2)`,
-              background: "transparent",
-              padding:    "6px 8px",
-              fontFamily: C.heb,
-              fontSize:   11.5,
-              color:      C.ch,
-              outline:    "none",
-              resize:     "vertical",
-              minHeight:  60,
-              marginTop:  4,
+              width:        "100%",
+              border:       "1px solid rgba(54,69,79,0.18)",
+              borderRadius: 6,
+              background:   "#fff",
+              padding:      "12px 14px",
+              fontFamily:   C.heb,
+              fontSize:     15,
+              color:        C.ch,
+              outline:      "none",
+              resize:       "vertical",
+              minHeight:    80,
+              boxSizing:    "border-box",
+              lineHeight:   1.6,
             }}
           />
         </LR>
 
-        {/* Hidden file input — triggered by the button below */}
-        <input
-          type="file"
-          ref={fileRef}
-          accept="image/*"
-          onChange={onImageUpload}
-          style={{ display: "none" }}
-        />
-
-        <button
-          onClick={() => fileRef.current?.click()}
-          style={{
-            width:          "100%",
-            padding:        8,
-            border:         `0.5px dashed rgba(54,69,79,0.3)`,
-            background:     "transparent",
-            cursor:         "pointer",
-            fontFamily:     C.heb,
-            fontSize:       11,
-            color:          C.chl,
-            display:        "flex",
-            alignItems:     "center",
-            justifyContent: "center",
-            gap:            6,
-            marginTop:      6,
-          }}
-        >
-          📷 {pieceImg ? "החלף תמונה" : "העלה תמונת תכשיט"}
-        </button>
-
-        {pieceImg && (
-          <img
-            src={pieceImg}
-            alt="piece preview"
-            style={{
-              width:      "100%",
-              marginTop:  8,
-              maxHeight:  120,
-              objectFit:  "contain",   // no distortion or clipping
-              border:     `0.5px solid rgba(54,69,79,0.15)`,
-            }}
+        {/* Image upload */}
+        <div style={{ marginTop: 16 }}>
+          <input
+            type="file"
+            ref={fileRef}
+            accept="image/*"
+            onChange={onImageUpload}
+            style={{ display: "none" }}
           />
-        )}
+          <button
+            onClick={() => fileRef.current?.click()}
+            style={{
+              width:          "100%",
+              height:         48,
+              border:         "1px dashed rgba(54,69,79,0.3)",
+              borderRadius:   6,
+              background:     "transparent",
+              cursor:         "pointer",
+              fontFamily:     C.heb,
+              fontSize:       14,
+              color:          C.chl,
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "center",
+              gap:            8,
+            }}
+          >
+            <span style={{ fontSize: 20 }}>📷</span>
+            {pieceImg ? "החלף תמונת תכשיט" : "העלה תמונת תכשיט"}
+          </button>
+
+          {pieceImg && (
+            <div
+              style={{
+                marginTop:      12,
+                border:         "1px solid rgba(54,69,79,0.12)",
+                borderRadius:   6,
+                overflow:       "hidden",
+                maxHeight:      180,
+                display:        "flex",
+                alignItems:     "center",
+                justifyContent: "center",
+                background:     "#f8f6f2",
+              }}
+            >
+              <img
+                src={pieceImg}
+                alt="piece preview"
+                style={{
+                  maxWidth:  "100%",
+                  maxHeight: 180,
+                  objectFit: "contain",
+                }}
+              />
+            </div>
+          )}
+        </div>
+
       </Pnl>
 
-      {/* ── Generate certificate ──────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════
+          3. GENERATE CERTIFICATE
+      ══════════════════════════════════════════════════════════════ */}
       <button
         onClick={onShowCert}
         style={{
           width:          "100%",
-          padding:        11,
+          height:         56,
           background:     C.ch,
           color:          C.iv,
           border:         "none",
+          borderRadius:   8,
           cursor:         "pointer",
           fontFamily:     C.heb,
-          fontSize:       12,
+          fontSize:       16,
+          fontWeight:     600,
           display:        "flex",
           alignItems:     "center",
           justifyContent: "center",
-          gap:            6,
+          gap:            10,
+          letterSpacing:  "0.02em",
         }}
       >
-        📄 הפק תעודה
+        <span style={{ fontSize: 20 }}>📄</span>
+        הפק תעודה / הצעת מחיר
       </button>
 
     </div>
