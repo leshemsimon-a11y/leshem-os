@@ -48,7 +48,7 @@ function SpecRow({ label, value, noBorder }) {
   return (
     <tr>
       <td style={{
-        padding: "4.5px 12px 4.5px 0", fontFamily: SANS, fontSize: 8.5, color: CHL,
+        padding: "3.4px 10px 3.4px 0", fontFamily: SANS, fontSize: 7.6, color: CHL,
         letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap",
         verticalAlign: "top", width: "38%",
         borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
@@ -56,8 +56,8 @@ function SpecRow({ label, value, noBorder }) {
         {label}
       </td>
       <td style={{
-        padding: "4.5px 0 4.5px 12px", fontFamily: SANS, fontSize: 11, color: CH,
-        verticalAlign: "top", lineHeight: 1.55,
+        padding: "3.4px 0 3.4px 10px", fontFamily: SANS, fontSize: 9.4, color: CH,
+        verticalAlign: "top", lineHeight: 1.42,
         borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
       }}>
         {value}
@@ -71,11 +71,11 @@ function SpecSubGroup({ label, rows }) {
   const visible = rows.filter((r) => hasValue(r.value));
   if (visible.length === 0) return null;
   return (
-    <div style={{ marginBottom: "3.5mm" }}>
+    <div style={{ marginBottom: "2.6mm" }}>
       <div style={{
         fontFamily: SANS, fontSize: 6.5, fontWeight: 700, color: CHL,
         letterSpacing: "0.22em", textTransform: "uppercase",
-        marginBottom: "2mm", paddingBottom: "1mm",
+        marginBottom: "1.4mm", paddingBottom: "0.8mm",
         borderBottom: "0.5px solid rgba(197,179,88,0.22)",
       }}>
         {label}
@@ -99,10 +99,10 @@ function SpecSubGroup({ label, rows }) {
 // ─── SectionTitle ────────────────────────────────────────────────────────────
 function SectionTitle({ children }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: "3mm" }}>
-      <div style={{ width: 2, height: 13, background: GD, borderRadius: 1, flexShrink: 0 }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2mm" }}>
+      <div style={{ width: 2, height: 11, background: GD, borderRadius: 1, flexShrink: 0 }} />
       <span style={{
-        fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL,
+        fontFamily: SANS, fontSize: 6.3, fontWeight: 700, color: CHL,
         letterSpacing: "0.22em", textTransform: "uppercase",
       }}>
         {children}
@@ -137,10 +137,10 @@ function SignatureBlock({ credentials }) {
 
   return (
     <div>
-      {/* Fixed 18mm signature image / blank signing space */}
+      {/* Fixed compact signature image / blank signing space */}
       <div
         style={{
-          height:      "18mm",
+          height:      "11mm",
           display:     "flex",
           alignItems:  "flex-end",
           paddingBottom: "1mm",
@@ -153,8 +153,8 @@ function SignatureBlock({ credentials }) {
             src={c.signatureImageUrl}
             alt="signature"
             style={{
-              maxWidth:       "36mm",
-              maxHeight:      "16mm",
+              maxWidth:       "34mm",
+              maxHeight:      "10mm",
               width:          "auto",
               height:         "auto",
               objectFit:      "contain",
@@ -163,15 +163,15 @@ function SignatureBlock({ credentials }) {
             }}
           />
         )}
-        {/* No image → empty 18mm space for manual pen signing */}
+        {/* No image → empty signing space for manual pen signing */}
       </div>
 
       {/* Signature line */}
-      <div style={{ width: "50mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
+      <div style={{ width: "48mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "2mm" }} />
 
       {/* Examiner name */}
       {hasValue(displayName) && (
-        <div style={{ fontFamily: SERIF, fontSize: 12, color: CH, fontStyle: "italic", lineHeight: 1.3 }}>
+        <div style={{ fontFamily: SERIF, fontSize: 10.5, color: CH, fontStyle: "italic", lineHeight: 1.2 }}>
           {displayName}
         </div>
       )}
@@ -180,12 +180,12 @@ function SignatureBlock({ credentials }) {
       {hasValue(displayTitle) && (
         <div style={{
           fontFamily:    SANS,
-          fontSize:      7.5,
+          fontSize:      6.5,
           color:         CHL,
           letterSpacing: "0.07em",
           textTransform: "uppercase",
-          marginTop:     4,
-          lineHeight:    1.5,
+          marginTop:     2,
+          lineHeight:    1.35,
         }}>
           {displayTitle}
         </div>
@@ -256,6 +256,7 @@ export function JewelryValuationReport({ data }) {
       style={{
         width:    "210mm",
         maxWidth: "100%",
+        height: "297mm",
         minHeight: "297mm",
         background: IV,
         fontFamily: SANS,
@@ -285,12 +286,12 @@ export function JewelryValuationReport({ data }) {
       }} />
 
       {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "8mm 12mm 32mm", height: "calc(297mm - 4px)", boxSizing: "border-box" }}>
 
         {/* ── HEADER ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "3mm" }}>
           <div>
-            <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 700, color: CH, letterSpacing: "0.22em", lineHeight: 1 }}>
+            <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 700, color: CH, letterSpacing: "0.22em", lineHeight: 1 }}>
               LESHEM.S
             </div>
             <div style={{ fontFamily: SANS, fontSize: 7.5, color: SG, letterSpacing: "0.2em", textTransform: "uppercase", marginTop: 4 }}>
@@ -313,13 +314,13 @@ export function JewelryValuationReport({ data }) {
         </div>
 
         {/* Gold rule */}
-        <div style={{ height: "1px", background: GD, marginBottom: "5mm" }} />
+        <div style={{ height: "1px", background: GD, marginBottom: "2.6mm" }} />
 
         {/* ── PREPARED FOR ── */}
         {hasPreparedFor && (
-          <div style={{ marginBottom: "5mm" }}>
+          <div style={{ marginBottom: "2.6mm" }}>
             <SectionTitle>Prepared For</SectionTitle>
-            <div style={{ padding: "2.5mm 0 3mm", borderBottom: "0.5px solid rgba(54,69,79,0.1)" }}>
+            <div style={{ padding: "1.5mm 0 2mm", borderBottom: "0.5px solid rgba(54,69,79,0.1)" }}>
               <div style={{ fontFamily: SERIF, fontSize: 17, fontWeight: 700, color: CH, letterSpacing: "0.03em", lineHeight: 1.2 }}>
                 {d.preparedFor}
               </div>
@@ -329,12 +330,12 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── ITEM: images + title ── */}
         {hasItem && (
-          <div style={{ marginBottom: "5mm" }}>
+          <div style={{ marginBottom: "2.6mm" }}>
             <SectionTitle>Item</SectionTitle>
             <div style={{
               display:             "grid",
-              gridTemplateColumns: hasImages ? "52mm 1fr" : "1fr",
-              gap:                 "5mm",
+              gridTemplateColumns: hasImages ? "44mm 1fr" : "1fr",
+              gap:                 "4mm",
               alignItems:          "start",
             }}>
               {/* Image column */}
@@ -398,10 +399,10 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── PROFESSIONAL DESCRIPTION ── */}
         {hasDescription && (
-          <div style={{ marginBottom: "5.5mm" }}>
+          <div style={{ marginBottom: "3.8mm" }}>
             <SectionTitle>Professional Description</SectionTitle>
             <p style={{
-              fontFamily: SANS, fontSize: 10.5, color: CHM, lineHeight: 1.82,
+              fontFamily: SANS, fontSize: 9.2, color: CHM, lineHeight: 1.58,
               margin: 0, paddingLeft: "3mm", borderLeft: "1.5px solid rgba(54,69,79,0.1)",
             }}>
               {d.itemDescription}
@@ -411,9 +412,9 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── JEWELRY SPECIFICATIONS ── */}
         {hasSpecs && (
-          <div style={{ marginBottom: "5.5mm" }}>
+          <div style={{ marginBottom: "3.8mm" }}>
             <SectionTitle>Jewelry Specifications</SectionTitle>
-            <div style={{ background: IV2, padding: "4mm 5mm" }}>
+            <div style={{ background: IV2, padding: "2.8mm 4mm" }}>
               {hasMetal && (
                 <SpecSubGroup label="Metal" rows={[
                   { label: "Alloy",          value: d.metal?.alloy },
@@ -448,10 +449,10 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── VALUATION SUMMARY ── */}
         {hasValuation && (
-          <div style={{ marginBottom: "5.5mm" }}>
+          <div style={{ marginBottom: "0" }}>
             <SectionTitle>Valuation Summary</SectionTitle>
             <div style={{
-              background: CH, padding: "6mm 6.5mm",
+              background: CH, padding: "4.5mm 5.5mm",
               display: "flex", justifyContent: "space-between", alignItems: "center",
               flexWrap: "wrap", gap: "4mm",
             }}>
@@ -459,7 +460,7 @@ export function JewelryValuationReport({ data }) {
                 <div style={{ fontFamily: SANS, fontSize: 6.5, color: CHX, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
                   {hasValue(d.valuation?.basis) ? d.valuation.basis : "Retail Replacement Value"}
                 </div>
-                <div style={{ fontFamily: SERIF, fontSize: 30, fontWeight: 700, color: GD, lineHeight: 1 }}>
+                <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 700, color: GD, lineHeight: 1 }}>
                   {d.valuation.amount}
                 </div>
                 {hasValue(d.valuation?.date) && (
@@ -477,7 +478,7 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── VERIFICATION ── */}
         {hasVerification && (
-          <div style={{ marginBottom: "5mm" }}>
+          <div style={{ marginBottom: "3mm" }}>
             <SectionTitle>Verification</SectionTitle>
             <div style={{ display: "flex", alignItems: "center", gap: "3.5mm", padding: "3mm 4mm", background: IV2, border: "0.5px solid rgba(54,69,79,0.12)" }}>
               {hasValue(d.verification?.qrImageUrl) && (
@@ -485,7 +486,7 @@ export function JewelryValuationReport({ data }) {
                      style={{ width: "13mm", height: "13mm", objectFit: "contain", flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 3 }}>
+                <div style={{ fontFamily: SANS, fontSize: 6.3, fontWeight: 700, color: CHL, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 3 }}>
                   Authenticated Report
                 </div>
                 {hasValue(d.verification?.verificationId) && (
@@ -505,7 +506,7 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── NOTES ── */}
         {hasNotes && (
-          <div style={{ marginBottom: "5.5mm" }}>
+          <div style={{ marginBottom: "3mm" }}>
             <SectionTitle>Notes &amp; Remarks</SectionTitle>
             <p style={{
               fontFamily: SANS, fontSize: 10, color: CHM, lineHeight: 1.82,
@@ -519,24 +520,27 @@ export function JewelryValuationReport({ data }) {
 
         {/* ── FOOTER ── */}
         <div style={{
+          position: "absolute",
+          left: "12mm",
+          right: "12mm",
+          bottom: "7mm",
           borderTop: "0.5px solid rgba(197,179,88,0.45)",
-          paddingTop: "5mm",
-          marginTop:  "4mm",
-          display:    "flex",
+          paddingTop: "3mm",
+          display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-end",
-          flexWrap:   "wrap",
-          gap:        "6mm",
+          gap: "6mm",
+          boxSizing: "border-box",
         }}>
           <SignatureBlock credentials={d.credentials} />
 
           <div style={{ textAlign: "right", maxWidth: "70mm" }}>
             {hasValue(d.credentials?.companyLine) && (
-              <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, lineHeight: 1.55, marginBottom: 5 }}>
+              <div style={{ fontFamily: SANS, fontSize: 6.8, color: CHL, lineHeight: 1.35, marginBottom: 3 }}>
                 {d.credentials.companyLine}
               </div>
             )}
-            <div style={{ fontFamily: SANS, fontSize: 7, color: "rgba(54,69,79,0.38)", lineHeight: 1.65, fontStyle: "italic" }}>
+            <div style={{ fontFamily: SANS, fontSize: 6.2, color: "rgba(54,69,79,0.38)", lineHeight: 1.35, fontStyle: "italic" }}>
               This report is the professional opinion of LESHEM.S and is not a
               guarantee of value. Market conditions may affect valuation over time.
             </div>
