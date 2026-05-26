@@ -139,6 +139,14 @@ function inp(value, onChange, placeholder) {
   );
 }
 
+function getByPath(obj, path) {
+  return path.split(".").reduce((acc, key) => (acc ? acc[key] : undefined), obj);
+}
+
+function setPath(setField, basePath, field, value) {
+  setField(`${basePath}.${field}`, value);
+}
+
 function ta(value, onChange, placeholder, rows = 2) {
   return (
     <textarea
@@ -439,7 +447,9 @@ function MultiImageSection({ data, setField, label }) {
  * L / W / D inputs used by all stone productType sections.
  * Replaces single "Measurements" free-text input.
  */
-function MeasurementInputs({ data, setField }) {
+function MeasurementInputs({ data, setField, basePath = "stone" }) {
+  const obj = getByPath(data, basePath) || {};
+  const set = (field, value) => setPath(setField, basePath, field, value);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
       <div
@@ -452,13 +462,13 @@ function MeasurementInputs({ data, setField }) {
       </div>
       <GR minColWidth={90}>
         <LR label="Length (mm)">
-          {inp(data.stone?.measLength, (v) => setField("stone.measLength", v), "6.42")}
+          {inp(obj.measLength, (v) => set("measLength", v), "6.42")}
         </LR>
         <LR label="Width (mm)">
-          {inp(data.stone?.measWidth, (v) => setField("stone.measWidth", v), "6.44")}
+          {inp(obj.measWidth, (v) => set("measWidth", v), "6.44")}
         </LR>
-        <LR label="Depth (mm)">
-          {inp(data.stone?.measDepth, (v) => setField("stone.measDepth", v), "3.90")}
+        <LR label="Depth / Height (mm)">
+          {inp(obj.measDepth, (v) => set("measDepth", v), "3.90")}
         </LR>
       </GR>
     </div>
@@ -470,21 +480,23 @@ function MeasurementInputs({ data, setField }) {
  * Fluorescence Intensity + Colour inputs used by all diamond sections.
  * Colour is always shown but only relevant when intensity is not None.
  */
-function FluorescenceInputs({ data, setField }) {
+function FluorescenceInputs({ data, setField, basePath = "stone" }) {
+  const obj = getByPath(data, basePath) || {};
+  const set = (field, value) => setPath(setField, basePath, field, value);
   return (
     <GR minColWidth={150}>
       <LR label="Fluorescence Intensity">
         <Drp
-          value={data.stone?.fluorescenceIntensity}
-          onChange={(v) => setField("stone.fluorescenceIntensity", v)}
+          value={obj.fluorescenceIntensity}
+          onChange={(v) => set("fluorescenceIntensity", v)}
           options={fluorescenceIntensities}
           placeholder="Select intensity…"
         />
       </LR>
       <LR label="Fluorescence Colour">
         <Drp
-          value={data.stone?.fluorescenceColor}
-          onChange={(v) => setField("stone.fluorescenceColor", v)}
+          value={obj.fluorescenceColor}
+          onChange={(v) => set("fluorescenceColor", v)}
           options={fluorescenceColors}
           placeholder="Blue (if not None)…"
         />
@@ -881,6 +893,19 @@ function JewelryEditorSections({ data, setField }) {
             </LR>
           </GR>
           <GR minColWidth={150}>
+            <LR label="Cut Form">
+              <Drp value={data.centerStone?.cutForm} onChange={(v) => setField("centerStone.cutForm", v)}
+                   options={cutFormOptions} placeholder="Faceted / Cabochon…" />
+            </LR>
+            <LR label="Shape">
+              <Drp value={data.centerStone?.shape} onChange={(v) => setField("centerStone.shape", v)}
+                   options={stoneShapes} placeholder="Select shape…" />
+            </LR>
+          </GR>
+          <LR label="Measurements">
+            <MeasurementInputs data={data} setField={setField} basePath="centerStone" />
+          </LR>
+          <GR minColWidth={150}>
             <LR label="Colour Grade">
               <Drp value={data.centerStone?.color} onChange={(v) => setField("centerStone.color", v)}
                    options={diamondColorGrades} placeholder="D–Z…" />
@@ -905,10 +930,9 @@ function JewelryEditorSections({ data, setField }) {
               <Drp value={data.centerStone?.origin} onChange={(v) => setField("centerStone.origin", v)}
                    options={OPT_ORIGIN} placeholder="Natural / Lab-Grown…" />
             </LR>
-            <LR label="Fluorescence">
-              {inp(data.centerStone?.fluorescence, (v) => setField("centerStone.fluorescence", v), "e.g. Medium Blue")}
-            </LR>
+            <div />
           </GR>
+          <FluorescenceInputs data={data} setField={setField} basePath="centerStone" />
           <GR minColWidth={150}>
             <LR label="Certificate Lab">
               <Drp value={data.centerStone?.certLab} onChange={(v) => setField("centerStone.certLab", v)}

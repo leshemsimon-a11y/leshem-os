@@ -21,7 +21,12 @@
  * Direction: dir="ltr" explicit on root.
  */
 
-import { hasValue } from "../../../lib/reports/reportUtils";
+import {
+  hasValue,
+  formatMeasurements,
+  formatFluorescence,
+  formatCutForm,
+} from "../../../lib/reports/reportUtils";
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 const SERIF = "'Merriweather','Times New Roman',Georgia,serif";
@@ -183,9 +188,11 @@ export function JewelryValuationReport({ data }) {
 
   const hasCenterStone =
     hasValue(d.centerStone?.type)  || hasValue(d.centerStone?.carat)  ||
+    hasValue(d.centerStone?.shape) || hasValue(d.centerStone?.cutForm)||
+    hasValue(d.centerStone?.measLength) || hasValue(d.centerStone?.measWidth) || hasValue(d.centerStone?.measDepth) || hasValue(d.centerStone?.measurements) ||
     hasValue(d.centerStone?.color) || hasValue(d.centerStone?.clarity)||
     hasValue(d.centerStone?.cut)   || hasValue(d.centerStone?.setting)||
-    hasValue(d.centerStone?.fluorescence)  || hasValue(d.centerStone?.origin)  ||
+    hasValue(d.centerStone?.fluorescence) || hasValue(d.centerStone?.fluorescenceIntensity) || hasValue(d.centerStone?.fluorescenceColor) || hasValue(d.centerStone?.origin)  ||
     hasValue(d.centerStone?.certLab)       || hasValue(d.centerStone?.certNumber);
 
   const hasSpecs = hasMetal || hasCenterStone ||
@@ -198,15 +205,28 @@ export function JewelryValuationReport({ data }) {
   const hasPreparedFor = hasValue(d.preparedFor);
 
   const certStr = [d.centerStone?.certLab, d.centerStone?.certNumber].filter(hasValue).join("  ");
+  const centerCutForm = formatCutForm(d.centerStone?.cutForm, d.centerStone?.shape);
+  const centerMeasurements = formatMeasurements(
+    d.centerStone?.measLength,
+    d.centerStone?.measWidth,
+    d.centerStone?.measDepth,
+    d.centerStone?.measurements
+  );
+  const centerFluorescence = formatFluorescence(
+    d.centerStone?.fluorescenceIntensity,
+    d.centerStone?.fluorescenceColor,
+    d.centerStone?.fluorescence
+  );
 
   return (
     <div
       className="printable-container"
       dir="ltr"
       style={{
-        width: "210mm", maxWidth: "100%", minHeight: "297mm",
+        width: "210mm", maxWidth: "100%", height: "297mm",
         background: IV, fontFamily: SANS, color: CH,
         position: "relative", overflow: "hidden", boxSizing: "border-box", margin: "0 auto",
+        pageBreakInside: "avoid",
       }}
     >
       {/* Watermark */}
@@ -222,7 +242,14 @@ export function JewelryValuationReport({ data }) {
       <div style={{ height: 4, background: `linear-gradient(90deg, ${GD} 0%, #b8a24a 55%, ${SG} 100%)` }} />
 
       {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
+      <div style={{
+        position: "relative",
+        zIndex: 1,
+        padding: "9mm 13mm 8mm",
+        transform: "scale(0.92)",
+        transformOrigin: "top left",
+        width: "108.7%",
+      }}>
 
         {/* ── HEADER ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
@@ -364,13 +391,15 @@ export function JewelryValuationReport({ data }) {
               {hasCenterStone && (
                 <SpecSubGroup label="Center Stone" rows={[
                   { label: "Type",              value: d.centerStone?.type },
+                  { label: "Cut / Form",        value: centerCutForm },
                   { label: "Carat Weight",      value: d.centerStone?.carat },
+                  { label: "Measurements",      value: centerMeasurements },
                   { label: "Colour Grade",      value: d.centerStone?.color },
                   { label: "Clarity Grade",     value: d.centerStone?.clarity },
                   { label: "Cut Grade",         value: d.centerStone?.cut },
                   { label: "Setting Style",     value: d.centerStone?.setting },
                   { label: "Origin",            value: d.centerStone?.origin },
-                  { label: "Fluorescence",      value: d.centerStone?.fluorescence },
+                  { label: "Fluorescence",      value: centerFluorescence },
                   { label: "Laboratory Report", value: certStr || undefined },
                 ]} />
               )}

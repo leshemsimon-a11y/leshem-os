@@ -547,9 +547,10 @@ export function InHouseStoneReport({ data }) {
       className="printable-container"
       dir="ltr"
       style={{
-        width: "210mm", maxWidth: "100%", minHeight: "297mm",
+        width: "210mm", maxWidth: "100%", height: "297mm",
         background: IV, fontFamily: SANS, color: CH,
         position: "relative", overflow: "hidden", boxSizing: "border-box", margin: "0 auto",
+        pageBreakInside: "avoid",
       }}
     >
       {/* Watermark */}
@@ -565,7 +566,14 @@ export function InHouseStoneReport({ data }) {
       <div style={{ height: 4, background: `linear-gradient(90deg, ${SGD} 0%, ${SG} 60%, #b0c8b2 100%)` }} />
 
       {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
+      <div style={{
+        position: "relative",
+        zIndex: 1,
+        padding: "9mm 13mm 8mm",
+        transform: "scale(0.92)",
+        transformOrigin: "top left",
+        width: "108.7%",
+      }}>
 
         {/* ── HEADER ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
