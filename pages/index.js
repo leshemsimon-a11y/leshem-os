@@ -1,37 +1,38 @@
 /**
- * pages/index.js  —  LESHEM.S OS  (Report Engine v1)
+ * pages/index.js  —  LESHEM.S OS  (Milestone 5.0 — Airtable Read-Only)
  *
- * Changes from previous version:
- *   • The "תעודת שמאות" cert tab now renders <ReportEngine> instead
- *     of the old CertificateEditor + JewelryValuationCertificate.
- *   • calculatorData memo assembled and passed to ReportEngine.
- *   • onBack prop wired to setTab("calc").
- *   • Print button is now inside ReportEngine's toolbar — removed from
- *     this file's cert tab section.
+ * Changes from v4.4:
+ *   + "מלאי" inventory tab added (tab key: "inventory")
+ *   + inventoryStones, inventoryMetals, inventoryLoading, inventoryError state
+ *   + fetchInventory() — lazy, fires once when tab is first opened
+ *   + <InventoryPreview> rendered in the inventory tab
  *
- * Unchanged:
- *   • All calculator state (cfg, currency, tab, pieceImg)
- *   • All calculator callbacks (sf, res, fmtFn, handleReset, etc.)
- *   • Header, tab bar, calculator tab layout
- *   • lib/printCss.js — no changes needed
+ * Unchanged from v4.4:
+ *   + All calculator state and callbacks
+ *   + ReportEngine + calculatorData bundle
+ *   + Header, currency toggle, reset button
+ *   + All report components
  */
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Head from "next/head";
 
-// ── Lib
+// ─── Lib ──────────────────────────────────────────────────────────────────────
 import { DCFG, C }        from "../lib/constants";
 import { calcApp, fmt }   from "../lib/calculations";
 import { PRINT_CSS }      from "../lib/printCss";
 
-// ── Calculator components (unchanged)
+// ─── Calculator components (unchanged) ───────────────────────────────────────
 import { CalculatorForm }  from "../components/CalculatorForm";
 import { CostSummary }     from "../components/CostSummary";
 
-// ── Report Engine
+// ─── Report Engine (unchanged) ────────────────────────────────────────────────
 import { ReportEngine }    from "../components/reports/ReportEngine";
 
-// ─── Global page styles ───────────────────────────────────────────────
+// ─── Inventory Preview (Milestone 5.0) ───────────────────────────────────────
+import { InventoryPreview } from "../components/InventoryPreview";
+
+// ─── Global page styles ───────────────────────────────────────────────────────
 const PAGE_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; }
@@ -48,10 +49,10 @@ const PAGE_CSS = `
   select option { background: #fff; color: #36454F; }
 `;
 
-// ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 export default function LeshemOS() {
 
-  // ── Calculator state ──────────────────────────────────────────────────
+  // ── Calculator state ──────────────────────────────────────────────────────
   const [cfg,      setCfg]      = useState({ ...DCFG });
   const [currency, setCurrency] = useState("USD");
   const [tab,      setTab]      = useState("calc");
@@ -62,7 +63,15 @@ export default function LeshemOS() {
   );
   const fileRef = useRef(null);
 
-  // ── Calculator callbacks ──────────────────────────────────────────────
+  // ── Inventory state (Milestone 5.0) ──────────────────────────────────────
+  const [invStones,  setInvStones]  = useState([]);
+  const [invMetals,  setInvMetals]  = useState([]);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invError,   setInvError]   = useState(null);
+  // Track whether we have fetched at least once so we don't re-fetch on re-visit
+  const invFetched = useRef(false);
+
+  // ── Calculator callbacks ──────────────────────────────────────────────────
   const sf = useCallback(
     (field, value) => setCfg((prev) => ({ ...prev, [field]: value })),
     []
@@ -88,13 +97,7 @@ export default function LeshemOS() {
     reader.readAsDataURL(file);
   }, []);
 
-  // ── Calculator data bundle — passed to ReportEngine ──────────────────
-  /**
-   * Memoised so ReportEngine only receives a new reference when
-   * something in the calculator actually changes.
-   * fmtFn is included so report defaults can format the valuation
-   * amount in the user's current currency at the time they open the report.
-   */
+  // ── Calculator data bundle — passed to ReportEngine ───────────────────────
   const calculatorData = useMemo(() => ({
     cfg,
     res,
@@ -103,7 +106,63 @@ export default function LeshemOS() {
     qNum: qNum.current,
   }), [cfg, res, fmtFn, pieceImg]);
 
-  // ─────────────────────────────────────────────────────────────────────
+  // ── Inventory fetch ───────────────────────────────────────────────────────
+  /**
+   * Fetches stones and metals from the server-side API routes.
+   * Called lazily when the inventory tab is first opened, or explicitly
+   * on retry after an error.
+   *
+   * The API routes proxy the Airtable token — it never reaches the browser.
+   */
+  const fetchInventory = useCallback(async () => {
+    setInvLoading(true);
+    setInvError(null);
+
+    try {
+      // Fetch stones and metals in parallel
+      const [stonesRes, metalsRes] = await Promise.all([
+        fetch("/api/airtable/stones"),
+        fetch("/api/airtable/metals"),
+      ]);
+
+      // Parse JSON for both responses
+      const [stonesData, metalsData] = await Promise.all([
+        stonesRes.json(),
+        metalsRes.json(),
+      ]);
+
+      // Check for API-level errors in the response body
+      if (stonesData.error && !stonesRes.ok) {
+        throw new Error(stonesData.error);
+      }
+      if (metalsData.error && !metalsRes.ok) {
+        throw new Error(metalsData.error);
+      }
+
+      setInvStones(Array.isArray(stonesData.stones) ? stonesData.stones : []);
+      setInvMetals(Array.isArray(metalsData.metals) ? metalsData.metals : []);
+      invFetched.current = true;
+
+      // Surface partial errors (e.g., one API configured, other not)
+      const partialErrors = [stonesData.error, metalsData.error].filter(Boolean);
+      if (partialErrors.length > 0) {
+        setInvError(partialErrors.join(" | "));
+      }
+    } catch (err) {
+      setInvError(err.message || "Failed to load inventory from Airtable.");
+    } finally {
+      setInvLoading(false);
+    }
+  }, []);
+
+  // Lazy-load inventory the first time the tab is opened
+  useEffect(() => {
+    if (tab === "inventory" && !invFetched.current && !invLoading) {
+      fetchInventory();
+    }
+  }, [tab, invLoading, fetchInventory]);
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
       <Head>
@@ -118,7 +177,7 @@ export default function LeshemOS() {
         <style>{PRINT_CSS}</style>
       </Head>
 
-      {/* ══ ROOT SHELL ══════════════════════════════════════════════════ */}
+      {/* ══ ROOT SHELL ══════════════════════════════════════════════════════ */}
       <div
         dir="rtl"
         style={{
@@ -129,7 +188,7 @@ export default function LeshemOS() {
         }}
       >
 
-        {/* ════════ HEADER ════════════════════════════════════════════ */}
+        {/* ════════ HEADER ════════════════════════════════════════════════ */}
         <header
           className="no-print"
           style={{
@@ -165,7 +224,7 @@ export default function LeshemOS() {
                 textTransform: "uppercase",
               }}
             >
-              OS v4
+              OS v5
             </span>
           </div>
 
@@ -226,7 +285,7 @@ export default function LeshemOS() {
           </div>
         </header>
 
-        {/* ════════ TAB BAR ════════════════════════════════════════════ */}
+        {/* ════════ TAB BAR ════════════════════════════════════════════════ */}
         <nav
           className="no-print"
           style={{
@@ -237,8 +296,9 @@ export default function LeshemOS() {
           }}
         >
           {[
-            ["calc", "🔢", "מחשבון"],
-            ["cert", "📋", "דוחות"],
+            ["calc",      "🔢", "מחשבון"],
+            ["cert",      "📋", "דוחות" ],
+            ["inventory", "🗂", "מלאי"  ],
           ].map(([t, icon, label]) => (
             <button
               key={t}
@@ -266,7 +326,7 @@ export default function LeshemOS() {
           ))}
         </nav>
 
-        {/* ════════ MAIN CONTENT ════════════════════════════════════════ */}
+        {/* ════════ MAIN CONTENT ══════════════════════════════════════════ */}
         <main
           style={{
             flex:      1,
@@ -276,7 +336,7 @@ export default function LeshemOS() {
         >
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-            {/* ── CALCULATOR TAB ──────────────────────────────────────── */}
+            {/* ── CALCULATOR TAB ───────────────────────────────────────── */}
             {tab === "calc" && (
               <div
                 style={{
@@ -302,20 +362,33 @@ export default function LeshemOS() {
 
             {/* ── REPORTS TAB ─────────────────────────────────────────── */}
             {/*
-              ReportEngine manages all its own internal routing
-              (type selector → editor + preview).
-              The cert/reports tab just mounts/unmounts it.
-
-              PRINT STRUCTURE:
-              ReportEngine renders its editor column with className="no-print"
-              and its preview column WITHOUT no-print. The preview column's
-              .printable-container is the @media print target.
-              See ReportEngine.jsx for full print architecture comments.
+              ReportEngine manages all its own internal routing.
+              Editor column: className="no-print" → hidden at print time.
+              Preview column: NO class → .printable-container is print target.
             */}
             {tab === "cert" && (
               <ReportEngine
                 calculatorData={calculatorData}
                 onBack={() => setTab("calc")}
+              />
+            )}
+
+            {/* ── INVENTORY TAB (Milestone 5.0) ────────────────────────── */}
+            {/*
+              Fetches lazily on first open via fetchInventory().
+              The API routes proxy Airtable — no token in the browser.
+              "Use in Calculator" / "Use in Report" wired in Milestone 5.1.
+            */}
+            {tab === "inventory" && (
+              <InventoryPreview
+                stones={invStones}
+                metals={invMetals}
+                loading={invLoading}
+                error={invError}
+                onRetry={() => {
+                  invFetched.current = false;
+                  fetchInventory();
+                }}
               />
             )}
 
