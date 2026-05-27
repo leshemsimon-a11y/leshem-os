@@ -1,5 +1,5 @@
 /**
- * components/reports/ReportEditor.jsx  —  v4.4
+ * components/reports/ReportEditor.jsx  —  v4.4.1 hotfix
  *
  * Changes in v4.4:
  *   + MultiImageSection: per-image crop controls
@@ -10,6 +10,8 @@
  *       Crop arrays kept in sync with image arrays on add/remove.
  *   + Signature size toggle: Small / Medium / Large
  *       Written to credentials.signatureSize
+ *   + Hotfix v4.4.1: crop controls always visible + per-image replace
+ *   + Hotfix v4.4.1: real signature upload/replace/remove in editor
  *   ~ All other sections identical to v4.3.2.
  */
 
@@ -238,10 +240,11 @@ function ImageCropControls({ idx, crop, onCropChange }) {
  *   - On remove: crop at same index removed
  */
 function MultiImageSection({ data, setField, label }) {
-  const fileInputRef = useRef(null);
-  const images       = Array.isArray(data.images)     ? data.images     : [];
-  const imageCrops   = Array.isArray(data.imageCrops) ? data.imageCrops : images.map(() => defaultCrop());
-  const [showCrop,   setShowCrop]   = useState(null); // index of expanded crop panel
+  const fileInputRef     = useRef(null);
+  const replaceInputRef = useRef(null);
+  const replaceIdxRef   = useRef(null);
+  const images          = Array.isArray(data.images)     ? data.images     : [];
+  const imageCrops      = Array.isArray(data.imageCrops) ? data.imageCrops : images.map(() => defaultCrop());
 
   const handleAdd = (e) => {
     const file = e.target.files?.[0];
@@ -255,10 +258,33 @@ function MultiImageSection({ data, setField, label }) {
     e.target.value = "";
   };
 
+  const handleReplace = (e) => {
+    const file = e.target.files?.[0];
+    const idx  = replaceIdxRef.current;
+    if (!file || idx === null || idx === undefined) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const next = [...images];
+      next[idx] = ev.target.result;
+      setField("images", next);
+      const crops = [...imageCrops];
+      while (crops.length <= idx) crops.push(defaultCrop());
+      crops[idx] = defaultCrop();
+      setField("imageCrops", crops);
+      replaceIdxRef.current = null;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const openReplace = (idx) => {
+    replaceIdxRef.current = idx;
+    replaceInputRef.current?.click();
+  };
+
   const handleRemove = (idx) => {
     setField("images",     images.filter((_, i) => i !== idx));
     setField("imageCrops", imageCrops.filter((_, i) => i !== idx));
-    if (showCrop === idx) setShowCrop(null);
   };
 
   const handleCropChange = (idx, newCrop) => {
@@ -275,6 +301,13 @@ function MultiImageSection({ data, setField, label }) {
         ref={fileInputRef}
         accept="image/*"
         onChange={handleAdd}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        ref={replaceInputRef}
+        accept="image/*"
+        onChange={handleReplace}
         style={{ display: "none" }}
       />
 
@@ -300,10 +333,9 @@ function MultiImageSection({ data, setField, label }) {
                     borderRadius: 5,
                     border:       "1px solid rgba(54,69,79,0.14)",
                     background:   "#f0ede8",
-                    cursor:       "pointer",
+                    cursor:       "default",
                   }}
-                  onClick={() => setShowCrop(showCrop === idx ? null : idx)}
-                  title="Click to open crop controls"
+                  title="Image preview"
                 >
                   <img
                     src={src}
@@ -335,29 +367,52 @@ function MultiImageSection({ data, setField, label }) {
                   }}
                 >✕</button>
 
-                {/* Crop indicator */}
+                {/* Main-image label */}
                 <div
                   style={{
                     position:   "absolute", bottom: 3, left: 3,
                     background: "rgba(54,69,79,0.55)",
                     borderRadius: 3, padding: "1px 5px",
                     fontFamily: C.dat, fontSize: 8, color: "#fff",
-                    cursor:     "pointer",
                   }}
-                  onClick={() => setShowCrop(showCrop === idx ? null : idx)}
                 >
-                  ✂ crop
+                  {idx === 0 ? "main" : `view ${idx + 1}`}
                 </div>
               </div>
 
-              {/* Crop controls panel — expanded when selected */}
-              {showCrop === idx && (
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <button
+                  onClick={() => openReplace(idx)}
+                  style={{
+                    flex: 1, height: 28, border: "1px solid rgba(54,69,79,0.18)",
+                    borderRadius: 4, background: "#fff", cursor: "pointer",
+                    fontFamily: C.heb, fontSize: 11, color: C.chl,
+                  }}
+                >
+                  Replace
+                </button>
+                <button
+                  onClick={() => handleRemove(idx)}
+                  style={{
+                    flex: 1, height: 28, border: "1px solid rgba(54,69,79,0.18)",
+                    borderRadius: 4, background: "transparent", cursor: "pointer",
+                    fontFamily: C.heb, fontSize: 11, color: C.chl,
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontFamily: C.heb, fontSize: 11, color: C.ch, fontWeight: 700, marginBottom: 4 }}>
+                  Image Crop / Framing
+                </div>
                 <ImageCropControls
                   idx={idx}
                   crop={imageCrops[idx]}
                   onCropChange={handleCropChange}
                 />
-              )}
+              </div>
             </div>
           ))}
         </div>
@@ -379,7 +434,7 @@ function MultiImageSection({ data, setField, label }) {
 
       {images.length > 0 && (
         <p style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginTop: 6, lineHeight: 1.4 }}>
-          {images.length} image{images.length > 1 ? "s" : ""} · first is main · click ✂ to adjust framing
+          {images.length} image{images.length > 1 ? "s" : ""} · first is main · use Image Crop / Framing to adjust each image
         </p>
       )}
     </Pnl>
@@ -452,6 +507,18 @@ function ReportInfoSection({ data, setField }) {
 
 function CredentialsSection({ data, setField }) {
   const sigSize = data.credentials?.signatureSize || "medium";
+  const signatureInputRef = useRef(null);
+
+  const handleSignatureUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setField("credentials.signatureImageUrl", ev.target.result);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const clearSignature = () => setField("credentials.signatureImageUrl", "");
 
   return (
     <>
@@ -471,9 +538,15 @@ function CredentialsSection({ data, setField }) {
 
       <Pnl title="Signature">
         <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginBottom: 12, lineHeight: 1.5, fontStyle: "italic" }}>
-          Use "Draw Signature" in the preview toolbar to add a handwritten
-          signature. Paste a URL or base64 image below for a scanned signature.
+          Choose one method: upload a default signature image, draw a manual signature in the preview toolbar, or leave blank for a printed signature line.
         </div>
+        <input
+          type="file"
+          ref={signatureInputRef}
+          accept="image/*"
+          onChange={handleSignatureUpload}
+          style={{ display: "none" }}
+        />
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Examiner Name (blank = Signatory)">
             {inp(data.credentials?.examinerName, (v) => setField("credentials.examinerName", v), "Leave blank to use Signatory Name")}
@@ -481,8 +554,41 @@ function CredentialsSection({ data, setField }) {
           <LR label="Examiner Title (blank = Title above)">
             {inp(data.credentials?.examinerTitle, (v) => setField("credentials.examinerTitle", v), "Leave blank to use above Title")}
           </LR>
-          <LR label="Signature Image (URL or base64)">
-            {inp(data.credentials?.signatureImageUrl, (v) => setField("credentials.signatureImageUrl", v), "Optional — or draw in preview toolbar")}
+
+          <LR label="Signature Image">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={() => signatureInputRef.current?.click()}
+                style={{
+                  height: 40, padding: "0 14px", border: "1px solid rgba(54,69,79,0.22)",
+                  borderRadius: 6, background: "#fff", cursor: "pointer",
+                  fontFamily: C.heb, fontSize: 12, color: C.ch,
+                }}
+              >
+                {hasValue(data.credentials?.signatureImageUrl) ? "Replace Uploaded Signature" : "Upload Signature"}
+              </button>
+              {hasValue(data.credentials?.signatureImageUrl) && (
+                <button
+                  onClick={clearSignature}
+                  style={{
+                    height: 40, padding: "0 14px", border: "1px solid rgba(54,69,79,0.18)",
+                    borderRadius: 6, background: "transparent", cursor: "pointer",
+                    fontFamily: C.heb, fontSize: 12, color: C.chl,
+                  }}
+                >
+                  Remove Signature
+                </button>
+              )}
+            </div>
+            {hasValue(data.credentials?.signatureImageUrl) && (
+              <div style={{ marginTop: 10, border: "1px solid rgba(54,69,79,0.12)", borderRadius: 6, padding: 8, background: "#faf9f6", maxWidth: 260 }}>
+                <img
+                  src={data.credentials.signatureImageUrl}
+                  alt="signature preview"
+                  style={{ maxWidth: "100%", maxHeight: 70, objectFit: "contain", display: "block" }}
+                />
+              </div>
+            )}
           </LR>
 
           {/* Signature size toggle */}
