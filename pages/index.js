@@ -1,17 +1,24 @@
 /**
- * pages/index.js  —  LESHEM.S OS  (Milestone 5.0 — Airtable Read-Only)
+ * pages/index.js  —  LESHEM.S OS  v5.2 — Product Intake
  *
- * Changes from v4.4:
- *   + "מלאי" inventory tab added (tab key: "inventory")
- *   + inventoryStones, inventoryMetals, inventoryLoading, inventoryError state
- *   + fetchInventory() — lazy, fires once when tab is first opened
- *   + <InventoryPreview> rendered in the inventory tab
+ * Changes from v5.0 (Airtable Read-Only):
+ *   + "קליטה" intake tab added (key: "intake", icon: 📥)
+ *   + Imports <ProductIntakeWizard> from components/inventory/
+ *   + Renders ProductIntakeWizard when tab === "intake"
+ *   ~ OS version label updated to "OS v5"
  *
- * Unchanged from v4.4:
- *   + All calculator state and callbacks
+ * Unchanged from v5.0:
+ *   + All calculator state and callbacks (cfg, currency, tab, pieceImg)
  *   + ReportEngine + calculatorData bundle
+ *   + InventoryPreview + fetchInventory + invFetched lazy-load guard
  *   + Header, currency toggle, reset button
  *   + All report components
+ *   + Print CSS injection
+ *
+ * Security:
+ *   ProductIntakeWizard POSTs to /api/airtable/create-stone and
+ *   /api/airtable/create-jewelry — both server-side routes that keep
+ *   AIRTABLE_TOKEN out of the browser.
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
@@ -29,10 +36,13 @@ import { CostSummary }     from "../components/CostSummary";
 // ─── Report Engine (unchanged) ────────────────────────────────────────────────
 import { ReportEngine }    from "../components/reports/ReportEngine";
 
-// ─── Inventory Preview (Milestone 5.0) ───────────────────────────────────────
+// ─── Inventory Preview — M5.0 (unchanged) ────────────────────────────────────
 import { InventoryPreview } from "../components/InventoryPreview";
 
-// ─── Global page styles ───────────────────────────────────────────────────────
+// ─── Product Intake Wizard — M5.2 (new) ──────────────────────────────────────
+import { ProductIntakeWizard } from "../components/inventory/ProductIntakeWizard";
+
+// ─── Global page styles (unchanged) ──────────────────────────────────────────
 const PAGE_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; }
@@ -63,12 +73,11 @@ export default function LeshemOS() {
   );
   const fileRef = useRef(null);
 
-  // ── Inventory state (Milestone 5.0) ──────────────────────────────────────
+  // ── Inventory state — M5.0 (unchanged) ───────────────────────────────────
   const [invStones,  setInvStones]  = useState([]);
   const [invMetals,  setInvMetals]  = useState([]);
   const [invLoading, setInvLoading] = useState(false);
   const [invError,   setInvError]   = useState(null);
-  // Track whether we have fetched at least once so we don't re-fetch on re-visit
   const invFetched = useRef(false);
 
   // ── Calculator callbacks ──────────────────────────────────────────────────
@@ -106,48 +115,26 @@ export default function LeshemOS() {
     qNum: qNum.current,
   }), [cfg, res, fmtFn, pieceImg]);
 
-  // ── Inventory fetch ───────────────────────────────────────────────────────
-  /**
-   * Fetches stones and metals from the server-side API routes.
-   * Called lazily when the inventory tab is first opened, or explicitly
-   * on retry after an error.
-   *
-   * The API routes proxy the Airtable token — it never reaches the browser.
-   */
+  // ── Inventory fetch — M5.0 (unchanged) ───────────────────────────────────
   const fetchInventory = useCallback(async () => {
     setInvLoading(true);
     setInvError(null);
-
     try {
-      // Fetch stones and metals in parallel
       const [stonesRes, metalsRes] = await Promise.all([
         fetch("/api/airtable/stones"),
         fetch("/api/airtable/metals"),
       ]);
-
-      // Parse JSON for both responses
       const [stonesData, metalsData] = await Promise.all([
         stonesRes.json(),
         metalsRes.json(),
       ]);
-
-      // Check for API-level errors in the response body
-      if (stonesData.error && !stonesRes.ok) {
-        throw new Error(stonesData.error);
-      }
-      if (metalsData.error && !metalsRes.ok) {
-        throw new Error(metalsData.error);
-      }
-
+      if (stonesData.error && !stonesRes.ok) throw new Error(stonesData.error);
+      if (metalsData.error && !metalsRes.ok) throw new Error(metalsData.error);
       setInvStones(Array.isArray(stonesData.stones) ? stonesData.stones : []);
       setInvMetals(Array.isArray(metalsData.metals) ? metalsData.metals : []);
       invFetched.current = true;
-
-      // Surface partial errors (e.g., one API configured, other not)
       const partialErrors = [stonesData.error, metalsData.error].filter(Boolean);
-      if (partialErrors.length > 0) {
-        setInvError(partialErrors.join(" | "));
-      }
+      if (partialErrors.length > 0) setInvError(partialErrors.join(" | "));
     } catch (err) {
       setInvError(err.message || "Failed to load inventory from Airtable.");
     } finally {
@@ -155,7 +142,7 @@ export default function LeshemOS() {
     }
   }, []);
 
-  // Lazy-load inventory the first time the tab is opened
+  // Lazy-load inventory on first open
   useEffect(() => {
     if (tab === "inventory" && !invFetched.current && !invLoading) {
       fetchInventory();
@@ -293,12 +280,14 @@ export default function LeshemOS() {
             display:      "flex",
             flexShrink:   0,
             borderBottom: "1px solid rgba(54,69,79,0.3)",
+            overflowX:    "auto",  // scrollable on narrow screens
           }}
         >
           {[
             ["calc",      "🔢", "מחשבון"],
             ["cert",      "📋", "דוחות" ],
             ["inventory", "🗂", "מלאי"  ],
+            ["intake",    "📥", "קליטה" ],  // ← M5.2 new tab
           ].map(([t, icon, label]) => (
             <button
               key={t}
@@ -307,7 +296,7 @@ export default function LeshemOS() {
                 display:       "flex",
                 alignItems:    "center",
                 gap:           8,
-                padding:       "0 24px",
+                padding:       "0 20px",
                 height:        48,
                 background:    "transparent",
                 border:        "none",
@@ -318,9 +307,10 @@ export default function LeshemOS() {
                 fontWeight:    tab === t ? 700 : 400,
                 cursor:        "pointer",
                 letterSpacing: "0.02em",
+                flexShrink:    0,
               }}
             >
-              <span style={{ fontSize: 16 }}>{icon}</span>
+              <span style={{ fontSize: 15 }}>{icon}</span>
               {label}
             </button>
           ))}
@@ -362,9 +352,9 @@ export default function LeshemOS() {
 
             {/* ── REPORTS TAB ─────────────────────────────────────────── */}
             {/*
-              ReportEngine manages all its own internal routing.
+              ReportEngine manages all internal routing (type selector → editor + preview).
               Editor column: className="no-print" → hidden at print time.
-              Preview column: NO class → .printable-container is print target.
+              Preview column: NO class → .printable-container is the print target.
             */}
             {tab === "cert" && (
               <ReportEngine
@@ -373,11 +363,10 @@ export default function LeshemOS() {
               />
             )}
 
-            {/* ── INVENTORY TAB (Milestone 5.0) ────────────────────────── */}
+            {/* ── INVENTORY TAB — M5.0 ────────────────────────────────── */}
             {/*
-              Fetches lazily on first open via fetchInventory().
-              The API routes proxy Airtable — no token in the browser.
-              "Use in Calculator" / "Use in Report" wired in Milestone 5.1.
+              Fetches lazily on first open. API routes proxy Airtable token.
+              "Use in Calculator" / "Use in Report" to be wired in M5.1.
             */}
             {tab === "inventory" && (
               <InventoryPreview
@@ -390,6 +379,24 @@ export default function LeshemOS() {
                   fetchInventory();
                 }}
               />
+            )}
+
+            {/* ── INTAKE TAB — M5.2 ───────────────────────────────────── */}
+            {/*
+              ProductIntakeWizard manages its own internal state:
+                step 1 → product type selection
+                step 2 → intake method (manual / certificate)
+                step 3 → form fields per product type
+                step 4 → review + report choice + save to Airtable
+
+              POSTs to:
+                /api/airtable/create-stone  (all types except finished_jewelry)
+                /api/airtable/create-jewelry (finished_jewelry only)
+
+              AIRTABLE_TOKEN is server-side only — never reaches the browser.
+            */}
+            {tab === "intake" && (
+              <ProductIntakeWizard />
             )}
 
           </div>
