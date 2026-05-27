@@ -1,18 +1,23 @@
 /**
- * components/reports/ReportEditor.jsx  —  v4.3.2
+ * components/reports/ReportEditor.jsx  —  v4.4
  *
- * Changes vs v4.3:
- *   + MeasurementInputs: replaced GR grid with direct direction:ltr flex row.
- *     flexWrap:nowrap + minWidth:0 on each field ensures L→W→D order
- *     is preserved even when the parent is in an RTL (Hebrew) context.
- *     Fields never wrap: each takes flex:"1 1 0" so they share space equally.
- *   ~ All other sections identical to v4.3.
+ * Changes in v4.4:
+ *   + MultiImageSection: per-image crop controls
+ *       Each image thumbnail shows: Scale (slider 0.5–3×), X position (nudge),
+ *       Y position (nudge), Reset button.
+ *       Crop stored in reportData.imageCrops[idx] = { scale, offsetX, offsetY }
+ *       Non-destructive: original image URL unchanged.
+ *       Crop arrays kept in sync with image arrays on add/remove.
+ *   + Signature size toggle: Small / Medium / Large
+ *       Written to credentials.signatureSize
+ *   ~ All other sections identical to v4.3.2.
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { C }        from "../../lib/constants";
 import { Pnl, LR, GR, StableInp } from "../UI";
 import { hasValue } from "../../lib/reports/reportUtils";
+import { defaultCrop } from "../../lib/reports/reportDefaults";
 import {
   diamondColorGrades,
   diamondClarityGrades,
@@ -120,21 +125,13 @@ const OPT_CURRENCY        = ["USD", "ILS", "EUR", "GBP"];
 const OPT_NATURAL_LAB     = ["Natural", "Lab-Grown"];
 
 const STONE_PRODUCT_TYPES = [
-  "natural_diamond",
-  "lab_grown_diamond",
-  "fancy_color_diamond",
-  "colored_gemstone",
+  "natural_diamond", "lab_grown_diamond",
+  "fancy_color_diamond", "colored_gemstone",
 ];
 
 // ─── Atom helpers ─────────────────────────────────────────────────────────────
 function inp(value, onChange, placeholder) {
-  return (
-    <StableInp
-      value={value ?? ""}
-      onChange={onChange}
-      placeholder={placeholder}
-    />
-  );
+  return <StableInp value={value ?? ""} onChange={onChange} placeholder={placeholder} />;
 }
 
 function ta(value, onChange, placeholder, rows = 2) {
@@ -146,6 +143,294 @@ function ta(value, onChange, placeholder, rows = 2) {
       rows={rows}
       style={TA}
     />
+  );
+}
+
+// ─── ImageCropControls ────────────────────────────────────────────────────────
+/**
+ * Per-image crop controls.
+ * Crop stored in imageCrops[idx] = { scale, offsetX, offsetY }
+ * Non-destructive: original image URL unchanged.
+ * Print: objectPosition + transform applied in template to the <img>.
+ */
+function ImageCropControls({ idx, crop, onCropChange }) {
+  const c = crop || defaultCrop();
+
+  const update = (field, val) => onCropChange(idx, { ...c, [field]: val });
+  const reset  = () => onCropChange(idx, defaultCrop());
+
+  return (
+    <div
+      style={{
+        background:   "rgba(54,69,79,0.04)",
+        borderRadius: 5,
+        padding:      "8px 10px",
+        marginTop:    6,
+      }}
+    >
+      {/* Scale */}
+      <div style={{ marginBottom: 6 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+          <span style={{ fontFamily: C.heb, fontSize: 10, color: C.chl }}>Scale</span>
+          <span style={{ fontFamily: C.dat, fontSize: 10, color: C.ch }}>{c.scale.toFixed(1)}×</span>
+        </div>
+        <input
+          type="range"
+          min={0.5} max={3.0} step={0.1}
+          value={c.scale}
+          onChange={(e) => update("scale", parseFloat(e.target.value))}
+          style={{ width: "100%", accentColor: C.gd }}
+        />
+      </div>
+
+      {/* X and Y position */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+            <span style={{ fontFamily: C.heb, fontSize: 10, color: C.chl }}>Pos X</span>
+            <span style={{ fontFamily: C.dat, fontSize: 10, color: C.ch }}>{Math.round(c.offsetX)}%</span>
+          </div>
+          <input
+            type="range"
+            min={0} max={100} step={1}
+            value={c.offsetX}
+            onChange={(e) => update("offsetX", parseInt(e.target.value, 10))}
+            style={{ width: "100%", accentColor: C.gd }}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+            <span style={{ fontFamily: C.heb, fontSize: 10, color: C.chl }}>Pos Y</span>
+            <span style={{ fontFamily: C.dat, fontSize: 10, color: C.ch }}>{Math.round(c.offsetY)}%</span>
+          </div>
+          <input
+            type="range"
+            min={0} max={100} step={1}
+            value={c.offsetY}
+            onChange={(e) => update("offsetY", parseInt(e.target.value, 10))}
+            style={{ width: "100%", accentColor: C.gd }}
+          />
+        </div>
+      </div>
+
+      {/* Reset */}
+      <button
+        onClick={reset}
+        style={{
+          height:       26, padding: "0 10px",
+          border:       "1px solid rgba(54,69,79,0.18)",
+          borderRadius: 4, background: "transparent",
+          cursor:       "pointer", fontFamily: C.heb,
+          fontSize:     10, color: C.chl,
+        }}
+      >
+        ↺ Reset framing
+      </button>
+    </div>
+  );
+}
+
+// ─── MultiImageSection ────────────────────────────────────────────────────────
+/**
+ * Multiple images with per-image crop controls.
+ * imageCrops[] is kept parallel to images[]:
+ *   - On add:    new defaultCrop() appended
+ *   - On remove: crop at same index removed
+ */
+function MultiImageSection({ data, setField, label }) {
+  const fileInputRef = useRef(null);
+  const images       = Array.isArray(data.images)     ? data.images     : [];
+  const imageCrops   = Array.isArray(data.imageCrops) ? data.imageCrops : images.map(() => defaultCrop());
+  const [showCrop,   setShowCrop]   = useState(null); // index of expanded crop panel
+
+  const handleAdd = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setField("images",     [...images, ev.target.result]);
+      setField("imageCrops", [...imageCrops, defaultCrop()]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleRemove = (idx) => {
+    setField("images",     images.filter((_, i) => i !== idx));
+    setField("imageCrops", imageCrops.filter((_, i) => i !== idx));
+    if (showCrop === idx) setShowCrop(null);
+  };
+
+  const handleCropChange = (idx, newCrop) => {
+    const updated = [...imageCrops];
+    while (updated.length <= idx) updated.push(defaultCrop());
+    updated[idx] = newCrop;
+    setField("imageCrops", updated);
+  };
+
+  return (
+    <Pnl title={label || "Images"}>
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleAdd}
+        style={{ display: "none" }}
+      />
+
+      {/* Thumbnails */}
+      {images.length > 0 && (
+        <div
+          style={{
+            display:             "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+            gap:                 8,
+            marginBottom:        10,
+          }}
+        >
+          {images.map((src, idx) => (
+            <div key={idx}>
+              <div style={{ position: "relative" }}>
+                {/* Thumbnail with current crop preview */}
+                <div
+                  style={{
+                    width:        "100%",
+                    aspectRatio:  "1 / 1",
+                    overflow:     "hidden",
+                    borderRadius: 5,
+                    border:       "1px solid rgba(54,69,79,0.14)",
+                    background:   "#f0ede8",
+                    cursor:       "pointer",
+                  }}
+                  onClick={() => setShowCrop(showCrop === idx ? null : idx)}
+                  title="Click to open crop controls"
+                >
+                  <img
+                    src={src}
+                    alt={`image ${idx + 1}`}
+                    style={{
+                      width:          "100%",
+                      height:         "100%",
+                      objectFit:      "cover",
+                      objectPosition: `${imageCrops[idx]?.offsetX ?? 50}% ${imageCrops[idx]?.offsetY ?? 50}%`,
+                      transform:      `scale(${imageCrops[idx]?.scale ?? 1})`,
+                      transformOrigin:`${imageCrops[idx]?.offsetX ?? 50}% ${imageCrops[idx]?.offsetY ?? 50}%`,
+                      display:        "block",
+                    }}
+                  />
+                </div>
+
+                {/* Remove button */}
+                <button
+                  onClick={() => handleRemove(idx)}
+                  title="Remove"
+                  style={{
+                    position:       "absolute", top: 3, right: 3,
+                    width:          20, height: 20, borderRadius: "50%",
+                    background:     "rgba(54,69,79,0.7)", border: "none",
+                    color:          "#faf9f6", fontSize: 10, fontWeight: 700,
+                    cursor:         "pointer", display: "flex",
+                    alignItems:     "center", justifyContent: "center",
+                    lineHeight:     1, padding: 0,
+                  }}
+                >✕</button>
+
+                {/* Crop indicator */}
+                <div
+                  style={{
+                    position:   "absolute", bottom: 3, left: 3,
+                    background: "rgba(54,69,79,0.55)",
+                    borderRadius: 3, padding: "1px 5px",
+                    fontFamily: C.dat, fontSize: 8, color: "#fff",
+                    cursor:     "pointer",
+                  }}
+                  onClick={() => setShowCrop(showCrop === idx ? null : idx)}
+                >
+                  ✂ crop
+                </div>
+              </div>
+
+              {/* Crop controls panel — expanded when selected */}
+              {showCrop === idx && (
+                <ImageCropControls
+                  idx={idx}
+                  crop={imageCrops[idx]}
+                  onCropChange={handleCropChange}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add button */}
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        style={{
+          width:          "100%", height: 44,
+          border:         "1px dashed rgba(54,69,79,0.28)", borderRadius: 6,
+          background:     "transparent", cursor: "pointer",
+          fontFamily:     C.heb, fontSize: 13, color: C.chl,
+          display:        "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        }}
+      >
+        📷 {images.length === 0 ? "Upload Image" : "Add Another Image"}
+      </button>
+
+      {images.length > 0 && (
+        <p style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginTop: 6, lineHeight: 1.4 }}>
+          {images.length} image{images.length > 1 ? "s" : ""} · first is main · click ✂ to adjust framing
+        </p>
+      )}
+    </Pnl>
+  );
+}
+
+// ─── MeasurementInputs ────────────────────────────────────────────────────────
+function MeasurementInputs({ data, setField }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, lineHeight: 1.4, fontStyle: "italic" }}>
+        mm — displays as Length × Width × Depth mm
+      </div>
+      <div
+        style={{
+          direction:  "ltr",
+          display:    "flex",
+          gap:        8,
+          flexWrap:   "nowrap",
+          alignItems: "flex-start",
+        }}
+      >
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Length">{inp(data.stone?.measLength, (v) => setField("stone.measLength", v), "6.42")}</LR>
+        </div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Width">{inp(data.stone?.measWidth, (v) => setField("stone.measWidth", v), "6.44")}</LR>
+        </div>
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <LR label="Depth">{inp(data.stone?.measDepth, (v) => setField("stone.measDepth", v), "3.90")}</LR>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FluorescenceInputs ───────────────────────────────────────────────────────
+function FluorescenceInputs({ data, setField }) {
+  return (
+    <GR minColWidth={150}>
+      <LR label="Fluorescence Intensity">
+        <Drp value={data.stone?.fluorescenceIntensity}
+             onChange={(v) => setField("stone.fluorescenceIntensity", v)}
+             options={fluorescenceIntensities} placeholder="Select intensity…" />
+      </LR>
+      <LR label="Fluorescence Colour">
+        <Drp value={data.stone?.fluorescenceColor}
+             onChange={(v) => setField("stone.fluorescenceColor", v)}
+             options={fluorescenceColors} placeholder="Blue (if not None)…" />
+      </LR>
+    </GR>
   );
 }
 
@@ -166,18 +451,7 @@ function ReportInfoSection({ data, setField }) {
 }
 
 function CredentialsSection({ data, setField }) {
-  const signatureInputRef = useRef(null);
-  const signatureImageUrl = data.credentials?.signatureImageUrl || "";
-  const hasSignatureImage = hasValue(signatureImageUrl);
-
-  const handleSignatureUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setField("credentials.signatureImageUrl", ev.target.result);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  const sigSize = data.credentials?.signatureSize || "medium";
 
   return (
     <>
@@ -196,16 +470,10 @@ function CredentialsSection({ data, setField }) {
       </Pnl>
 
       <Pnl title="Signature">
-        <div
-          style={{
-            fontFamily: C.heb, fontSize: 11, color: C.chl,
-            marginBottom: 12, lineHeight: 1.5, fontStyle: "italic",
-          }}
-        >
-          Upload a scanned signature or leave blank for a manual signing line.
-          The printed report keeps this area fixed so it will not push outside A4.
+        <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginBottom: 12, lineHeight: 1.5, fontStyle: "italic" }}>
+          Use "Draw Signature" in the preview toolbar to add a handwritten
+          signature. Paste a URL or base64 image below for a scanned signature.
         </div>
-
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Examiner Name (blank = Signatory)">
             {inp(data.credentials?.examinerName, (v) => setField("credentials.examinerName", v), "Leave blank to use Signatory Name")}
@@ -213,73 +481,33 @@ function CredentialsSection({ data, setField }) {
           <LR label="Examiner Title (blank = Title above)">
             {inp(data.credentials?.examinerTitle, (v) => setField("credentials.examinerTitle", v), "Leave blank to use above Title")}
           </LR>
+          <LR label="Signature Image (URL or base64)">
+            {inp(data.credentials?.signatureImageUrl, (v) => setField("credentials.signatureImageUrl", v), "Optional — or draw in preview toolbar")}
+          </LR>
 
-          <input
-            type="file"
-            ref={signatureInputRef}
-            accept="image/*"
-            onChange={handleSignatureUpload}
-            style={{ display: "none" }}
-          />
-
-          {hasSignatureImage && (
-            <div
-              style={{
-                border: "1px solid rgba(54,69,79,0.14)",
-                borderRadius: 6,
-                background: "#fff",
-                padding: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <img
-                src={signatureImageUrl}
-                alt="signature preview"
-                style={{
-                  width: 140,
-                  height: 54,
-                  objectFit: "contain",
-                  background: "#f8f6f2",
-                  border: "1px solid rgba(54,69,79,0.08)",
-                }}
-              />
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {/* Signature size toggle */}
+          <LR label="Signature Size">
+            <div style={{ display: "flex", gap: 6 }}>
+              {["small", "medium", "large"].map((sz) => (
                 <button
-                  onClick={() => signatureInputRef.current?.click()}
-                  style={{ height: 36, padding: "0 12px", border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6, background: "#fff", cursor: "pointer", fontFamily: C.heb, fontSize: 12, color: C.ch }}
+                  key={sz}
+                  onClick={() => setField("credentials.signatureSize", sz)}
+                  style={{
+                    height:       36, padding: "0 14px",
+                    border:       `1px solid ${sz === sigSize ? C.gd : "rgba(54,69,79,0.2)"}`,
+                    borderRadius: 5,
+                    background:   sz === sigSize ? "rgba(197,179,88,0.1)" : "transparent",
+                    color:        sz === sigSize ? "#8a7a2a" : C.chl,
+                    fontFamily:   C.heb, fontSize: 12,
+                    fontWeight:   sz === sigSize ? 700 : 400,
+                    cursor:       "pointer",
+                    textTransform:"capitalize",
+                  }}
                 >
-                  Replace
+                  {sz.charAt(0).toUpperCase() + sz.slice(1)}
                 </button>
-                <button
-                  onClick={() => setField("credentials.signatureImageUrl", "")}
-                  style={{ height: 36, padding: "0 12px", border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6, background: "transparent", cursor: "pointer", fontFamily: C.heb, fontSize: 12, color: C.chl }}
-                >
-                  Remove
-                </button>
-              </div>
+              ))}
             </div>
-          )}
-
-          {!hasSignatureImage && (
-            <button
-              onClick={() => signatureInputRef.current?.click()}
-              style={{
-                width: "100%", height: 44,
-                border: "1px dashed rgba(54,69,79,0.28)", borderRadius: 6,
-                background: "transparent", cursor: "pointer",
-                fontFamily: C.heb, fontSize: 13, color: C.chl,
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              }}
-            >
-              ✍ Upload Signature Image
-            </button>
-          )}
-
-          <LR label="Signature Image URL / base64 (optional)">
-            {inp(signatureImageUrl, (v) => setField("credentials.signatureImageUrl", v), "Paste URL or upload image above")}
           </LR>
         </div>
       </Pnl>
@@ -290,14 +518,8 @@ function CredentialsSection({ data, setField }) {
 function VerificationSection({ data, setField }) {
   return (
     <Pnl title="Verification (Optional)">
-      <div
-        style={{
-          fontFamily: C.heb, fontSize: 11, color: C.chl,
-          marginBottom: 10, lineHeight: 1.5, fontStyle: "italic",
-        }}
-      >
-        Reserved for future online verification. Leave blank — block only
-        appears when filled.
+      <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginBottom: 10, lineHeight: 1.5, fontStyle: "italic" }}>
+        Reserved for future online verification. Leave blank — block only appears when filled.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
         <LR label="Verification ID">
@@ -311,239 +533,19 @@ function VerificationSection({ data, setField }) {
   );
 }
 
-// ─── MultiImageSection ────────────────────────────────────────────────────────
-function MultiImageSection({ data, setField, label }) {
-  const fileInputRef = useRef(null);
-  const images       = Array.isArray(data.images) ? data.images : [];
-
-  const handleAdd = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setField("images", [...images, ev.target.result]);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const handleRemove = (idx) =>
-    setField("images", images.filter((_, i) => i !== idx));
-
-  return (
-    <Pnl title={label || "Images"}>
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept="image/*"
-        onChange={handleAdd}
-        style={{ display: "none" }}
-      />
-      {images.length > 0 && (
-        <div
-          style={{
-            display:             "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
-            gap:                 8,
-            marginBottom:        10,
-          }}
-        >
-          {images.map((src, idx) => (
-            <div key={idx} style={{ position: "relative" }}>
-              <img
-                src={src}
-                alt={`image ${idx + 1}`}
-                style={{
-                  width: "100%", aspectRatio: "1 / 1", objectFit: "cover",
-                  borderRadius: 5, border: "1px solid rgba(54,69,79,0.14)",
-                  background: "#f0ede8", display: "block",
-                }}
-              />
-              <button
-                onClick={() => handleRemove(idx)}
-                title="Remove"
-                style={{
-                  position: "absolute", top: 3, right: 3,
-                  width: 20, height: 20, borderRadius: "50%",
-                  background: "rgba(54,69,79,0.7)", border: "none",
-                  color: "#faf9f6", fontSize: 10, fontWeight: 700,
-                  cursor: "pointer", display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  lineHeight: 1, padding: 0,
-                }}
-              >✕</button>
-            </div>
-          ))}
-        </div>
-      )}
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        style={{
-          width: "100%", height: 44,
-          border: "1px dashed rgba(54,69,79,0.28)", borderRadius: 6,
-          background: "transparent", cursor: "pointer",
-          fontFamily: C.heb, fontSize: 13, color: C.chl,
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-        }}
-      >
-        📷 {images.length === 0 ? "Upload Image" : "Add Another Image"}
-      </button>
-      {images.length > 0 && (
-        <p style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginTop: 6, lineHeight: 1.4 }}>
-          {images.length} image{images.length > 1 ? "s" : ""} · first image is the main image
-        </p>
-      )}
-    </Pnl>
-  );
-}
-
-// ─── MeasurementInputs ────────────────────────────────────────────────────────
-/**
- * Three separate L / W / D inputs in a fixed LTR row.
- *
- * v4.3.2 fix: replaced GR (CSS grid) with a direct direction:ltr flex row.
- *   - direction:"ltr" overrides RTL parent context → Length always left,
- *     Depth always right
- *   - flexWrap:"nowrap" prevents the fields from stacking on narrow screens
- *   - flex:"1 1 0" + minWidth:0 on each field → equal widths, no overflow
- */
-function MeasurementInputs({ data, setField }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, lineHeight: 1.4, fontStyle: "italic" }}>
-        mm — displays as Length × Width × Depth mm
-      </div>
-      <div
-        style={{
-          direction:      "ltr",
-          display:        "flex",
-          gap:            8,
-          flexWrap:       "nowrap",
-          alignItems:     "flex-start",
-        }}
-      >
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
-          <LR label="Length">
-            {inp(data.stone?.measLength, (v) => setField("stone.measLength", v), "6.42")}
-          </LR>
-        </div>
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
-          <LR label="Width">
-            {inp(data.stone?.measWidth, (v) => setField("stone.measWidth", v), "6.44")}
-          </LR>
-        </div>
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
-          <LR label="Depth">
-            {inp(data.stone?.measDepth, (v) => setField("stone.measDepth", v), "3.90")}
-          </LR>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-function CenterStoneMeasurementInputs({ data, setField }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, lineHeight: 1.4, fontStyle: "italic" }}>
-        mm — displays as Length × Width × Depth mm
-      </div>
-      <div
-        style={{
-          direction: "ltr",
-          display: "flex",
-          gap: 8,
-          flexWrap: "nowrap",
-          alignItems: "flex-start",
-        }}
-      >
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
-          <LR label="Length">
-            {inp(data.centerStone?.measLength, (v) => setField("centerStone.measLength", v), "6.42")}
-          </LR>
-        </div>
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
-          <LR label="Width">
-            {inp(data.centerStone?.measWidth, (v) => setField("centerStone.measWidth", v), "6.44")}
-          </LR>
-        </div>
-        <div style={{ flex: "1 1 0", minWidth: 0 }}>
-          <LR label="Depth">
-            {inp(data.centerStone?.measDepth, (v) => setField("centerStone.measDepth", v), "3.90")}
-          </LR>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CenterStoneFluorescenceInputs({ data, setField }) {
-  return (
-    <GR minColWidth={150}>
-      <LR label="Fluorescence Intensity">
-        <Drp
-          value={data.centerStone?.fluorescenceIntensity}
-          onChange={(v) => setField("centerStone.fluorescenceIntensity", v)}
-          options={fluorescenceIntensities}
-          placeholder="Select intensity…"
-        />
-      </LR>
-      <LR label="Fluorescence Colour">
-        <Drp
-          value={data.centerStone?.fluorescenceColor}
-          onChange={(v) => setField("centerStone.fluorescenceColor", v)}
-          options={fluorescenceColors}
-          placeholder="Blue (if not None)…"
-        />
-      </LR>
-    </GR>
-  );
-}
-
-// ─── FluorescenceInputs ───────────────────────────────────────────────────────
-function FluorescenceInputs({ data, setField }) {
-  return (
-    <GR minColWidth={150}>
-      <LR label="Fluorescence Intensity">
-        <Drp
-          value={data.stone?.fluorescenceIntensity}
-          onChange={(v) => setField("stone.fluorescenceIntensity", v)}
-          options={fluorescenceIntensities}
-          placeholder="Select intensity…"
-        />
-      </LR>
-      <LR label="Fluorescence Colour">
-        <Drp
-          value={data.stone?.fluorescenceColor}
-          onChange={(v) => setField("stone.fluorescenceColor", v)}
-          options={fluorescenceColors}
-          placeholder="Blue (if not None)…"
-        />
-      </LR>
-    </GR>
-  );
-}
-
-// ─── DiamondGradingFields ─────────────────────────────────────────────────────
+// ─── Diamond grading fields ────────────────────────────────────────────────────
 function DiamondGradingFields({ data, setField, showGrowthMethod }) {
   return (
     <>
       <Pnl title="Shape & Cut">
         <GR minColWidth={150}>
           <LR label="Cut Form">
-            <Drp
-              value={data.stone?.cutForm}
-              onChange={(v) => setField("stone.cutForm", v)}
-              options={cutFormOptions}
-              placeholder="Faceted / Cabochon…"
-            />
+            <Drp value={data.stone?.cutForm} onChange={(v) => setField("stone.cutForm", v)}
+                 options={cutFormOptions} placeholder="Faceted / Cabochon…" />
           </LR>
           <LR label="Shape">
-            <Drp
-              value={data.stone?.shape}
-              onChange={(v) => setField("stone.shape", v)}
-              options={stoneShapes}
-              placeholder="Select shape…"
-            />
+            <Drp value={data.stone?.shape} onChange={(v) => setField("stone.shape", v)}
+                 options={stoneShapes} placeholder="Select shape…" />
           </LR>
         </GR>
       </Pnl>
@@ -553,9 +555,7 @@ function DiamondGradingFields({ data, setField, showGrowthMethod }) {
           <LR label="Carat Weight">
             {inp(data.stone?.carat, (v) => setField("stone.carat", v), "1.02")}
           </LR>
-          <LR label="Measurements">
-            <MeasurementInputs data={data} setField={setField} />
-          </LR>
+          <LR label="Measurements"><MeasurementInputs data={data} setField={setField} /></LR>
         </div>
       </Pnl>
 
@@ -563,60 +563,36 @@ function DiamondGradingFields({ data, setField, showGrowthMethod }) {
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <GR minColWidth={150}>
             <LR label="Colour Grade">
-              <Drp
-                value={data.stone?.color}
-                onChange={(v) => setField("stone.color", v)}
-                options={diamondColorGrades}
-                placeholder="D–Z…"
-              />
+              <Drp value={data.stone?.color} onChange={(v) => setField("stone.color", v)}
+                   options={diamondColorGrades} placeholder="D–Z…" />
             </LR>
             <LR label="Clarity Grade">
-              <Drp
-                value={data.stone?.clarity}
-                onChange={(v) => setField("stone.clarity", v)}
-                options={diamondClarityGrades}
-                placeholder="FL–I3…"
-              />
+              <Drp value={data.stone?.clarity} onChange={(v) => setField("stone.clarity", v)}
+                   options={diamondClarityGrades} placeholder="FL–I3…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Cut Grade">
-              <Drp
-                value={data.stone?.cut}
-                onChange={(v) => setField("stone.cut", v)}
-                options={diamondCutGrades}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.cut} onChange={(v) => setField("stone.cut", v)}
+                   options={diamondCutGrades} placeholder="Select grade…" />
             </LR>
             <LR label="Polish">
-              <Drp
-                value={data.stone?.polish}
-                onChange={(v) => setField("stone.polish", v)}
-                options={polishSymmetryGrades}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.polish} onChange={(v) => setField("stone.polish", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Symmetry">
-              <Drp
-                value={data.stone?.symmetry}
-                onChange={(v) => setField("stone.symmetry", v)}
-                options={polishSymmetryGrades}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.symmetry} onChange={(v) => setField("stone.symmetry", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
             </LR>
             <div />
           </GR>
           <FluorescenceInputs data={data} setField={setField} />
           {showGrowthMethod && (
             <LR label="Growth Method">
-              <Drp
-                value={data.stone?.growthMethod}
-                onChange={(v) => setField("stone.growthMethod", v)}
-                options={labGrowthMethods}
-                placeholder="CVD / HPHT…"
-              />
+              <Drp value={data.stone?.growthMethod} onChange={(v) => setField("stone.growthMethod", v)}
+                   options={labGrowthMethods} placeholder="CVD / HPHT…" />
             </LR>
           )}
         </div>
@@ -625,12 +601,8 @@ function DiamondGradingFields({ data, setField, showGrowthMethod }) {
       <Pnl title="Laboratory Reference">
         <GR minColWidth={150}>
           <LR label="Certificate Lab">
-            <Drp
-              value={data.stone?.certLab}
-              onChange={(v) => setField("stone.certLab", v)}
-              options={certificateLabs}
-              placeholder="Select lab…"
-            />
+            <Drp value={data.stone?.certLab} onChange={(v) => setField("stone.certLab", v)}
+                 options={certificateLabs} placeholder="Select lab…" />
           </LR>
           <LR label="Certificate Number">
             {inp(data.stone?.certNumber, (v) => setField("stone.certNumber", v), "Leave blank to hide")}
@@ -641,60 +613,40 @@ function DiamondGradingFields({ data, setField, showGrowthMethod }) {
   );
 }
 
-// ─── FancyColorFields ─────────────────────────────────────────────────────────
+// ─── Fancy color fields ───────────────────────────────────────────────────────
 function FancyColorFields({ data, setField }) {
   return (
     <>
       <Pnl title="Shape & Cut">
         <GR minColWidth={150}>
           <LR label="Cut Form">
-            <Drp
-              value={data.stone?.cutForm}
-              onChange={(v) => setField("stone.cutForm", v)}
-              options={cutFormOptions}
-              placeholder="Faceted / Cabochon…"
-            />
+            <Drp value={data.stone?.cutForm} onChange={(v) => setField("stone.cutForm", v)}
+                 options={cutFormOptions} placeholder="Faceted / Cabochon…" />
           </LR>
           <LR label="Shape">
-            <Drp
-              value={data.stone?.shape}
-              onChange={(v) => setField("stone.shape", v)}
-              options={stoneShapes}
-              placeholder="Select shape…"
-            />
+            <Drp value={data.stone?.shape} onChange={(v) => setField("stone.shape", v)}
+                 options={stoneShapes} placeholder="Select shape…" />
           </LR>
         </GR>
       </Pnl>
-
       <Pnl title="Weight & Measurements">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Carat Weight">
             {inp(data.stone?.carat, (v) => setField("stone.carat", v), "1.02")}
           </LR>
-          <LR label="Measurements">
-            <MeasurementInputs data={data} setField={setField} />
-          </LR>
+          <LR label="Measurements"><MeasurementInputs data={data} setField={setField} /></LR>
         </div>
       </Pnl>
-
       <Pnl title="Fancy Colour Grading">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <GR minColWidth={150}>
             <LR label="Colour Hue">
-              <Drp
-                value={data.stone?.fancyColorHue}
-                onChange={(v) => setField("stone.fancyColorHue", v)}
-                options={fancyColorHues}
-                placeholder="Select hue…"
-              />
+              <Drp value={data.stone?.fancyColorHue} onChange={(v) => setField("stone.fancyColorHue", v)}
+                   options={fancyColorHues} placeholder="Select hue…" />
             </LR>
             <LR label="Colour Intensity">
-              <Drp
-                value={data.stone?.fancyColorIntensity}
-                onChange={(v) => setField("stone.fancyColorIntensity", v)}
-                options={fancyColorIntensities}
-                placeholder="Select intensity…"
-              />
+              <Drp value={data.stone?.fancyColorIntensity} onChange={(v) => setField("stone.fancyColorIntensity", v)}
+                   options={fancyColorIntensities} placeholder="Select intensity…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
@@ -702,45 +654,28 @@ function FancyColorFields({ data, setField }) {
               {inp(data.stone?.fancyColorOrigin, (v) => setField("stone.fancyColorOrigin", v), "Natural — leave blank to hide")}
             </LR>
             <LR label="Clarity Grade">
-              <Drp
-                value={data.stone?.clarity}
-                onChange={(v) => setField("stone.clarity", v)}
-                options={diamondClarityGrades}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.clarity} onChange={(v) => setField("stone.clarity", v)}
+                   options={diamondClarityGrades} placeholder="Select grade…" />
             </LR>
           </GR>
           <GR minColWidth={150}>
             <LR label="Polish">
-              <Drp
-                value={data.stone?.polish}
-                onChange={(v) => setField("stone.polish", v)}
-                options={polishSymmetryGrades}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.polish} onChange={(v) => setField("stone.polish", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
             </LR>
             <LR label="Symmetry">
-              <Drp
-                value={data.stone?.symmetry}
-                onChange={(v) => setField("stone.symmetry", v)}
-                options={polishSymmetryGrades}
-                placeholder="Select grade…"
-              />
+              <Drp value={data.stone?.symmetry} onChange={(v) => setField("stone.symmetry", v)}
+                   options={polishSymmetryGrades} placeholder="Select grade…" />
             </LR>
           </GR>
           <FluorescenceInputs data={data} setField={setField} />
         </div>
       </Pnl>
-
       <Pnl title="Laboratory Reference">
         <GR minColWidth={150}>
           <LR label="Certificate Lab">
-            <Drp
-              value={data.stone?.certLab}
-              onChange={(v) => setField("stone.certLab", v)}
-              options={certificateLabs}
-              placeholder="Select lab…"
-            />
+            <Drp value={data.stone?.certLab} onChange={(v) => setField("stone.certLab", v)}
+                 options={certificateLabs} placeholder="Select lab…" />
           </LR>
           <LR label="Certificate Number">
             {inp(data.stone?.certNumber, (v) => setField("stone.certNumber", v), "Leave blank to hide")}
@@ -751,58 +686,41 @@ function FancyColorFields({ data, setField }) {
   );
 }
 
-// ─── ColoredGemstoneFields ────────────────────────────────────────────────────
+// ─── Colored gemstone fields ───────────────────────────────────────────────────
 function ColoredGemstoneFields({ data, setField }) {
   return (
     <>
       <Pnl title="Identification">
         <GR minColWidth={150}>
           <LR label="Species">
-            <Drp
-              value={data.stone?.species}
-              onChange={(v) => setField("stone.species", v)}
-              options={gemstoneSpecies}
-              placeholder="Select species…"
-            />
+            <Drp value={data.stone?.species} onChange={(v) => setField("stone.species", v)}
+                 options={gemstoneSpecies} placeholder="Select species…" />
           </LR>
           <LR label="Variety">
             {inp(data.stone?.variety, (v) => setField("stone.variety", v), "e.g. Pigeon Blood")}
           </LR>
         </GR>
       </Pnl>
-
       <Pnl title="Shape & Cut">
         <GR minColWidth={150}>
           <LR label="Cut Form">
-            <Drp
-              value={data.stone?.cutForm}
-              onChange={(v) => setField("stone.cutForm", v)}
-              options={cutFormOptions}
-              placeholder="Faceted / Cabochon…"
-            />
+            <Drp value={data.stone?.cutForm} onChange={(v) => setField("stone.cutForm", v)}
+                 options={cutFormOptions} placeholder="Faceted / Cabochon…" />
           </LR>
           <LR label="Shape">
-            <Drp
-              value={data.stone?.shape}
-              onChange={(v) => setField("stone.shape", v)}
-              options={stoneShapes}
-              placeholder="Select shape…"
-            />
+            <Drp value={data.stone?.shape} onChange={(v) => setField("stone.shape", v)}
+                 options={stoneShapes} placeholder="Select shape…" />
           </LR>
         </GR>
       </Pnl>
-
       <Pnl title="Weight & Measurements">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Carat Weight">
             {inp(data.stone?.carat, (v) => setField("stone.carat", v), "2.15")}
           </LR>
-          <LR label="Measurements">
-            <MeasurementInputs data={data} setField={setField} />
-          </LR>
+          <LR label="Measurements"><MeasurementInputs data={data} setField={setField} /></LR>
         </div>
       </Pnl>
-
       <Pnl title="Colour & Appearance">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Colour Description">
@@ -810,42 +728,27 @@ function ColoredGemstoneFields({ data, setField }) {
           </LR>
           <GR minColWidth={150}>
             <LR label="Transparency">
-              <Drp
-                value={data.stone?.transparency}
-                onChange={(v) => setField("stone.transparency", v)}
-                options={gemstoneTransparency}
-                placeholder="Select…"
-              />
+              <Drp value={data.stone?.transparency} onChange={(v) => setField("stone.transparency", v)}
+                   options={gemstoneTransparency} placeholder="Select…" />
             </LR>
             <LR label="Clarity">
-              <Drp
-                value={data.stone?.clarity}
-                onChange={(v) => setField("stone.clarity", v)}
-                options={gemstoneClarityGrades}
-                placeholder="Eye Clean…"
-              />
+              <Drp value={data.stone?.clarity} onChange={(v) => setField("stone.clarity", v)}
+                   options={gemstoneClarityGrades} placeholder="Eye Clean…" />
             </LR>
           </GR>
         </div>
       </Pnl>
-
       <Pnl title="Treatment & Origin">
         <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
           <LR label="Treatment">
-            <Drp
-              value={data.stone?.treatment}
-              onChange={(v) => setField("stone.treatment", v)}
-              options={gemstoneTreatments}
-              placeholder="Select treatment…"
-            />
+            <Drp value={data.stone?.treatment} onChange={(v) => setField("stone.treatment", v)}
+                 options={gemstoneTreatments} placeholder="Select treatment…" />
           </LR>
           <LR label="Country of Origin">
             {inp(data.stone?.countryOfOrigin, (v) => setField("stone.countryOfOrigin", v), "Mozambique — leave blank to hide")}
           </LR>
         </div>
       </Pnl>
-
-      {/* Fluorescence — shown for colored gemstone when manually filled */}
       <Pnl title="Fluorescence (Optional)">
         <FluorescenceInputs data={data} setField={setField} />
       </Pnl>
@@ -853,7 +756,7 @@ function ColoredGemstoneFields({ data, setField }) {
   );
 }
 
-// ─── Jewelry Valuation editor ─────────────────────────────────────────────────
+// ─── Jewelry Valuation editor sections ────────────────────────────────────────
 function JewelryEditorSections({ data, setField }) {
   return (
     <>
@@ -931,12 +834,13 @@ function JewelryEditorSections({ data, setField }) {
                    options={OPT_SETTING} placeholder="Select setting…" />
             </LR>
           </GR>
-          <CenterStoneMeasurementInputs data={data} setField={setField} />
-          <CenterStoneFluorescenceInputs data={data} setField={setField} />
           <GR minColWidth={150}>
             <LR label="Origin">
               <Drp value={data.centerStone?.origin} onChange={(v) => setField("centerStone.origin", v)}
                    options={OPT_ORIGIN} placeholder="Natural / Lab-Grown…" />
+            </LR>
+            <LR label="Fluorescence">
+              {inp(data.centerStone?.fluorescence, (v) => setField("centerStone.fluorescence", v), "e.g. Medium Blue")}
             </LR>
           </GR>
           <GR minColWidth={150}>
@@ -1029,12 +933,8 @@ function StoneEditorSections({ data, setField }) {
         {(pt === "natural_diamond" || pt === "lab_grown_diamond") && (
           <div style={{ marginTop: 12 }}>
             <LR label="Natural / Lab-Grown">
-              <Drp
-                value={data.stone?.naturalOrLab}
-                onChange={(v) => setField("stone.naturalOrLab", v)}
-                options={OPT_NATURAL_LAB}
-                placeholder="Select…"
-              />
+              <Drp value={data.stone?.naturalOrLab} onChange={(v) => setField("stone.naturalOrLab", v)}
+                   options={OPT_NATURAL_LAB} placeholder="Select…" />
             </LR>
           </div>
         )}
@@ -1049,54 +949,24 @@ function StoneEditorSections({ data, setField }) {
 
       <Pnl title="External Lab Reports">
         {extReports.length === 0 && (
-          <p style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 12 }}>
-            No external reports added.
-          </p>
+          <p style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 12 }}>No external reports added.</p>
         )}
         {extReports.map((rpt, idx) => (
-          <div
-            key={idx}
-            style={{
-              border: "1px solid rgba(54,69,79,0.1)", borderRadius: 6,
-              padding: "12px 14px", marginBottom: 10, background: "#FAFAF8",
-            }}
-          >
+          <div key={idx} style={{ border: "1px solid rgba(54,69,79,0.1)", borderRadius: 6, padding: "12px 14px", marginBottom: 10, background: "#FAFAF8" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-              <span style={{ fontFamily: C.heb, fontSize: 12, fontWeight: 600, color: C.chm }}>
-                Report {idx + 1}
-              </span>
-              <button
-                onClick={() => handleRemoveExt(idx)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: C.chl, fontSize: 12 }}
-              >
-                ✕ Remove
-              </button>
+              <span style={{ fontFamily: C.heb, fontSize: 12, fontWeight: 600, color: C.chm }}>Report {idx + 1}</span>
+              <button onClick={() => handleRemoveExt(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: C.chl, fontSize: 12 }}>✕ Remove</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <GR minColWidth={130}>
-                <LR label="Lab Name">
-                  {inp(rpt.lab, (v) => setField(`externalReports.${idx}.lab`, v), "GIA")}
-                </LR>
-                <LR label="Report Number">
-                  {inp(rpt.reportNumber, (v) => setField(`externalReports.${idx}.reportNumber`, v), "2473659812")}
-                </LR>
+                <LR label="Lab Name">{inp(rpt.lab, (v) => setField(`externalReports.${idx}.lab`, v), "GIA")}</LR>
+                <LR label="Report Number">{inp(rpt.reportNumber, (v) => setField(`externalReports.${idx}.reportNumber`, v), "2473659812")}</LR>
               </GR>
-              <LR label="Attachment Name">
-                {inp(rpt.attachmentName, (v) => setField(`externalReports.${idx}.attachmentName`, v), "GIA_Certificate.pdf")}
-              </LR>
+              <LR label="Attachment Name">{inp(rpt.attachmentName, (v) => setField(`externalReports.${idx}.attachmentName`, v), "GIA_Certificate.pdf")}</LR>
             </div>
           </div>
         ))}
-        <button
-          onClick={handleAddExt}
-          style={{
-            width: "100%", height: 40,
-            border: "1px dashed rgba(54,69,79,0.25)", borderRadius: 6,
-            background: "transparent", cursor: "pointer",
-            fontFamily: C.heb, fontSize: 13, color: C.chl,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          }}
-        >
+        <button onClick={handleAddExt} style={{ width: "100%", height: 40, border: "1px dashed rgba(54,69,79,0.25)", borderRadius: 6, background: "transparent", cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: C.chl, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           + Add External Report
         </button>
       </Pnl>
@@ -1112,18 +982,11 @@ function StoneEditorSections({ data, setField }) {
           <button
             onClick={() => setField("displaySettings.showReferencePanel", !showPanel)}
             style={{
-              height:         44,
-              padding:        "0 18px",
-              border:         `1px solid ${showPanel ? "rgba(138,171,142,0.6)" : "rgba(54,69,79,0.2)"}`,
-              borderRadius:   6,
-              background:     showPanel ? "rgba(138,171,142,0.1)" : "transparent",
-              color:          showPanel ? "#5d8a62" : C.chl,
-              fontFamily:     C.heb,
-              fontSize:       13,
-              cursor:         "pointer",
-              display:        "flex",
-              alignItems:     "center",
-              gap:            8,
+              height: 44, padding: "0 18px",
+              border: `1px solid ${showPanel ? "rgba(138,171,142,0.6)" : "rgba(54,69,79,0.2)"}`,
+              borderRadius: 6, background: showPanel ? "rgba(138,171,142,0.1)" : "transparent",
+              color: showPanel ? "#5d8a62" : C.chl, fontFamily: C.heb, fontSize: 13, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 8,
             }}
           >
             {showPanel ? "✓ Visible" : "Hidden"}
