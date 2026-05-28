@@ -1,11 +1,29 @@
 /**
- * components/reports/templates/InHouseStoneReport.jsx  —  v4.4
+ * components/reports/templates/InHouseStoneReport.jsx  —  v4.4.2
  *
- * Changes vs v4.3.2:
- *   + SignatureBlock: signatureSize-aware (same as JewelryValuationReport v4.4)
- *   + CroppedImage: applies imageCrops[] per image position
- *   + Footer font sizes: company line 8 → 9pt, disclaimer 7 → 8pt
- *   ~ All field groups, ReferencePanel, productType routing unchanged.
+ * HOTFIX: Footer / signature always visible inside one A4 page.
+ * Same structural fix as JewelryValuationReport v4.4.2.
+ *
+ * ── What changed from v4.4 ──────────────────────────────────────────────────
+ * InHouseStoneReport() root container:
+ *   BEFORE  minHeight:"297mm" — container grows past A4, footer overflows.
+ *   AFTER   height:"297mm" + display:flex + flexDirection:column — exactly A4.
+ *
+ * Layout structure (same principle as JVR v4.4.2):
+ *   Root  (height:297mm; flex-column; overflow:hidden)
+ *   ├── Watermark     (position:absolute)
+ *   ├── Sage strip    (flexShrink:0)
+ *   ├── BODY          (flex:1; minHeight:0; overflow:hidden; padding:8mm 14mm 0)
+ *   └── FOOTER        (flexShrink:0; background:IV)
+ *
+ * ── Unchanged from v4.4 ─────────────────────────────────────────────────────
+ * All helper components identical to v4.4:
+ *   GradeRow, SectionBlock, GradeTable, GradingHeader, GradingBlock
+ *   CroppedImage, SignatureBlock (SIG_HEIGHTS + signatureSize)
+ *   ReferencePanel (4 productType variants)
+ *   NaturalDiamondFields, LabDiamondFields, FancyColorDiamondFields, ColoredGemstoneFields
+ * Image size: hero 55mm × 55mm, secondary 17mm × 17mm (unchanged)
+ * Footer font sizes: company 9pt, disclaimer 8pt (unchanged from v4.4)
  */
 
 import {
@@ -18,7 +36,7 @@ import {
 import { defaultCrop } from "../../../lib/reports/reportDefaults";
 import { PRODUCT_TYPE_LABELS } from "../../../lib/gemology/taxonomy";
 
-// ─── Design tokens ──────────────────────────────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const SERIF = "'Merriweather','Times New Roman',Georgia,serif";
 const SANS  = "'DM Sans',Helvetica,Arial,sans-serif";
 const MONO  = "'Courier New',Courier,monospace";
@@ -32,7 +50,7 @@ const SGD   = "#5d8a62";
 
 const SIG_HEIGHTS = { small: "12mm", medium: "18mm", large: "26mm" };
 
-// ─── GradeRow ────────────────────────────────────────────────────────────────
+// ─── GradeRow ─────────────────────────────────────────────────────────────────
 function GradeRow({ label, value, highlight, noBorder }) {
   if (!hasValue(value)) return null;
   return (
@@ -127,7 +145,7 @@ function CroppedImage({ src, alt, crop }) {
   );
 }
 
-// ─── SignatureBlock v4.4 ──────────────────────────────────────────────────────
+// ─── SignatureBlock v4.4 (unchanged) ──────────────────────────────────────────
 function SignatureBlock({ credentials }) {
   const c           = credentials || {};
   const sigSize     = c.signatureSize || "medium";
@@ -139,16 +157,15 @@ function SignatureBlock({ credentials }) {
   const hasSigImg    = hasValue(c.signatureImageUrl);
 
   return (
-    <div style={{ pageBreakInside: "avoid" }}>
-      <div
-        style={{
-          height: boxHeight, display: "flex", alignItems: "flex-end",
-          paddingBottom: "1mm", overflow: "hidden", boxSizing: "border-box",
-        }}
-      >
+    <div>
+      <div style={{
+        height: boxHeight, display: "flex", alignItems: "flex-end",
+        paddingBottom: "1mm", overflow: "hidden", boxSizing: "border-box",
+      }}>
         {hasSigImg && (
           <img src={c.signatureImageUrl} alt="signature"
-               style={{ maxWidth: imgMaxW, maxHeight: imgMaxH, width: "auto", height: "auto", objectFit: "contain", objectPosition: "bottom left", display: "block" }} />
+               style={{ maxWidth: imgMaxW, maxHeight: imgMaxH, width: "auto", height: "auto",
+                        objectFit: "contain", objectPosition: "bottom left", display: "block" }} />
         )}
       </div>
       <div style={{ width: "50mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
@@ -217,7 +234,7 @@ function ReferencePanel({ productType }) {
   return null;
 }
 
-// ─── productType field groups (unchanged from v4.3.2) ────────────────────────
+// ─── productType field groups (unchanged from v4.3.2 / v4.4) ─────────────────
 function NaturalDiamondFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
@@ -428,20 +445,20 @@ export function InHouseStoneReport({ data }) {
   const d  = data;
   const st = d.stone || {};
 
-  const pt          = d.productType || "natural_diamond";
-  const ptLabel     = PRODUCT_TYPE_LABELS[pt] || "Stone Report";
+  const pt           = d.productType || "natural_diamond";
+  const ptLabel      = PRODUCT_TYPE_LABELS[pt] || "Stone Report";
   const showRefPanel = d.displaySettings?.showReferencePanel !== false;
 
-  const images       = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
-  const imageCrops   = Array.isArray(d.imageCrops) ? d.imageCrops : [];
-  const reportImages = images.slice(0, 3);
-  const hasImages    = reportImages.length > 0;
-  const heroImg      = reportImages[0] || null;
+  const images        = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
+  const imageCrops    = Array.isArray(d.imageCrops) ? d.imageCrops : [];
+  const reportImages  = images.slice(0, 3);
+  const hasImages     = reportImages.length > 0;
+  const heroImg       = reportImages[0] || null;
   const secondaryImgs = reportImages.slice(1);
 
   const hasExtReports = Array.isArray(d.externalReports) && d.externalReports.length > 0 &&
                         d.externalReports.some((r) => hasValue(r.lab) || hasValue(r.reportNumber));
-  const hasComments    = hasValue(d.comments);
+  const hasComments     = hasValue(d.comments);
   const hasVerification = hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
 
   const KNOWN_TYPES = ["natural_diamond", "lab_grown_diamond", "fancy_color_diamond", "colored_gemstone"];
@@ -451,19 +468,60 @@ export function InHouseStoneReport({ data }) {
       className="printable-container"
       dir="ltr"
       style={{
-        width: "210mm", maxWidth: "100%", minHeight: "297mm",
-        background: IV, fontFamily: SANS, color: CH,
-        position: "relative", overflow: "hidden", boxSizing: "border-box", margin: "0 auto",
-        WebkitPrintColorAdjust: "exact", printColorAdjust: "exact",
+        width:    "210mm",
+        maxWidth: "100%",
+
+        /*
+         * v4.4.2 LAYOUT FIX — same approach as JewelryValuationReport v4.4.2:
+         * height:297mm + flex-column locks to exactly one A4 page.
+         * Footer is a separate flexShrink:0 child — always visible.
+         */
+        height:        "297mm",
+        display:       "flex",
+        flexDirection: "column",
+        overflow:      "hidden",
+
+        background:  IV,
+        fontFamily:  SANS,
+        color:       CH,
+        position:    "relative",
+        boxSizing:   "border-box",
+        margin:      "0 auto",
+        WebkitPrintColorAdjust: "exact",
+        printColorAdjust:       "exact",
       }}
     >
       {/* Watermark */}
-      <div aria-hidden="true" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-20deg)", fontFamily: SERIF, fontSize: 220, fontWeight: 700, color: "rgba(54,69,79,0.02)", userSelect: "none", pointerEvents: "none", lineHeight: 1, zIndex: 0, whiteSpace: "nowrap" }}>LS</div>
+      <div aria-hidden="true" style={{
+        position: "absolute", top: "50%", left: "50%",
+        transform: "translate(-50%,-50%) rotate(-20deg)",
+        fontFamily: SERIF, fontSize: 220, fontWeight: 700,
+        color: "rgba(54,69,79,0.02)", userSelect: "none",
+        pointerEvents: "none", lineHeight: 1, zIndex: 0, whiteSpace: "nowrap",
+      }}>LS</div>
 
-      {/* Sage strip */}
-      <div style={{ height: 4, background: `linear-gradient(90deg, ${SGD} 0%, ${SG} 60%, #b0c8b2 100%)` }} />
+      {/* Sage strip — never shrinks */}
+      <div style={{
+        height:     4,
+        flexShrink: 0,
+        background: `linear-gradient(90deg, ${SGD} 0%, ${SG} 60%, #b0c8b2 100%)`,
+      }} />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
+      {/*
+       * ── BODY — flex:1; minHeight:0; overflow:hidden ────────────────────────
+       * Takes all space between the sage strip and footer.
+       * minHeight:0 is critical — allows the body to shrink below its content
+       * height so the footer always stays within the 297mm boundary.
+       */}
+      <div style={{
+        flex:      1,
+        minHeight: 0,
+        overflow:  "hidden",
+        padding:   "8mm 14mm 0",
+        position:  "relative",
+        zIndex:    1,
+        boxSizing: "border-box",
+      }}>
 
         {/* ── HEADER ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
@@ -521,8 +579,8 @@ export function InHouseStoneReport({ data }) {
           <SectionBlock title="External Lab Reports">
             {d.externalReports.filter((r) => hasValue(r.lab) || hasValue(r.reportNumber)).map((rpt, idx) => (
               <div key={idx} style={{ display: "flex", gap: "4mm", padding: "2.5mm 3.5mm", background: idx % 2 === 0 ? IV2 : "#f4f1eb", alignItems: "center", flexWrap: "wrap" }}>
-                {hasValue(rpt.lab)          && <span style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, color: CH, letterSpacing: "0.04em" }}>{rpt.lab}</span>}
-                {hasValue(rpt.reportNumber) && <span style={{ fontFamily: SANS, fontSize: 10, color: CHM }}>No. {rpt.reportNumber}</span>}
+                {hasValue(rpt.lab)            && <span style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, color: CH, letterSpacing: "0.04em" }}>{rpt.lab}</span>}
+                {hasValue(rpt.reportNumber)   && <span style={{ fontFamily: SANS, fontSize: 10, color: CHM }}>No. {rpt.reportNumber}</span>}
                 {hasValue(rpt.attachmentName) && <span style={{ fontFamily: SANS, fontSize: 9, color: CHL, fontStyle: "italic" }}>{rpt.attachmentName}</span>}
               </div>
             ))}
@@ -543,7 +601,8 @@ export function InHouseStoneReport({ data }) {
           <SectionBlock title="Verification">
             <div style={{ display: "flex", alignItems: "center", gap: "3.5mm", padding: "3mm 4mm", background: IV2, border: "0.5px solid rgba(54,69,79,0.12)" }}>
               {hasValue(d.verification?.qrImageUrl) && (
-                <img src={d.verification.qrImageUrl} alt="QR" style={{ width: "13mm", height: "13mm", objectFit: "contain", flexShrink: 0 }} />
+                <img src={d.verification.qrImageUrl} alt="QR"
+                     style={{ width: "13mm", height: "13mm", objectFit: "contain", flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 3 }}>Authenticated Report</div>
@@ -557,29 +616,45 @@ export function InHouseStoneReport({ data }) {
         {/* ── REFERENCE PANEL ── */}
         {showRefPanel && <ReferencePanel productType={pt} />}
 
-        {/* ── FOOTER ── */}
+      </div>{/* /BODY */}
+
+      {/*
+       * ── FOOTER — always visible at the bottom of the A4 page ─────────────
+       * flexShrink:0 → cannot be compressed out of view.
+       * background:IV → ivory covers the watermark behind the signature.
+       */}
+      <div style={{
+        flexShrink: 0,
+        background: IV,
+        position:   "relative",
+        zIndex:     1,
+        padding:    "0 14mm",
+        boxSizing:  "border-box",
+      }}>
         <div style={{
-          borderTop: "0.5px solid rgba(138,171,142,0.55)", paddingTop: "5mm", marginTop: "4mm",
-          display: "flex", justifyContent: "space-between", alignItems: "flex-end",
-          flexWrap: "wrap", gap: "6mm",
-          pageBreakInside: "avoid",
+          borderTop:      "0.5px solid rgba(138,171,142,0.55)",
+          paddingTop:     "4mm",
+          paddingBottom:  "5mm",
+          display:        "flex",
+          justifyContent: "space-between",
+          alignItems:     "flex-end",
+          flexWrap:       "wrap",
+          gap:            "6mm",
         }}>
           <SignatureBlock credentials={d.credentials} />
           <div style={{ textAlign: "right", maxWidth: "70mm" }}>
             {hasValue(d.credentials?.companyLine) && (
-              // v4.4: 8 → 9pt
               <div style={{ fontFamily: SANS, fontSize: 9, color: CHL, lineHeight: 1.55, marginBottom: 5 }}>
                 {d.credentials.companyLine}
               </div>
             )}
-            {/* v4.4: 7 → 8pt */}
             <div style={{ fontFamily: SANS, fontSize: 8, color: "rgba(54,69,79,0.42)", lineHeight: 1.65, fontStyle: "italic" }}>
               This report reflects the professional assessment of LESHEM.S and is provided for informational purposes only.
             </div>
           </div>
         </div>
+      </div>{/* /FOOTER */}
 
-      </div>
     </div>
   );
 }
