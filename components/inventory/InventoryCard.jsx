@@ -281,6 +281,29 @@ function ListRow({ item, isSelected, onSelect, onOpenDrawer, onAddToBasket }) {
       <button onClick={(e)=>{ e.stopPropagation(); onAddToBasket(item); }} style={{ flexShrink:0, height:30, padding:"0 11px", background:isSelected?C.gd:"transparent", border:`1px solid ${isSelected?C.gd:"rgba(54,69,79,0.2)"}`, borderRadius:6, cursor:"pointer", fontFamily:C.dat, fontSize:11, fontWeight:600, color:isSelected?"#fff":C.chl, transition:"all 0.15s" }}>
         {isSelected ? "✓" : "+ Basket"}
       </button>
+      {/* v5.3.2: quick-action icon buttons — bypass drawer for power users */}
+      {onUseInCalculator && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onUseInCalculator(item); }}
+          title="Use in Calculator"
+          style={{ flexShrink:0, height:30, width:30, padding:0, background:"transparent", border:"1px solid rgba(54,69,79,0.15)", borderRadius:6, cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", transition:"border-color 0.12s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.gd; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(54,69,79,0.15)"; }}
+        >
+          🔢
+        </button>
+      )}
+      {onCreateCertificate && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onCreateCertificate(item); }}
+          title="Create Certificate"
+          style={{ flexShrink:0, height:30, width:30, padding:0, background:"transparent", border:"1px solid rgba(54,69,79,0.15)", borderRadius:6, cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", transition:"border-color 0.12s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.sg; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(54,69,79,0.15)"; }}
+        >
+          📋
+        </button>
+      )}
     </div>
   );
 }
@@ -306,6 +329,21 @@ function CompactRow({ item, isSelected, onSelect, onOpenDrawer, onAddToBasket })
       <button onClick={(e)=>{ e.stopPropagation(); onAddToBasket(item); }} style={{ flexShrink:0, height:22, padding:"0 7px", background:isSelected?C.gd:"transparent", border:`1px solid ${isSelected?C.gd:"rgba(54,69,79,0.18)"}`, borderRadius:4, cursor:"pointer", fontSize:10, fontWeight:700, color:isSelected?"#fff":C.chl, fontFamily:C.dat, transition:"all 0.12s" }}>
         {isSelected ? "✓" : "+"}
       </button>
+      {/* v5.3.2: quick-action icon buttons */}
+      {onUseInCalculator && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onUseInCalculator(item); }}
+          title="Use in Calculator"
+          style={{ flexShrink:0, height:22, width:22, padding:0, background:"transparent", border:"1px solid rgba(54,69,79,0.13)", borderRadius:4, cursor:"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}
+        >🔢</button>
+      )}
+      {onCreateCertificate && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onCreateCertificate(item); }}
+          title="Create Certificate"
+          style={{ flexShrink:0, height:22, width:22, padding:0, background:"transparent", border:"1px solid rgba(54,69,79,0.13)", borderRadius:4, cursor:"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}
+        >📋</button>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@
  * Expanded state:  scrollable item list · placeholder action buttons
  *
  * Actions:
- *   "Build Jewelry" / "Create Memo" / "Create Quote" / "Export Selection"
+ *   "Design Jewelry" / "Create Memo" / "Create Quote" / "Export Selection"
  *   These are placeholder buttons — not yet wired to full functionality.
  *   They show "Coming soon" tooltip when not yet implemented.
  *
@@ -34,12 +34,12 @@ export function SelectionBasket({ items, onRemove, onClear }) {
   const hasCt     = totalCt > 0;
   const hasCost   = totalCost > 0;
 
-  // Placeholder action buttons
+  // Placeholder action buttons — v5.3.2: no broken actions.
   const ACTIONS = [
-    { label: "💍 Build Jewelry",   soon: false },
-    { label: "📄 Create Memo",     soon: true  },
-    { label: "💬 Create Quote",    soon: true  },
-    { label: "⬇ Export",          soon: true  },
+    { label: "💍 עיצוב תכשיט — בקרוב", soon: true },
+    { label: "📄 Memo / Consignment — בקרוב", soon: true },
+    { label: "💬 צור הצעת מחיר — בקרוב", soon: true },
+    { label: "⬇ ייצוא בחירה — בקרוב", soon: true },
   ];
 
   return (
@@ -52,7 +52,7 @@ export function SelectionBasket({ items, onRemove, onClear }) {
         {/* Count badge */}
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <div style={{ background:C.gd, color:C.ch, borderRadius:12, padding:"2px 10px", fontFamily:DAT, fontSize:12, fontWeight:800, lineHeight:1.7 }}>
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {items.length} פריטים
           </div>
           {hasCt && (
             <span style={{ fontFamily:DAT, fontSize:11.5, color:C.chx }}>
@@ -75,7 +75,7 @@ export function SelectionBasket({ items, onRemove, onClear }) {
             <button
               key={label}
               disabled={soon}
-              title={soon ? "Coming soon" : undefined}
+              title={soon ? "בקרוב" : undefined}
               style={{ height:34, padding:"0 14px", background:soon?"transparent":"rgba(197,179,88,0.18)", color:soon?C.chm:C.gd, border:`1px solid ${soon?"rgba(168,188,196,0.2)":C.gd}`, borderRadius:6, cursor:soon?"not-allowed":"pointer", fontFamily:HEB, fontSize:12, fontWeight:soon?400:600, opacity:soon?0.55:1, whiteSpace:"nowrap", transition:"all 0.15s" }}
             >
               {label}
@@ -88,16 +88,16 @@ export function SelectionBasket({ items, onRemove, onClear }) {
           onClick={() => setExpanded(!expanded)}
           style={{ height:34, padding:"0 12px", background:"transparent", color:C.chx, border:"1px solid rgba(168,188,196,0.25)", borderRadius:6, cursor:"pointer", fontFamily:DAT, fontSize:12, display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap" }}
         >
-          {expanded ? "▾ Close" : "▴ View"}
+          {expanded ? "▾ סגור" : "▴ הצג"}
         </button>
 
         {/* Clear all */}
         <button
           onClick={onClear}
           style={{ height:34, padding:"0 12px", background:"transparent", color:"rgba(168,188,196,0.6)", border:"1px solid rgba(168,188,196,0.2)", borderRadius:6, cursor:"pointer", fontFamily:HEB, fontSize:12, whiteSpace:"nowrap" }}
-          title="Clear selection"
+          title="נקה בחירה"
         >
-          × Clear
+          × נקה סל
         </button>
       </div>
 

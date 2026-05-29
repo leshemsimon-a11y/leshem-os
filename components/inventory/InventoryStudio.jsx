@@ -19,7 +19,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { C } from "../../lib/constants";
-import { InventoryCard, PRODUCT_TYPE_LABELS, PRODUCT_TYPE_GRADIENTS } from "./InventoryCard";
+import { InventoryCard, PRODUCT_TYPE_LABELS, PRODUCT_TYPE_GRADIENTS, PRODUCT_TYPE_ICONS } from "./InventoryCard";
 import { InventoryFilters, EMPTY_FILTERS, applyFilters }               from "./InventoryFilters";
 import { InventoryDrawer }                                              from "./InventoryDrawer";
 import { SelectionBasket }                                              from "./SelectionBasket";
@@ -113,35 +113,56 @@ const DEMO_ITEMS = [
 
 // ─── UseAsDialog ──────────────────────────────────────────────────────────────
 /**
- * Modal asking how the selected inventory item should be used in the Calculator.
- * Three options: Center Stone / Side Stones / Jewelry Part
+ * v5.3.2: Improved UseAsDialog with item preview panel.
+ *
+ * Shows the item's thumbnail (or product-type placeholder icon + gradient)
+ * and key specs (name, carat, stone type) so the user always knows which
+ * item they are about to use.
+ *
+ * Stone-type options (Center Stone / Side Stones) are disabled when the
+ * item is a jewelry_part or finished_jewelry — those types have no
+ * gemological data to fill into the stone fields.
  */
 function UseAsDialog({ item, onSelect, onCancel }) {
   if (!item) return null;
 
   const ptLabel = PRODUCT_TYPE_LABELS[item.productType] || item.stoneType || "Item";
-  const ctStr   = item.caratWeight
-    ? ` · ${parseFloat(item.caratWeight).toFixed(2)} ct`
-    : "";
+  const img     = item.thumbnailUrl || (item.inventoryImages && item.inventoryImages[0]);
+  const gradient = PRODUCT_TYPE_GRADIENTS[item.productType] || "linear-gradient(140deg,#f0ede8,#d0c8b8)";
+  const icon    = PRODUCT_TYPE_ICONS[item.productType] || "💎";
+
+  // Key spec summary line
+  const specParts = [];
+  if (item.caratWeight) specParts.push(`${parseFloat(item.caratWeight).toFixed(2)} ct`);
+  if (item.fancyColorIntensity) specParts.push(`${item.fancyColorIntensity} ${item.fancyColorHue || ""}`.trim());
+  else if (item.color) specParts.push(item.color);
+  if (item.clarity) specParts.push(item.clarity);
+  const specLine = specParts.join(" · ");
+
+  // Disable stone options for non-stone items
+  const isNonStone = ["jewelry_part", "finished_jewelry"].includes(item.productType);
 
   const OPTIONS = [
     {
-      key:    "center",
-      icon:   "💎",
-      label:  "אבן מרכזית",
-      sub:    "Center Stone — fills center stone type, carats, colour & clarity",
+      key:      "center",
+      icon:     "💎",
+      label:    "אבן מרכזית",
+      sub:      "Center Stone — fills center stone type, carats, colour & clarity",
+      disabled: isNonStone,
     },
     {
-      key:    "side",
-      icon:   "✨",
-      label:  "אבני צד",
-      sub:    "Side Stones — fills Side Stone row 1 (type, ct/stone, count)",
+      key:      "side",
+      icon:     "✨",
+      label:    "אבני צד",
+      sub:      "Side Stones — fills Side Stone row 1 (type, ct/stone, count)",
+      disabled: isNonStone,
     },
     {
-      key:    "part",
-      icon:   "🔗",
-      label:  "חלק / רכיב",
-      sub:    "Jewelry Part — navigate to Calculator (manual entry)",
+      key:      "part",
+      icon:     "🔗",
+      label:    "חלק / רכיב",
+      sub:      "Jewelry Part — navigate to Calculator for manual entry",
+      disabled: false,
     },
   ];
 
@@ -150,47 +171,72 @@ function UseAsDialog({ item, onSelect, onCancel }) {
       style={{ position:"fixed", inset:0, background:"rgba(54,69,79,0.6)", zIndex:1300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div style={{ background:C.iv, borderRadius:12, padding:"24px 28px", maxWidth:440, width:"100%", boxShadow:"0 24px 60px rgba(54,69,79,0.3)" }}>
-        {/* Header */}
-        <div style={{ marginBottom:18 }}>
-          <div style={{ fontFamily:C.dat, fontSize:15, fontWeight:700, color:C.ch, marginBottom:4 }}>
-            Use in Calculator
-          </div>
-          <div style={{ fontFamily:C.heb, fontSize:12, color:C.chl, lineHeight:1.6 }}>
-            {ptLabel}{ctStr}
-            <br />כיצד ברצונך להשתמש בפריט זה במחשבון?
+      <div style={{ background:C.iv, borderRadius:12, padding:"22px 26px", maxWidth:460, width:"100%", boxShadow:"0 24px 60px rgba(54,69,79,0.3)" }}>
+
+        {/* Item preview row */}
+        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:18, padding:"12px 14px", background:"rgba(54,69,79,0.04)", borderRadius:8, border:"1px solid rgba(54,69,79,0.1)" }}>
+          {img ? (
+            <img src={img} alt={item.name || ptLabel} style={{ width:56, height:56, objectFit:"cover", borderRadius:6, border:"1px solid rgba(54,69,79,0.12)", flexShrink:0 }} />
+          ) : (
+            <div style={{ width:56, height:56, background:gradient, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>
+              {icon}
+            </div>
+          )}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontFamily:C.dat, fontSize:9.5, fontWeight:700, color:C.chl, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:3 }}>
+              {ptLabel}{item.isDemo && " · DEMO"}
+            </div>
+            <div style={{ fontFamily:C.dat, fontSize:13.5, fontWeight:700, color:C.ch, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {item.name || item.sku || ptLabel}
+            </div>
+            {specLine && (
+              <div style={{ fontFamily:C.dat, fontSize:12, color:C.chm, marginTop:2 }}>{specLine}</div>
+            )}
           </div>
         </div>
 
+        {/* Dialog header */}
+        <div style={{ fontFamily:C.dat, fontSize:13.5, fontWeight:700, color:C.ch, marginBottom:4 }}>
+          Use in Calculator
+        </div>
+        <div style={{ fontFamily:C.heb, fontSize:12, color:C.chl, marginBottom:16, lineHeight:1.6 }}>
+          כיצד ברצונך להשתמש בפריט זה במחשבון?
+        </div>
+
         {/* Options */}
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
           {OPTIONS.map((opt) => (
             <button
               key={opt.key}
-              onClick={() => onSelect(opt.key)}
+              onClick={() => !opt.disabled && onSelect(opt.key)}
+              disabled={opt.disabled}
               style={{
                 display:"flex", alignItems:"center", gap:14,
-                padding:"13px 16px",
-                background:"#fff",
-                border:`1.5px solid rgba(54,69,79,0.15)`,
-                borderRadius:9,
-                cursor:"pointer",
-                textAlign:"left",
-                transition:"border-color 0.14s, background 0.14s",
+                padding:"12px 15px",
+                background: opt.disabled ? "rgba(54,69,79,0.03)" : "#fff",
+                border:`1.5px solid ${opt.disabled ? "rgba(54,69,79,0.08)" : "rgba(54,69,79,0.14)"}`,
+                borderRadius:9, cursor: opt.disabled ? "not-allowed" : "pointer",
+                textAlign:"left", transition:"border-color 0.14s, background 0.14s",
+                opacity: opt.disabled ? 0.45 : 1,
               }}
               onMouseEnter={(e) => {
+                if (opt.disabled) return;
                 e.currentTarget.style.borderColor = C.gd;
-                e.currentTarget.style.background  = "rgba(197,179,88,0.06)";
+                e.currentTarget.style.background  = "rgba(197,179,88,0.07)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(54,69,79,0.15)";
+                if (opt.disabled) return;
+                e.currentTarget.style.borderColor = "rgba(54,69,79,0.14)";
                 e.currentTarget.style.background  = "#fff";
               }}
             >
-              <span style={{ fontSize:26, flexShrink:0 }}>{opt.icon}</span>
+              <span style={{ fontSize:24, flexShrink:0 }}>{opt.icon}</span>
               <div>
-                <div style={{ fontFamily:C.heb, fontSize:14, fontWeight:700, color:C.ch }}>
+                <div style={{ fontFamily:C.heb, fontSize:13.5, fontWeight:700, color:C.ch }}>
                   {opt.label}
+                  {opt.disabled && (
+                    <span style={{ fontFamily:C.dat, fontSize:10, fontWeight:400, color:C.chx, marginRight:8 }}> — לא רלוונטי לסוג פריט זה</span>
+                  )}
                 </div>
                 <div style={{ fontFamily:C.dat, fontSize:11, color:C.chl, marginTop:2 }}>
                   {opt.sub}
@@ -204,6 +250,8 @@ function UseAsDialog({ item, onSelect, onCancel }) {
         <button
           onClick={onCancel}
           style={{ marginTop:14, height:38, width:"100%", background:"transparent", border:"1px solid rgba(54,69,79,0.18)", borderRadius:8, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, color:C.chl, transition:"border-color 0.12s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(54,69,79,0.35)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(54,69,79,0.18)"; }}
         >
           ביטול
         </button>

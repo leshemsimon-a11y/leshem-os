@@ -52,21 +52,6 @@ function SectionHead({ label }) {
   );
 }
 
-// ─── Action button ────────────────────────────────────────────────────────────
-function ActionBtn({ label, icon, primary, disabled, onClick }) {
-  return (
-    <button
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
-      title={disabled ? "Coming in Milestone 5.4" : undefined}
-      style={{ height:40, padding:"0 16px", background:primary?C.ch:"transparent", color:primary?C.iv:disabled?C.chx:C.chm, border:`1px solid ${primary?C.ch:disabled?"rgba(54,69,79,0.12)":"rgba(54,69,79,0.22)"}`, borderRadius:7, cursor:disabled?"not-allowed":"pointer", fontFamily:HEB, fontSize:12.5, fontWeight:primary?700:400, display:"flex", alignItems:"center", gap:7, opacity:disabled?0.55:1, transition:"all 0.15s", whiteSpace:"nowrap" }}
-    >
-      {icon && <span style={{ fontSize:14 }}>{icon}</span>}
-      {label}
-    </button>
-  );
-}
-
 // ─── Main export ──────────────────────────────────────────────────────────────
 export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUseInCalculator, onCreateCertificate }) {
   // Escape key closes drawer
@@ -252,33 +237,50 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
             <div style={{ fontFamily:"'Courier New',monospace", fontSize:11, color:C.chm }}>{item.id || "—"}</div>
           </div>
 
-          {/* ── Action buttons ── */}
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:20, paddingTop:16, borderTop:"1px solid rgba(54,69,79,0.1)" }}>
-            <ActionBtn
-              label={isSelected ? "✓ In Basket" : "+ Add to Basket"}
-              icon="🛒"
-              primary={!isSelected}
+          {/* ── Action buttons — v5.3.2: primary CTA hierarchy ── */}
+          <div style={{ display:"flex", gap:9, flexWrap:"wrap", marginTop:20, paddingTop:16, borderTop:"1px solid rgba(54,69,79,0.1)" }}>
+
+            {/* Basket — primary when not selected, secondary when already in basket */}
+            <button
               onClick={() => onAddToBasket(item)}
-            />
-            <ActionBtn
-              label="Use in Calculator"
-              icon="🔢"
+              style={{ height:40, padding:"0 16px", background:isSelected?"transparent":C.ch, color:isSelected?C.chm:C.iv, border:`1px solid ${isSelected?"rgba(54,69,79,0.22)":C.ch}`, borderRadius:7, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, fontWeight:isSelected?400:700, display:"flex", alignItems:"center", gap:7, transition:"all 0.15s" }}
+            >
+              <span style={{ fontSize:14 }}>🛒</span>
+              {isSelected ? "✓ בסל" : "+ הוסף לסל"}
+            </button>
+
+            {/* Use in Calculator — primary gold-accent CTA */}
+            <button
               onClick={() => onUseInCalculator(item)}
-              disabled={false}
-            />
-            <ActionBtn
-              label="Create Certificate"
-              icon="📋"
+              style={{ height:40, padding:"0 16px", background:"rgba(197,179,88,0.13)", color:"#6a5a10", border:`1.5px solid ${C.gd}`, borderRadius:7, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, fontWeight:700, display:"flex", alignItems:"center", gap:7, transition:"background 0.15s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(197,179,88,0.22)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(197,179,88,0.13)"; }}
+            >
+              <span style={{ fontSize:14 }}>🔢</span>
+              Use in Calculator
+            </button>
+
+            {/* Create Certificate — secondary sage-accent CTA */}
+            <button
               onClick={() => onCreateCertificate(item)}
-              disabled={false}
-            />
-            {/* Future: Archive placeholder */}
-            <ActionBtn
-              label="Archive"
-              icon="📁"
-              onClick={() => {}}
+              style={{ height:40, padding:"0 16px", background:"rgba(138,171,142,0.13)", color:"#2e6636", border:"1.5px solid rgba(138,171,142,0.55)", borderRadius:7, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, fontWeight:700, display:"flex", alignItems:"center", gap:7, transition:"background 0.15s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(138,171,142,0.22)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(138,171,142,0.13)"; }}
+            >
+              <span style={{ fontSize:14 }}>📋</span>
+              צור תעודה
+            </button>
+
+            {/* Archive — clearly tertiary, placeholder */}
+            <button
               disabled
-            />
+              title="Coming in a future milestone"
+              style={{ height:40, padding:"0 14px", background:"transparent", color:"rgba(54,69,79,0.3)", border:"1px solid rgba(54,69,79,0.12)", borderRadius:7, cursor:"not-allowed", fontFamily:C.heb, fontSize:12, display:"flex", alignItems:"center", gap:6, opacity:0.6 }}
+            >
+              <span style={{ fontSize:13 }}>📁</span>
+              ארכיון
+            </button>
+
           </div>
         </div>
       </div>

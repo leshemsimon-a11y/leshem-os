@@ -37,7 +37,7 @@
  * is unchanged from M5.3.
  */
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Head from "next/head";
 
 import { DCFG, C }                        from "../lib/constants";
@@ -114,6 +114,11 @@ export default function LeshemOS() {
   // and calls onSeedConsumed() which clears it back to null.
   const [certSeed, setCertSeed] = useState(null);
 
+  // ── v5.3.2: Prefill source banner ────────────────────────────────────────
+  // Set by prefillCalcFromItem(). Auto-dismisses after 4 s.
+  // Shape: { name: string, useAs: "center" | "side" | "part" }
+  const [calcSrcBanner, setCalcSrcBanner] = useState(null);
+
   const qNum    = useRef(`LS-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`);
   const fileRef = useRef(null);
 
@@ -128,6 +133,13 @@ export default function LeshemOS() {
   const sf    = useCallback((field, value) => setCfg((prev) => ({ ...prev, [field]: value })), []);
   const res   = useMemo(() => calcApp(cfg, metalPrices), [cfg, metalPrices]);
   const fmtFn = useCallback((v) => fmt(v, currency), [currency]);
+
+  // ── v5.3.2: Auto-dismiss prefill banner after 4 s ────────────────────────
+  useEffect(() => {
+    if (!calcSrcBanner) return;
+    const t = setTimeout(() => setCalcSrcBanner(null), 4000);
+    return () => clearTimeout(t);
+  }, [calcSrcBanner]);
 
   const doReset = useCallback(() => {
     setCfg({ ...DCFG });
@@ -218,6 +230,12 @@ export default function LeshemOS() {
       // "part": just navigate to calculator, no field prefill needed
 
       return next;
+    });
+
+    // v5.3.2: show source banner in calculator tab for 4 s
+    setCalcSrcBanner({
+      name:  item.name || item.sku || item.stoneType || "פריט מלאי",
+      useAs,
     });
 
     handleTabChange("calc");
@@ -399,10 +417,32 @@ export default function LeshemOS() {
           <div style={{ maxWidth:1360, margin:"0 auto" }}>
 
             {tab === "calc" && (
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:20, alignItems:"start" }}>
-                <CalculatorForm cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} />
-                <CostSummary cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} pieceImg={pieceImg} fileRef={fileRef} onImageUpload={handleImageUpload} onShowCert={() => handleTabChange("cert")} />
-              </div>
+              <>
+                {/* v5.3.2: Prefill source banner — auto-dismisses after 4 s */}
+                {calcSrcBanner && (
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16, padding:"11px 16px", background:"rgba(197,179,88,0.10)", border:"1px solid rgba(197,179,88,0.35)", borderRadius:8 }}>
+                    <span style={{ fontSize:18, flexShrink:0 }}>
+                      {calcSrcBanner.useAs === "side" ? "✨" : calcSrcBanner.useAs === "part" ? "🔗" : "💎"}
+                    </span>
+                    <div style={{ flex:1, fontFamily:C.heb, fontSize:12.5, color:"#6a5a10" }}>
+                      <strong>מולא ממלאי:</strong> {calcSrcBanner.name}
+                      {calcSrcBanner.useAs === "center" && " ← אבן מרכזית"}
+                      {calcSrcBanner.useAs === "side"   && " ← אבני צד (שורה א׳)"}
+                      {calcSrcBanner.useAs === "part"   && " ← ניווט למחשבון"}
+                    </div>
+                    <button
+                      onClick={() => setCalcSrcBanner(null)}
+                      style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(106,90,16,0.55)", fontSize:16, lineHeight:1, padding:"0 4px", flexShrink:0 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:20, alignItems:"start" }}>
+                  <CalculatorForm cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} />
+                  <CostSummary cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} pieceImg={pieceImg} fileRef={fileRef} onImageUpload={handleImageUpload} onShowCert={() => handleTabChange("cert")} />
+                </div>
+              </>
             )}
 
             {tab === "cert" && (
