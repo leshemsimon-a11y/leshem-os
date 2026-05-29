@@ -1,208 +1,149 @@
 /**
- * pages/api/airtable/create-stone.js
+ * pages/api/airtable/create-stone.js — v5.2.1-safe
  *
- * POST /api/airtable/create-stone
- *
- * Creates a new record in AIRTABLE_STONES_TABLE.
- * Used for: natural_diamond, lab_grown_diamond, fancy_color_diamond,
- *           colored_gemstone, stone_pair_set, stone_parcel, jewelry_part.
- *
- * Request body: flat object with English camelCase keys (see INITIAL_FORM
- *   in ProductIntakeWizard.jsx).
- *
- * Response (201): { id: string, success: true }
- * Response (400): { error: string }
- * Response (500): { error: string }
- * Response (503): { error: string }  — env not configured
- *
- * Security: AIRTABLE_TOKEN stays server-side. Never returned to browser.
+ * Creates inventory records in AIRTABLE_STONES_TABLE.
+ * Security: Airtable token stays server-side only.
  */
 
-import { STONE } from "../../../lib/airtable/fieldMap";
+import { STONE, STONE_COMPUTED_FIELDS } from "../../../lib/airtable/fieldMap";
 import { createAirtableRecord } from "../../../lib/airtable/createRecords";
 
-// ─── Product type → Airtable defaults ────────────────────────────────────────
-const TYPE_DEFAULTS = {
-  natural_diamond: {
-    exactProductType:  "Natural Diamond",
-    defaultReportType: "Natural Diamond Report",
-    reportAutoGenerate: true,
-  },
-  lab_grown_diamond: {
-    exactProductType:  "Lab-Grown Diamond",
-    defaultReportType: "Lab-Grown Diamond Report",
-    reportAutoGenerate: true,
-  },
-  fancy_color_diamond: {
-    exactProductType:  "Fancy Color Diamond",
-    defaultReportType: "Fancy Color Diamond Report",
-    reportAutoGenerate: true,
-  },
-  colored_gemstone: {
-    exactProductType:  "Colored Gemstone",
-    defaultReportType: "Colored Gemstone Report",
-    reportAutoGenerate: true,
-  },
-  stone_pair_set: {
-    exactProductType:  "Stone Pair / Set",
-    defaultReportType: "Pair / Set Report",
-    reportAutoGenerate: true,
-  },
-  stone_parcel: {
-    exactProductType:  "Stone Parcel",
-    defaultReportType: "In-House Stone Report",
-    reportAutoGenerate: false,
-  },
-  jewelry_part: {
-    exactProductType:  "Jewelry Part",
-    defaultReportType: "None",
-    reportAutoGenerate: false,
-  },
+const PRODUCT_TYPE_LABELS = {
+  natural_diamond: "Natural Diamond",
+  lab_grown_diamond: "Lab-Grown Diamond",
+  fancy_color_diamond: "Fancy Color Diamond",
+  colored_gemstone: "Colored Gemstone",
+  stone_pair_set: "Stone Pair / Set",
+  stone_parcel: "Stone Parcel",
+  jewelry_part: "Jewelry Part",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const REPORT_TYPE_LABELS = {
+  natural_diamond: "Natural Diamond Report",
+  lab_grown_diamond: "Lab-Grown Diamond Report",
+  fancy_color_diamond: "Fancy Color Diamond Report",
+  colored_gemstone: "Colored Gemstone Report",
+  stone_pair_set: "Pair / Set Report",
+  stone_parcel: "In-House Stone Report",
+  jewelry_part: "None",
+};
 
-/** Returns a number or undefined (never NaN or "") */
-function num(v) {
-  if (v === null || v === undefined || v === "") return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-/** Returns a non-empty string or undefined */
-function str(v) {
-  if (v === null || v === undefined) return undefined;
-  const s = String(v).trim();
+function str(value) {
+  if (value === null || value === undefined) return undefined;
+  const s = String(value).trim();
   return s !== "" ? s : undefined;
 }
 
-// ─── Handler ──────────────────────────────────────────────────────────────────
+function num(value) {
+  if (value === null || value === undefined || value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function bool(value) {
+  if (value === true || value === false) return value;
+  return undefined;
+}
+
+function add(fields, key, value) {
+  if (!key || value === null || value === undefined || value === "") return;
+  fields[key] = value;
+}
+
+function itemTypeFor(productType) {
+  if (productType === "stone_pair_set") return "Stone Pair / Set";
+  if (productType === "stone_parcel") return "Stone Parcel";
+  if (productType === "jewelry_part") return "Jewelry Part";
+  return "Loose Stone";
+}
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const tableId = process.env.AIRTABLE_STONES_TABLE;
   if (!tableId) {
-    return res.status(503).json({
-      error: "AIRTABLE_STONES_TABLE environment variable is not set.",
-    });
+    return res.status(503).json({ error: "AIRTABLE_STONES_TABLE environment variable is not set." });
   }
 
-  const body = req.body;
-  if (!body || typeof body !== "object") {
-    return res.status(400).json({ error: "Request body must be a JSON object." });
-  }
+  try {
+    const form = req.body || {};
+    const fields = {};
+    const productTypeKey = str(form.productType);
+    const exactProductType = PRODUCT_TYPE_LABELS[productTypeKey] || str(form.productType);
+    const defaultReportType = form.reportType === "None"
+      ? "None"
+      : (REPORT_TYPE_LABELS[form.reportType] || REPORT_TYPE_LABELS[productTypeKey] || str(form.reportType));
 
-  const { productType, generateReport } = body;
+    // Core editable fields. Never send STONE.SKU — it is computed in Airtable.
+    add(fields, STONE.NAME, str(form.title) || str(form.name));
+    add(fields, STONE.STATUS, str(form.inventoryStatus) || str(form.status) || "במלאי");
+    add(fields, STONE.SHAPE, str(form.shape));
+    add(fields, STONE.ITEM_TYPE, itemTypeFor(productTypeKey));
+    add(fields, STONE.TYPE, str(form.stoneType));
+    add(fields, STONE.CARAT_WEIGHT, num(form.caratWeight) ?? num(form.carat));
+    add(fields, STONE.STONE_COUNT, num(form.stoneCount));
+    add(fields, STONE.SUPPLIER_NAME, str(form.supplierName) || str(form.supplier));
+    add(fields, STONE.COST_USD, num(form.costUsd) ?? num(form.cost));
 
-  // Look up product-type-specific defaults
-  const defaults = TYPE_DEFAULTS[productType] ?? {
-    exactProductType:  productType ?? "Unknown",
-    defaultReportType: "None",
-    reportAutoGenerate: false,
-  };
+    // Certificate/external report info.
+    add(fields, STONE.CERTIFICATE_LAB, str(form.certLab) || str(form.certImportLab));
 
-  // ── Merge certificate-import source info into internal notes ─────────────
-  const noteParts = [];
-  if (body.certImportLab || body.certImportReportNumber || body.certImportUrl) {
-    const certParts = [
-      body.certImportLab          && `Lab: ${body.certImportLab}`,
-      body.certImportReportNumber && `Report #${body.certImportReportNumber}`,
-      body.certImportUrl          && `URL: ${body.certImportUrl}`,
-    ].filter(Boolean);
-    if (certParts.length > 0) {
-      noteParts.push(`[External Cert] ${certParts.join(" | ")}`);
+    // Gemology.
+    add(fields, STONE.COLOR, str(form.color) || str(form.colorGrade));
+    add(fields, STONE.CLARITY, str(form.clarity));
+    add(fields, STONE.TREATMENT, str(form.treatment));
+    add(fields, STONE.ORIGIN, str(form.origin));
+    add(fields, STONE.LASER_INSCRIPTION, str(form.laserInscription));
+
+    add(fields, STONE.EXACT_PRODUCT_TYPE, exactProductType);
+    add(fields, STONE.DEFAULT_REPORT_TYPE, defaultReportType);
+
+    add(fields, STONE.LENGTH_MM, num(form.lengthMm) ?? num(form.measLength));
+    add(fields, STONE.WIDTH_MM, num(form.widthMm) ?? num(form.measWidth));
+    add(fields, STONE.HEIGHT_MM, num(form.heightMm) ?? num(form.measDepth));
+
+    add(fields, STONE.FLUORESCENCE_INTENSITY, str(form.fluorescenceIntensity));
+    add(fields, STONE.FLUORESCENCE_COLOR, str(form.fluorescenceColor));
+    add(fields, STONE.POLISH, str(form.polish));
+    add(fields, STONE.SYMMETRY, str(form.symmetry));
+    add(fields, STONE.CUT_GRADE, str(form.cutGrade) || str(form.cut));
+    add(fields, STONE.TRANSPARENCY, str(form.transparency));
+    add(fields, STONE.GEM_CLARITY, str(form.gemClarity));
+    add(fields, STONE.CUT_FORM, str(form.cutForm));
+    add(fields, STONE.GROWTH_METHOD, str(form.growthMethod));
+    add(fields, STONE.FANCY_COLOR_INTENSITY, str(form.fancyColorIntensity));
+    add(fields, STONE.FANCY_COLOR_HUE, str(form.fancyColorHue));
+
+    const reportAutoGenerate = bool(form.generateReport);
+    if (reportAutoGenerate !== undefined) add(fields, STONE.REPORT_AUTO_GENERATE, reportAutoGenerate);
+    add(fields, STONE.VERIFICATION_ID, str(form.verificationId));
+    add(fields, STONE.VERIFICATION_URL, str(form.verificationUrl));
+
+    // Store external certificate metadata in notes until dedicated upload/attachment flow exists.
+    const certLines = [];
+    if (form.certImportLab) certLines.push(`External lab: ${form.certImportLab}`);
+    if (form.certImportReportNumber) certLines.push(`External report number: ${form.certImportReportNumber}`);
+    if (form.certImportUrl) certLines.push(`External certificate URL: ${form.certImportUrl}`);
+    if (form.intakeMethod === "certificate") certLines.push("AI extraction: pending future milestone.");
+    if (form.rawCertText) {
+      certLines.push("--- Certificate review text ---");
+      certLines.push(String(form.rawCertText).slice(0, 800));
     }
+    const noteParts = [];
+    if (form.internalNotes) noteParts.push(String(form.internalNotes));
+    if (certLines.length) noteParts.push(certLines.join("\n"));
+    if (noteParts.length) add(fields, STONE.INTERNAL_NOTES, noteParts.join("\n\n"));
+
+    // Safety net: strip all computed fields before POST.
+    STONE_COMPUTED_FIELDS.forEach((fieldName) => { delete fields[fieldName]; });
+
+    const { record, error } = await createAirtableRecord(tableId, fields);
+    if (error) return res.status(500).json({ error });
+
+    return res.status(201).json({ id: record.id, success: true });
+  } catch (err) {
+    const safe = String(err.message || err).replace(/pat[A-Za-z0-9._-]{20,}/g, "[TOKEN]");
+    console.error("[create-stone]", safe);
+    return res.status(500).json({ error: "Server error saving inventory item" });
   }
-  if (str(body.internalNotes)) {
-    noteParts.push(str(body.internalNotes));
-  }
-  const combinedNotes = noteParts.length > 0 ? noteParts.join("\n") : undefined;
-
-  // ── Build Airtable fields object ─────────────────────────────────────────
-  // Key = exact Hebrew/English Airtable field name from fieldMap.js
-  // Undefined values are filtered by createAirtableRecord
-
-  const fields = {
-    // Identity
-    [STONE.SKU]:              str(body.sku),
-    [STONE.TITLE]:            str(body.title),
-    [STONE.INVENTORY_STATUS]: str(body.inventoryStatus) || "במלאי",
-
-    // Classification
-    [STONE.SHAPE]:     str(body.shape),
-    [STONE.STONE_TYPE]:str(body.stoneType),
-
-    // Weight
-    [STONE.CARAT_WEIGHT]:     num(body.caratWeight),
-    [STONE.STONE_COUNT]:      num(body.stoneCount),
-    [STONE.AVG_STONE_WEIGHT]: num(body.avgStoneWeight),
-
-    // Supplier / cost
-    [STONE.SUPPLIER_NAME]: str(body.supplierName),
-    [STONE.COST_USD]:      num(body.costUsd),
-
-    // Certificate lab — prefer manual entry; fall back to cert-import lab
-    [STONE.CERT_LAB]: str(body.certLab) || str(body.certImportLab),
-
-    // Diamond grading
-    // NOTE: STONE.COLOR is "צבע " with a trailing space — exact Airtable field name
-    [STONE.COLOR]:          str(body.color),
-    [STONE.CLARITY]:        str(body.clarity),
-    [STONE.CUT_GRADE]:      str(body.cutGrade),
-    [STONE.POLISH]:         str(body.polish),
-    [STONE.SYMMETRY]:       str(body.symmetry),
-
-    // Fluorescence
-    [STONE.FLUORESCENCE_INTENSITY]: str(body.fluorescenceIntensity),
-    [STONE.FLUORESCENCE_COLOR]:     str(body.fluorescenceColor),
-
-    // Lab-grown
-    [STONE.GROWTH_METHOD]: str(body.growthMethod),
-
-    // Fancy color
-    [STONE.FANCY_COLOR_INTENSITY]: str(body.fancyColorIntensity),
-    [STONE.FANCY_COLOR_HUE]:       str(body.fancyColorHue),
-
-    // Gemstone-specific
-    [STONE.TRANSPARENCY]: str(body.transparency),
-    [STONE.GEM_CLARITY]:  str(body.gemClarity),
-    [STONE.CUT_FORM]:     str(body.cutForm),
-
-    // Physical details
-    [STONE.MEASUREMENTS]: str(body.measurements),
-    [STONE.LENGTH_MM]:    num(body.lengthMm),
-    [STONE.WIDTH_MM]:     num(body.widthMm),
-    [STONE.HEIGHT_MM]:    num(body.heightMm),
-
-    // Origin / traceability
-    [STONE.TREATMENT]:        str(body.treatment),
-    [STONE.ORIGIN]:           str(body.origin),
-    [STONE.LASER_INSCRIPTION]:str(body.laserInscription),
-
-    // Product-type metadata (from defaults, overridable)
-    [STONE.EXACT_PRODUCT_TYPE]:  defaults.exactProductType,
-    [STONE.DEFAULT_REPORT_TYPE]: defaults.defaultReportType,
-    // generateReport from body if explicitly set, otherwise use type default
-    [STONE.REPORT_AUTO_GENERATE]:
-      typeof generateReport === "boolean" ? generateReport : defaults.reportAutoGenerate,
-
-    // Verification (future milestone)
-    [STONE.VERIFICATION_ID]:  str(body.verificationId),
-    [STONE.VERIFICATION_URL]: str(body.verificationUrl),
-
-    // Notes (merged cert-import source + manual notes)
-    [STONE.INTERNAL_NOTES]: combinedNotes,
-  };
-
-  // ── Create record ─────────────────────────────────────────────────────────
-  const { record, error } = await createAirtableRecord(tableId, fields);
-
-  if (error) {
-    console.error("[POST /api/airtable/create-stone]", error);
-    return res.status(500).json({ error });
-  }
-
-  return res.status(201).json({ id: record.id, success: true });
 }

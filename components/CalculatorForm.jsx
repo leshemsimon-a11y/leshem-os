@@ -1,22 +1,12 @@
 /**
- * components/CalculatorForm.jsx  —  UX v2
+ * components/CalculatorForm.jsx  —  v5.2.1
  *
- * Left column of the calculator grid.
- * Three card sections:
- *   1. מתכת         — Metal
- *   2. אבן מרכזית   — Center Stone
- *   3. אבני צד      — Side Stones (two SsBlock rows)
- *
- * Layout: single-column cards stacked vertically.
- * Internal field rows use GR (auto-fit) so they collapse on mobile.
- *
- * Props:
- *   cfg    {object}    Full quote config
- *   res    {object}    Results from calcApp(cfg)
- *   sf     {function}  Field setter
- *   fmtFn  {function}  Currency formatter
- *
- * Zero logic changes from v1.
+ * Changes from v4.4:
+ *   + Center stone count row (Fix 5):
+ *       A "כמות" (quantity) input is added below the carat field.
+ *       Default = 1. Values ≥ 1. The calculations.js totalCenterCt
+ *       = centerCt × centerCount.
+ *   ~ All other sections and logic unchanged.
  */
 
 import { C, METALS, CASTS, CMPLX, STYPES, COLORS_D, CLARITIES, SETTINGS } from "../lib/constants";
@@ -27,84 +17,65 @@ export function CalculatorForm({ cfg, res, sf, fmtFn }) {
   return (
     <div>
 
-      {/* ══════════════════════════════════════════════════════════════
-          1. METAL
-      ══════════════════════════════════════════════════════════════ */}
+      {/* ── 1. Metal ──────────────────────────────────────────────── */}
       <Pnl title="מתכת">
+        <GR>
+          <LR label="סוג מתכת">
+            <Sel
+              value={cfg.metal}
+              onChange={(v) => sf("metal", v)}
+              options={METALS}
+            />
+          </LR>
+          <LR label="גרם">
+            <StableInp
+              value={cfg.grams}
+              onChange={(v) => sf("grams", v)}
+              placeholder="0.00"
+            />
+          </LR>
+        </GR>
 
-        {/* Metal type full-width for clarity */}
-        <LR label="סוג מתכת">
-          <Sel
-            value={cfg.metal}
-            onChange={(v) => sf("metal", v)}
-            options={METALS}
-          />
-        </LR>
+        <GR>
+          <LR label="יציקה">
+            <Sel
+              value={cfg.cast}
+              onChange={(v) => sf("cast", v)}
+              options={CASTS}
+            />
+          </LR>
+          <LR label="מורכבות">
+            <Sel
+              value={cfg.cmplx}
+              onChange={(v) => sf("cmplx", v)}
+              options={CMPLX}
+            />
+          </LR>
+        </GR>
 
-        <div style={{ marginTop: 16 }}>
-          <GR minColWidth={160}>
-            <LR label="משקל (גרם)">
+        {/* Metal cost manual override */}
+        <div style={{ borderTop: `0.5px solid rgba(54,69,79,0.08)`, paddingTop: 8, marginTop: 4 }}>
+          <LR label="עלות מתכת ידנית">
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
               <StableInp
-                value={cfg.grams}
-                onChange={(v) => sf("grams", v)}
-                placeholder="0.00"
+                value={cfg.mcManual}
+                onChange={(v) => sf("mcManual", v)}
+                placeholder={`אוט. ${fmtFn(res.rawMC)}`}
               />
-            </LR>
-            <LR label="מורכבות">
-              <Sel
-                value={cfg.cmplx}
-                onChange={(v) => sf("cmplx", v)}
-                options={CMPLX}
+              <PriceModeToggle
+                mode={cfg.mcMode}
+                onChange={(v) => sf("mcMode", v)}
+                labels={["סה״כ", "לגרם"]}
+                vals={["total", "per_gram"]}
               />
-            </LR>
-          </GR>
-        </div>
-
-        <LR label="שיטת יציקה">
-          <Sel
-            value={cfg.cast}
-            onChange={(v) => sf("cast", v)}
-            options={CASTS}
-          />
-        </LR>
-
-        {/* Metal override — clearly separated */}
-        <div
-          style={{
-            marginTop:    20,
-            paddingTop:   20,
-            borderTop:    "1px solid rgba(54,69,79,0.08)",
-          }}
-        >
-          <LR label="עלות מתכת ידנית (השאר ריק לחישוב אוטומטי)">
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <StableInp
-                  value={cfg.mcManual}
-                  onChange={(v) => sf("mcManual", v)}
-                  placeholder={`אוט. ${fmtFn(res.rawMC)}`}
-                />
-              </div>
-              <div style={{ paddingTop: 6 }}>
-                <PriceModeToggle
-                  mode={cfg.mcMode}
-                  onChange={(v) => sf("mcMode", v)}
-                  labels={["סה״כ", "לגרם"]}
-                  vals={["total", "per_gram"]}
-                />
-              </div>
             </div>
           </LR>
         </div>
-
       </Pnl>
 
-      {/* ══════════════════════════════════════════════════════════════
-          2. CENTER STONE
-      ══════════════════════════════════════════════════════════════ */}
+      {/* ── 2. Center Stone ───────────────────────────────────────── */}
       <Pnl title="אבן מרכזית">
-
-        <GR minColWidth={160}>
+        <GR>
           <LR label="סוג">
             <Sel
               value={cfg.centerType}
@@ -112,7 +83,7 @@ export function CalculatorForm({ cfg, res, sf, fmtFn }) {
               options={STYPES}
             />
           </LR>
-          <LR label="קראט">
+          <LR label="קראט / אבן">
             <StableInp
               value={cfg.centerCt}
               onChange={(v) => sf("centerCt", v)}
@@ -121,17 +92,42 @@ export function CalculatorForm({ cfg, res, sf, fmtFn }) {
           </LR>
         </GR>
 
-        {/* Diamond-specific fields */}
+        {/* v5.2.1: Center stone count row (Fix 5) */}
+        <GR>
+          <LR label="כמות (מספר אבנות מרכזיות)">
+            <StableInp
+              value={cfg.centerCount}
+              onChange={(v) => sf("centerCount", v)}
+              placeholder="1"
+            />
+          </LR>
+          {/* Total carat display — read-only */}
+          {(parseInt(cfg.centerCount, 10) || 1) > 1 && (
+            <LR label="סה״כ קראט">
+              <div style={{
+                height: 36, display: "flex", alignItems: "center",
+                fontFamily: C.dat, fontSize: 12, color: C.ch, fontWeight: 600,
+              }}>
+                {(
+                  (parseFloat(cfg.centerCt) || 0) *
+                  Math.max(1, parseInt(cfg.centerCount, 10) || 1)
+                ).toFixed(2)} ct
+              </div>
+            </LR>
+          )}
+        </GR>
+
+        {/* Color + Clarity only shown for diamonds */}
         {cfg.centerType === "Diamond" && (
-          <GR minColWidth={160}>
-            <LR label="צבע (Color)">
+          <GR>
+            <LR label="צבע">
               <Sel
                 value={cfg.centerColor}
                 onChange={(v) => sf("centerColor", v)}
                 options={COLORS_D}
               />
             </LR>
-            <LR label="נקיון (Clarity)">
+            <LR label="נקיון">
               <Sel
                 value={cfg.centerClarity}
                 onChange={(v) => sf("centerClarity", v)}
@@ -141,7 +137,7 @@ export function CalculatorForm({ cfg, res, sf, fmtFn }) {
           </GR>
         )}
 
-        <LR label="הגדרה (Setting)">
+        <LR label="הגדרה">
           <Sel
             value={cfg.centerSetting}
             onChange={(v) => sf("centerSetting", v)}
@@ -149,40 +145,25 @@ export function CalculatorForm({ cfg, res, sf, fmtFn }) {
           />
         </LR>
 
-        {/* Center stone override */}
-        <div
-          style={{
-            marginTop:  20,
-            paddingTop: 20,
-            borderTop:  "1px solid rgba(54,69,79,0.08)",
-          }}
-        >
-          <LR label="מחיר אבן ידני (השאר ריק לחישוב אוטומטי)">
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <StableInp
-                  value={cfg.centerManual}
-                  onChange={(v) => sf("centerManual", v)}
-                  placeholder={`אוט. ${fmtFn(res.centerCost)}`}
-                />
-              </div>
-              <div style={{ paddingTop: 6 }}>
-                <PriceModeToggle
-                  mode={cfg.centerMode}
-                  onChange={(v) => sf("centerMode", v)}
-                  labels={["סה״כ", "לct"]}
-                  vals={["total", "per_carat"]}
-                />
-              </div>
-            </div>
-          </LR>
-        </div>
-
+        {/* Center stone price manual override */}
+        <LR label="מחיר ידני" mt={8}>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+            <StableInp
+              value={cfg.centerManual}
+              onChange={(v) => sf("centerManual", v)}
+              placeholder={`אוט. ${fmtFn(res.centerCost)}`}
+            />
+            <PriceModeToggle
+              mode={cfg.centerMode}
+              onChange={(v) => sf("centerMode", v)}
+              labels={["סה״כ", "לct"]}
+              vals={["total", "per_carat"]}
+            />
+          </div>
+        </LR>
       </Pnl>
 
-      {/* ══════════════════════════════════════════════════════════════
-          3. SIDE STONES
-      ══════════════════════════════════════════════════════════════ */}
+      {/* ── 3. Side Stones ────────────────────────────────────────── */}
       <Pnl title="אבני צד">
         <SsBlock cfg={cfg} sf={sf} prefix="ss1" label="שורה א׳" />
         <SsBlock cfg={cfg} sf={sf} prefix="ss2" label="שורה ב׳" />
