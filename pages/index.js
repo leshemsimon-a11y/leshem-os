@@ -65,6 +65,55 @@ const TABS = [
   { key: "intake", icon: "🗂", label: "קליטה",  sublabel: "Intake"    },
 ];
 
+
+// ─── ConfirmDialog ─────────────────────────────────────────────────────────────
+function ConfirmDialog({ message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(54,69,79,0.5)",
+        zIndex: 2000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div
+        style={{
+          background: "#FAF9F6",
+          borderRadius: 10,
+          padding: "24px 28px",
+          maxWidth: 380,
+          width: "100%",
+          boxShadow: "0 20px 50px rgba(54,69,79,0.28)",
+        }}
+      >
+        <p style={{ fontFamily: C.heb, fontSize: 15, color: C.ch, marginBottom: 20, lineHeight: 1.6, direction: "rtl", textAlign: "right" }}>
+          {message}
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{ height: 40, padding: "0 18px", background: "transparent", border: "1px solid rgba(54,69,79,0.22)", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: C.chl }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{ height: 40, padding: "0 18px", background: C.ch, color: C.iv, border: "none", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, fontWeight: 700 }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LeshemOS() {
 
@@ -72,6 +121,7 @@ export default function LeshemOS() {
   const [currency, setCurrency] = useState("USD");
   const [tab,      setTab]      = useState("calc");
   const [pieceImg, setPieceImg] = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const qNum    = useRef(
     `LS-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
@@ -100,14 +150,17 @@ export default function LeshemOS() {
   const res   = useMemo(() => calcApp(cfg, metalPrices), [cfg, metalPrices]);
   const fmtFn = useCallback((v) => fmt(v, currency), [currency]);
 
-  const handleReset = useCallback(() => {
+  const doReset = useCallback(() => {
     setCfg({ ...DCFG });
     setPieceImg(null);
     setTab("calc");
+    setShowResetConfirm(false);
     qNum.current = `LS-${new Date().getFullYear()}-${String(
       Math.floor(Math.random() * 9000) + 1000
     )}`;
   }, []);
+
+  const handleReset = useCallback(() => setShowResetConfirm(true), []);
 
   const handleImageUpload = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -194,6 +247,16 @@ export default function LeshemOS() {
         <style>{PRINT_CSS}</style>
       </Head>
 
+      {showResetConfirm && (
+        <ConfirmDialog
+          message="האם לאפס את המחשבון? שינויים שלא נשמרו יאבדו."
+          confirmLabel="איפוס"
+          cancelLabel="ביטול"
+          onConfirm={doReset}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+
       <div dir="rtl" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: C.iv }}>
 
         {/* ════ HEADER ═════════════════════════════════════════════════════ */}
@@ -209,14 +272,14 @@ export default function LeshemOS() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex", border: `1.5px solid ${C.chm}`, borderRadius: 6, overflow: "hidden", height: 38 }}>
-              {[["USD", "$ USD"], ["ILS", "\u20aa ILS"]].map(([c, label]) => (
+              {[["USD", "$ USD"], ["ILS", "₪ ILS"]].map(([c, label]) => (
                 <button key={c} onClick={() => setCurrency(c)} style={{ padding: "0 14px", height: "100%", background: currency === c ? C.gd : "transparent", color: currency === c ? C.ch : C.chx, border: "none", cursor: "pointer", fontFamily: C.heb, fontSize: 12, fontWeight: 700 }}>
                   {label}
                 </button>
               ))}
             </div>
             <button onClick={handleReset} title="Reset calculator" style={{ display: "flex", alignItems: "center", gap: 6, height: 38, padding: "0 14px", background: "transparent", border: `1.5px solid ${C.chm}`, borderRadius: 6, color: C.chx, cursor: "pointer", fontFamily: C.heb, fontSize: 12, fontWeight: 600 }}>
-              \u21ba \u05d0\u05e4\u05e1
+              ↺ איפוס
             </button>
           </div>
         </header>

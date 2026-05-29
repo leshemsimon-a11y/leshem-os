@@ -1,24 +1,40 @@
 /**
- * components/reports/ReportEngine.jsx  —  v4.4
+ * components/reports/ReportEngine.jsx  —  v5.2.1-ui
  *
- * Orchestrator for the entire Report Engine.
+ * UI text and draft management fixes on top of v4.4:
  *
- * Changes in v4.4:
- *   + DraftManager — localStorage-based save / load / delete / update.
- *     Keys prefixed with "ls_draft_". Schema:
- *       { id: string, name: string, reportType: string, reportData: object, savedAt: string }
- *     Future production storage: move to Airtable / Supabase with per-user
- *     access control, server-side encryption of sensitive data, and revocable
- *     tokens. DO NOT store cost breakdowns or margin data in cloud reports.
- *   + loadDraft(draft) — replaces both reportType + reportData atomically.
- *   + setReportData exposed so drafts can fully replace data.
- *   ~ All existing state, setField, sync-from-calculator, print architecture
- *     unchanged.
+ * ── Unicode gibberish fixed ──────────────────────────────────────────────────
+ *   \u2190 \u05de\u05d7...  →  ← מחשבון
+ *   \u21c4 Report Type      →  ⇄ סוג דוח
+ *   \u21ba Sync from Calc   →  ↺ סנכרון מהמחשבון
+ *   \u00b7 Edit any field…  →  · ערוך שדה · התצוגה מתעדכנת
+ *   \u05d4\u05d3\u05e4\u05e1 / PDF  →  הדפס / שמור PDF
+ *   📂 Drafts               →  📂 טיוטות
  *
- * Print architecture (unchanged):
- *   • Editor column:   className="no-print"  → hidden at print time
- *   • Preview column:  NO no-print class     → .printable-container is print anchor
- *   • Toolbar:         className="no-print"  → hidden at print time
+ * ── Reset confirmation (3 options) ──────────────────────────────────────────
+ *   Before "← מחשבון" (back) and "⇄ סוג דוח" (change type):
+ *   Shows ConfirmResetDialog with options: "איפוס" | "שמור טיוטה" | "ביטול"
+ *   If "שמור טיוטה" is selected, auto-saves the current draft (using
+ *   reportNumber / itemTitle as the auto-name), then performs the action.
+ *
+ * ── isDirty tracking ────────────────────────────────────────────────────────
+ *   isDirty = true  whenever setField is called.
+ *   isDirty = false after draft save, load, or new type selection.
+ *   Toolbar shows a "● שינויים לא שמורים" indicator when isDirty.
+ *   Confirmation dialog is skipped when !isDirty (nothing to lose).
+ *
+ * ── Enhanced DraftManager ───────────────────────────────────────────────────
+ *   Operations:
+ *     שמור טיוטה — save new draft (name pre-populated from reportNumber)
+ *     שמור בשם   — same as above (user can rename before saving)
+ *     טען        — load draft into editor
+ *     שכפל       — duplicate: creates "עותק של X"
+ *     עדכן       — overwrite existing draft slot with current report
+ *     מחק        — delete with confirmation
+ *
+ * ── Print architecture (unchanged from v4.4) ────────────────────────────────
+ *   Editor column:   className="no-print" → hidden at print time
+ *   Preview column:  NO class              → .printable-container is print anchor
  */
 
 import { useState, useCallback, useRef } from "react";
@@ -50,15 +66,10 @@ function loadAllDrafts() {
       }
     }
     return drafts.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
-  } catch (_) {
-    return [];
-  }
+  } catch (_) { return []; }
 }
 
 function saveDraftToStorage(draft) {
-  // Future: replace with Airtable/Supabase API call with user auth token.
-  // Note: base64 images inside reportData can be large (~1-2MB each).
-  // If storage fails due to quota, notify the user.
   localStorage.setItem(draftKey(draft.id), JSON.stringify(draft));
 }
 
@@ -66,181 +77,210 @@ function deleteDraftFromStorage(id) {
   localStorage.removeItem(draftKey(id));
 }
 
-// ─── DraftManager component ───────────────────────────────────────────────────
+function fmtDate(iso) {
+  try {
+    return new Intl.DateTimeFormat("he-IL", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date(iso));
+  } catch (_) { return iso; }
+}
+
+/** Build an auto-save name from report data */
+function autoSaveName(reportType, reportData) {
+  const num   = reportData?.reportNumber  || "";
+  const title = reportData?.itemTitle     || reportData?.stone?.type || "";
+  const base  = [num, title].filter(Boolean).join(" · ");
+  return base || `טיוטה ${new Date().toLocaleDateString("he-IL")}`;
+}
+
+// ─── ConfirmResetDialog ───────────────────────────────────────────────────────
 /**
- * Screen-only panel for managing saved report drafts.
- * Hidden in print via className="no-print".
+ * 3-option confirmation modal:
+ *   "איפוס" (destructive) | "שמור טיוטה" (save then proceed) | "ביטול"
  *
- * Future production storage note:
- *   This component currently reads/writes localStorage only.
- *   When connected to Airtable or Supabase, replace the load/save/delete
- *   functions with API calls. Keep the same draft schema so migration is
- *   a drop-in replacement. Add user authentication before cloud migration.
+ * @prop {string}        message     — Confirmation message (Hebrew)
+ * @prop {string}        actionLabel — Label for the destructive confirm button (e.g. "איפוס")
+ * @prop {function|null} onSaveDraft — Called when user picks "שמור טיוטה";
+ *                                     if null the button is not shown.
+ * @prop {function}      onConfirm   — Proceed without saving
+ * @prop {function}      onCancel    — Dismiss
+ */
+function ConfirmResetDialog({ message, actionLabel, onSaveDraft, onConfirm, onCancel }) {
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(54,69,79,0.52)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div style={{ background: "#FAF9F6", borderRadius: 10, padding: "26px 28px", maxWidth: 420, width: "100%", boxShadow: "0 20px 50px rgba(54,69,79,0.28)" }}>
+        <p style={{ fontFamily: C.heb, fontSize: 15, color: C.ch, marginBottom: 22, lineHeight: 1.65, direction: "rtl", textAlign: "right" }}>
+          {message}
+        </p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {/* ביטול — leftmost / first tab stop */}
+          <button
+            onClick={onCancel}
+            style={{ height: 40, padding: "0 18px", background: "transparent", border: "1px solid rgba(54,69,79,0.22)", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: C.chl }}
+          >
+            ביטול
+          </button>
+          {/* שמור טיוטה — middle */}
+          {onSaveDraft && (
+            <button
+              onClick={onSaveDraft}
+              style={{ height: 40, padding: "0 18px", background: "rgba(197,179,88,0.12)", border: "1px solid rgba(197,179,88,0.4)", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: "#8a7a2a", fontWeight: 600 }}
+            >
+              שמור טיוטה
+            </button>
+          )}
+          {/* איפוס — rightmost / destructive */}
+          <button
+            onClick={onConfirm}
+            style={{ height: 40, padding: "0 18px", background: C.ch, color: C.iv, border: "none", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, fontWeight: 700 }}
+          >
+            {actionLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DraftManager ─────────────────────────────────────────────────────────────
+/**
+ * Enhanced draft management panel.
+ *
+ * Operations:
+ *   שמור טיוטה — create new draft (name pre-populated from report data)
+ *   שמור בשם   — same; user can edit name before saving
+ *   טען        — load draft; replaces current report (shows warning if isDirty)
+ *   שכפל       — duplicate with "עותק של" prefix
+ *   עדכן       — overwrite existing slot with current report
+ *   מחק        — delete with window.confirm
  */
 function DraftManager({ currentType, currentData, onLoad, onClose }) {
   const [drafts,      setDrafts]      = useState(() => loadAllDrafts());
-  const [saveName,    setSaveName]    = useState("");
+  const [saveName,    setSaveName]    = useState(() => autoSaveName(currentType, currentData));
   const [saveError,   setSaveError]   = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [confirmLoad, setConfirmLoad] = useState(null); // draft to load after confirm
 
+  const refreshDrafts = () => setDrafts(loadAllDrafts());
+
+  // ── Save new draft ────────────────────────────────────────────────────────
   const handleSave = () => {
     const name = saveName.trim();
-    if (!name) { setSaveError("Enter a draft name to save."); return; }
-    if (!currentType || !currentData) { setSaveError("No active report to save."); return; }
+    if (!name) { setSaveError("הזן שם לטיוטה."); return; }
+    if (!currentType || !currentData) { setSaveError("אין דוח פעיל לשמירה."); return; }
     setSaveError("");
-
-    const id    = `${Date.now()}`;
     const draft = {
-      id,
+      id:           `${Date.now()}`,
       name,
       reportNumber: currentData?.reportNumber || "",
       reportType:   currentType,
       reportData:   currentData,
       savedAt:      new Date().toISOString(),
     };
-
     try {
       saveDraftToStorage(draft);
-      setDrafts(loadAllDrafts());
-      setSaveName("");
+      refreshDrafts();
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (err) {
-      // Most likely localStorage quota exceeded (large base64 images)
-      setSaveError(
-        "Storage full — remove old drafts or reduce image sizes. " +
-        "Tip: drafts with high-res images can be several MB each."
-      );
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (_) {
+      setSaveError("שגיאת אחסון — הסר טיוטות ישנות או הקטן תמונות.");
     }
   };
 
+  // ── Update existing draft slot ────────────────────────────────────────────
   const handleUpdate = (draft) => {
-    const updated = {
+    if (!currentType || !currentData) return;
+    const updated = { ...draft, reportType: currentType, reportData: currentData, savedAt: new Date().toISOString() };
+    try { saveDraftToStorage(updated); refreshDrafts(); } catch (_) {}
+  };
+
+  // ── Duplicate draft ────────────────────────────────────────────────────────
+  const handleDuplicate = (draft) => {
+    const dup = {
       ...draft,
-      reportType: currentType,
-      reportData: currentData,
-      savedAt:    new Date().toISOString(),
+      id:      `${Date.now()}`,
+      name:    `עותק של ${draft.name}`,
+      savedAt: new Date().toISOString(),
     };
-    try {
-      saveDraftToStorage(updated);
-      setDrafts(loadAllDrafts());
-    } catch (_) {}
+    try { saveDraftToStorage(dup); refreshDrafts(); } catch (_) {}
   };
 
+  // ── Delete draft ──────────────────────────────────────────────────────────
   const handleDelete = (id) => {
-    if (!window.confirm("Delete this draft? This cannot be undone.")) return;
+    if (!window.confirm("למחוק את הטיוטה? פעולה זו אינה הפיכה.")) return;
     deleteDraftFromStorage(id);
-    setDrafts(loadAllDrafts());
+    refreshDrafts();
   };
 
-  const fmtDate = (iso) => {
-    try {
-      return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-      }).format(new Date(iso));
-    } catch (_) { return iso; }
+  // ── Load draft (with unsaved-changes guard delegated to onLoad caller) ────
+  const handleLoad = (draft) => {
+    onLoad(draft);
+    onClose();
   };
 
   return (
     <div
-      style={{
-        position:   "fixed",
-        top:        0, left: 0, right: 0, bottom: 0,
-        background: "rgba(54,69,79,0.55)",
-        zIndex:     1000,
-        display:    "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding:    16,
-      }}
+      style={{ position: "fixed", inset: 0, background: "rgba(54,69,79,0.52)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        style={{
-          background:   "#FAF9F6",
-          borderRadius: 10,
-          padding:      "24px 28px",
-          width:        "100%",
-          maxWidth:     560,
-          maxHeight:    "85vh",
-          overflowY:    "auto",
-          boxShadow:    "0 20px 60px rgba(54,69,79,0.25)",
-        }}
-      >
+      <div style={{ background: "#FAF9F6", borderRadius: 10, padding: "24px 28px", width: "100%", maxWidth: 580, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(54,69,79,0.25)" }}>
+
+        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <span style={{ fontFamily: C.dat, fontSize: 16, fontWeight: 700, color: C.ch }}>
-            Report Drafts
-          </span>
-          <button
-            onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: C.chl, fontSize: 18, lineHeight: 1 }}
-          >✕</button>
+          <span style={{ fontFamily: C.dat, fontSize: 16, fontWeight: 700, color: C.ch }}>📂 טיוטות</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.chl, fontSize: 18 }}>✕</button>
         </div>
 
-        {/* Save new draft */}
-        <div style={{
-          background: "rgba(197,179,88,0.07)",
-          border: "1px solid rgba(197,179,88,0.28)",
-          borderRadius: 7,
-          padding: "14px 16px",
-          marginBottom: 20,
-        }}>
-          <div style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 8 }}>
-            Save current report as draft
+        {/* Save / Save As section */}
+        <div style={{ background: "rgba(197,179,88,0.07)", border: "1px solid rgba(197,179,88,0.28)", borderRadius: 7, padding: "14px 16px", marginBottom: 20 }}>
+          <div style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 8, direction: "rtl" }}>
+            שמירת הדוח הנוכחי כטיוטה
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               value={saveName}
               onChange={(e) => { setSaveName(e.target.value); setSaveError(""); }}
               onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-              placeholder="Draft name (e.g. Smith Ring — GIA 2473…)"
-              style={{
-                flex: 1, height: 40,
-                border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6,
-                background: "#fff", padding: "0 12px",
-                fontFamily: C.heb, fontSize: 13, color: C.ch, outline: "none",
-              }}
+              placeholder="שם הטיוטה (למשל: טבעת סמית — GIA 2473…)"
+              dir="rtl"
+              style={{ flex: 1, height: 42, border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6, background: "#fff", padding: "0 12px", fontFamily: C.heb, fontSize: 13, color: C.ch, outline: "none" }}
             />
             <button onClick={handleSave} style={BTN_PRIMARY}>
-              💾 Save
+              שמור טיוטה
             </button>
           </div>
           {saveError && (
-            <p style={{ fontFamily: C.heb, fontSize: 11, color: "#b04040", marginTop: 6, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: C.heb, fontSize: 11, color: "#b04040", marginTop: 6, lineHeight: 1.5, direction: "rtl" }}>
               {saveError}
             </p>
           )}
           {saveSuccess && (
-            <p style={{ fontFamily: C.heb, fontSize: 11, color: "#4a8a52", marginTop: 6 }}>
-              ✓ Draft saved successfully
+            <p style={{ fontFamily: C.heb, fontSize: 11, color: "#4a8a52", marginTop: 6, direction: "rtl" }}>
+              ✓ הטיוטה נשמרה בהצלחה
             </p>
           )}
         </div>
 
         {/* Draft list */}
         {drafts.length === 0 ? (
-          <p style={{ fontFamily: C.heb, fontSize: 13, color: C.chl, textAlign: "center", padding: "20px 0" }}>
-            No saved drafts yet.
+          <p style={{ fontFamily: C.heb, fontSize: 13, color: C.chl, textAlign: "center", padding: "24px 0", direction: "rtl" }}>
+            אין טיוטות שמורות.
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {drafts.map((d) => (
-              <div
-                key={d.id}
-                style={{
-                  border: "1px solid rgba(54,69,79,0.12)",
-                  borderRadius: 7,
-                  padding: "12px 14px",
-                  background: "#fff",
-                }}
-              >
+              <div key={d.id} style={{ border: "1px solid rgba(54,69,79,0.12)", borderRadius: 7, padding: "12px 14px", background: "#fff" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Draft info */}
+                  <div style={{ flex: 1, minWidth: 0, direction: "rtl" }}>
                     <div style={{ fontFamily: C.dat, fontSize: 13, fontWeight: 600, color: C.ch, marginBottom: 3, wordBreak: "break-word" }}>
                       {d.name}
                     </div>
-                    <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, lineHeight: 1.5 }}>
+                    <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl }}>
                       {REPORT_TYPES[d.reportType]?.label || d.reportType}
                       {d.reportNumber && ` · ${d.reportNumber}`}
                     </div>
@@ -248,29 +288,33 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
                       {fmtDate(d.savedAt)}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                    <button
-                      onClick={() => { onLoad(d); onClose(); }}
-                      style={BTN_SMALL}
-                      title="Load this draft into the editor"
-                    >
-                      📂 Load
+                  {/* Actions */}
+                  <div style={{ display: "flex", gap: 5, flexShrink: 0, alignItems: "center" }}>
+                    <button onClick={() => handleLoad(d)} style={BTN_SMALL} title="טעינת טיוטה לעורך">
+                      טען
                     </button>
                     {currentType && currentData && (
                       <button
                         onClick={() => handleUpdate(d)}
                         style={{ ...BTN_SMALL, borderColor: "rgba(197,179,88,0.4)", color: "#8a7a2a" }}
-                        title="Overwrite with current report"
+                        title="עדכון הטיוטה עם הדוח הנוכחי"
                       >
-                        ↑ Update
+                        עדכן
                       </button>
                     )}
                     <button
-                      onClick={() => handleDelete(d.id)}
-                      style={{ ...BTN_SMALL, borderColor: "rgba(176,64,64,0.3)", color: "#b04040" }}
-                      title="Delete this draft"
+                      onClick={() => handleDuplicate(d)}
+                      style={{ ...BTN_SMALL, borderColor: "rgba(54,69,79,0.18)", color: C.chm }}
+                      title="שכפול הטיוטה"
                     >
-                      ✕
+                      שכפל
+                    </button>
+                    <button
+                      onClick={() => handleDelete(d.id)}
+                      style={{ ...BTN_SMALL, borderColor: "rgba(176,64,64,0.28)", color: "#b04040" }}
+                      title="מחיקת הטיוטה"
+                    >
+                      מחק
                     </button>
                   </div>
                 </div>
@@ -279,9 +323,9 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
           </div>
         )}
 
-        <p style={{ fontFamily: C.heb, fontSize: 10, color: C.chx, marginTop: 16, lineHeight: 1.5, fontStyle: "italic" }}>
-          Drafts are saved in local browser storage — private to this browser and
-          device. Future versions will support cloud storage with user accounts.
+        <p style={{ fontFamily: C.heb, fontSize: 10, color: C.chx, marginTop: 16, lineHeight: 1.55, fontStyle: "italic", direction: "rtl" }}>
+          טיוטות נשמרות באחסון הדפדפן המקומי — פרטיות למכשיר זה.
+          גרסאות עתידיות יתמכו בשמירה בענן עם חשבון משתמש.
         </p>
       </div>
     </div>
@@ -290,54 +334,108 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
 
 // ─── ReportEngine ─────────────────────────────────────────────────────────────
 export function ReportEngine({ calculatorData = {}, onBack }) {
-  const [reportType,   setReportType]   = useState(null);
-  const [reportData,   setReportData]   = useState(null);
-  const [showDrafts,   setShowDrafts]   = useState(false);
 
-  // ── Dot-path field setter ─────────────────────────────────────────────────
+  const [reportType, setReportType] = useState(null);
+  const [reportData, setReportData] = useState(null);
+  const [showDrafts, setShowDrafts] = useState(false);
+
+  // isDirty: true after any field edit, false after save/load/new report
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Pending action blocked by confirmation dialog
+  // shape: { action: "back" | "changeType" } | null
+  const [pendingConfirm, setPendingConfirm] = useState(null);
+
+  // ── Dot-path field setter — marks isDirty ─────────────────────────────────
   const setField = useCallback((path, value) => {
-    setReportData((prev) =>
-      prev ? setDeep(prev, path, value) : prev
-    );
+    setReportData((prev) => prev ? setDeep(prev, path, value) : prev);
+    setIsDirty(true);
   }, []);
 
   // ── Type selected → create default data ──────────────────────────────────
   const handleSelectType = useCallback((type) => {
-    const data =
-      type === "jewelry_valuation"
-        ? createDefaultJewelryReport(calculatorData)
-        : createDefaultStoneReport({});
+    const data = type === "jewelry_valuation"
+      ? createDefaultJewelryReport(calculatorData)
+      : createDefaultStoneReport({});
     setReportType(type);
     setReportData(data);
+    setIsDirty(false);
   }, [calculatorData]);
 
-  // ── Re-sync jewelry report from calculator ────────────────────────────────
+  // ── Re-sync from calculator ───────────────────────────────────────────────
   const handleRefreshFromCalc = useCallback(() => {
     if (reportType === "jewelry_valuation") {
       setReportData(createDefaultJewelryReport(calculatorData));
+      setIsDirty(false);
     }
   }, [reportType, calculatorData]);
 
-  // ── Back to type selector ─────────────────────────────────────────────────
-  const handleChangeType = useCallback(() => {
-    setReportType(null);
-    setReportData(null);
-  }, []);
+  // ── Back to calculator ────────────────────────────────────────────────────
+  const handleBack = useCallback(() => {
+    if (isDirty) {
+      setPendingConfirm({ action: "back" });
+    } else {
+      onBack();
+    }
+  }, [isDirty, onBack]);
 
-  // ── Load a draft (full replacement of type + data) ────────────────────────
+  // ── Change report type ─────────────────────────────────────────────────────
+  const handleChangeType = useCallback(() => {
+    if (isDirty) {
+      setPendingConfirm({ action: "changeType" });
+    } else {
+      setReportType(null);
+      setReportData(null);
+    }
+  }, [isDirty]);
+
+  // ── Auto-save draft then perform pending action ───────────────────────────
+  const handleSaveDraftThenProceed = useCallback(() => {
+    if (reportType && reportData) {
+      const name = autoSaveName(reportType, reportData);
+      const draft = {
+        id:           `${Date.now()}`,
+        name,
+        reportNumber: reportData?.reportNumber || "",
+        reportType,
+        reportData,
+        savedAt:      new Date().toISOString(),
+      };
+      try { saveDraftToStorage(draft); } catch (_) {}
+    }
+    setIsDirty(false);
+    if (pendingConfirm?.action === "back") {
+      setPendingConfirm(null);
+      onBack();
+    } else {
+      setPendingConfirm(null);
+      setReportType(null);
+      setReportData(null);
+    }
+  }, [reportType, reportData, pendingConfirm, onBack]);
+
+  // ── Confirm without saving ────────────────────────────────────────────────
+  const handleConfirmProceed = useCallback(() => {
+    if (pendingConfirm?.action === "back") {
+      setPendingConfirm(null);
+      onBack();
+    } else {
+      setPendingConfirm(null);
+      setReportType(null);
+      setReportData(null);
+    }
+  }, [pendingConfirm, onBack]);
+
+  // ── Load draft ────────────────────────────────────────────────────────────
   const handleLoadDraft = useCallback((draft) => {
     setReportType(draft.reportType);
     setReportData(draft.reportData);
+    setIsDirty(false);
   }, []);
 
-  // ── No type selected → show selector ─────────────────────────────────────
+  // ── No type selected ──────────────────────────────────────────────────────
   if (!reportType || !reportData) {
-    return (
-      <ReportTypeSelector
-        onSelect={handleSelectType}
-        onBack={onBack}
-      />
-    );
+    return <ReportTypeSelector onSelect={handleSelectType} onBack={onBack} />;
   }
 
   const typeInfo = REPORT_TYPES[reportType];
@@ -345,7 +443,22 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
   return (
     <div>
 
-      {/* ══════ DRAFT MANAGER MODAL ══════════════════════════════════════════ */}
+      {/* Confirmation dialog (back or change type) */}
+      {pendingConfirm && (
+        <ConfirmResetDialog
+          message={
+            pendingConfirm.action === "back"
+              ? "לחזור למחשבון? שינויים שלא נשמרו יאבדו."
+              : "לשנות סוג דוח? שינויים שלא נשמרו יאבדו."
+          }
+          actionLabel={pendingConfirm.action === "back" ? "חזרה" : "שנה סוג"}
+          onSaveDraft={handleSaveDraftThenProceed}
+          onConfirm={handleConfirmProceed}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      )}
+
+      {/* Draft manager modal */}
       {showDrafts && (
         <DraftManager
           currentType={reportType}
@@ -355,110 +468,62 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
         />
       )}
 
-      {/* ══════ TOOLBAR (hidden on print) ════════════════════════════════════ */}
+      {/* ══ TOOLBAR (hidden on print) ════════════════════════════════════════ */}
       <div
         className="no-print"
-        style={{
-          display:        "flex",
-          justifyContent: "space-between",
-          alignItems:     "center",
-          marginBottom:   20,
-          gap:            12,
-          flexWrap:       "wrap",
-        }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12, flexWrap: "wrap" }}
       >
         {/* Left actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={onBack} style={TOOL_BTN}>
-            \u2190 \u05de\u05d7\u05e9\u05d1\u05d5\u05df
+          <button onClick={handleBack} style={TOOL_BTN}>
+            ← מחשבון
           </button>
-          <button
-            onClick={handleChangeType}
-            style={{ ...TOOL_BTN, fontSize: 12, color: C.chl }}
-          >
-            \u21c4 Report Type
+          <button onClick={handleChangeType} style={{ ...TOOL_BTN, fontSize: 12, color: C.chl }}>
+            ⇄ סוג דוח
           </button>
           {reportType === "jewelry_valuation" && (
             <button
               onClick={handleRefreshFromCalc}
               style={{ ...TOOL_BTN, fontSize: 12, color: C.chl }}
-              title="Re-sync report fields from the current calculator state"
+              title="סנכרון שדות הדוח מהמחשבון"
             >
-              \u21ba Sync from Calculator
+              ↺ סנכרון מהמחשבון
             </button>
           )}
-          {/* Drafts button */}
           <button
             onClick={() => setShowDrafts(true)}
             style={{ ...TOOL_BTN, fontSize: 12, color: C.chl, borderColor: "rgba(197,179,88,0.4)" }}
-            title="Save or load report drafts"
+            title="שמירה וטעינה של טיוטות"
           >
-            📂 Drafts
+            📂 טיוטות
           </button>
         </div>
 
-        {/* Centre label */}
-        <span
-          style={{
-            fontFamily: C.dat,
-            fontSize:   12,
-            color:      C.chl,
-            fontStyle:  "italic",
-          }}
-        >
-          {typeInfo.label} \u00b7 Edit any field \u00b7 preview updates on blur
+        {/* Centre status */}
+        <span style={{ fontFamily: C.dat, fontSize: 11, color: isDirty ? "#b06a2a" : C.chl, fontStyle: "italic" }}>
+          {isDirty
+            ? "● שינויים לא שמורים"
+            : `${typeInfo.label} · ערוך שדה · התצוגה מתעדכנת`
+          }
         </span>
 
-        {/* Print */}
+        {/* Print / PDF button */}
         <button
           onClick={() => window.print()}
-          style={{
-            height:     44,
-            padding:    "0 24px",
-            background: C.ch,
-            color:      C.iv,
-            border:     "none",
-            borderRadius: 6,
-            cursor:     "pointer",
-            fontFamily: C.heb,
-            fontSize:   14,
-            fontWeight: 600,
-            display:    "flex",
-            alignItems: "center",
-            gap:        8,
-          }}
+          style={{ height: 44, padding: "0 24px", background: C.ch, color: C.iv, border: "none", borderRadius: 6, cursor: "pointer", fontFamily: C.heb, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}
         >
           <span style={{ fontSize: 18 }}>🖨️</span>
-          \u05d4\u05d3\u05e4\u05e1 / PDF
+          הדפס / שמור PDF
         </button>
       </div>
 
-      {/* ══════ EDITOR + PREVIEW ══════════════════════════════════════════════ */}
-      {/*
-        CRITICAL PRINT STRUCTURE:
-        • Editor column:   className="no-print" → display:none at print time
-        • Preview column:  NO class → .printable-container is the print anchor
-        • An element with visibility:visible CAN override an ancestor's
-          visibility:hidden (CSS spec), but NOT an ancestor's display:none.
-          Therefore the preview column must NEVER be inside no-print.
-      */}
-      <div
-        style={{
-          display:    "flex",
-          gap:        24,
-          alignItems: "flex-start",
-          flexWrap:   "wrap",
-        }}
-      >
+      {/* ══ EDITOR + PREVIEW ═════════════════════════════════════════════════ */}
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+
         {/* Editor column — hidden on print */}
         <div
           className="no-print"
-          style={{
-            flex:      "0 0 380px",
-            minWidth:  280,
-            maxHeight: "calc(100vh - 180px)",
-            overflowY: "auto",
-          }}
+          style={{ flex: "0 0 380px", minWidth: 280, maxHeight: "calc(100vh - 180px)", overflowY: "auto" }}
         >
           <ReportEditor
             reportType={reportType}
@@ -468,13 +533,7 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
         </div>
 
         {/* Preview column — always rendered, is the print target */}
-        <div
-          dir="ltr"
-          style={{
-            flex:     "1 1 500px",
-            minWidth: 280,
-          }}
-        >
+        <div dir="ltr" style={{ flex: "1 1 500px", minWidth: 280 }}>
           <ReportPreviewShell
             reportType={reportType}
             reportData={reportData}
@@ -505,7 +564,7 @@ const TOOL_BTN = {
 };
 
 const BTN_PRIMARY = {
-  height:       40,
+  height:       42,
   padding:      "0 16px",
   background:   "#36454F",
   color:        "#FAF9F6",
@@ -516,6 +575,7 @@ const BTN_PRIMARY = {
   fontSize:     13,
   fontWeight:   600,
   whiteSpace:   "nowrap",
+  flexShrink:   0,
 };
 
 const BTN_SMALL = {

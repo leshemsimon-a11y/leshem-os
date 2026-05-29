@@ -32,6 +32,60 @@ import { IntakeMethodSelector }               from "./IntakeMethodSelector";
 import { ProductFormFields }                  from "./ProductFormFields";
 import { ProductReview }                      from "./ProductReview";
 
+
+// ─── localStorage intake draft helpers ───────────────────────────────────────
+const INTAKE_DRAFT_PREFIX = "ls_intake_draft_";
+
+function saveIntakeDraft(formData, productType, intakeMethod) {
+  try {
+    const key = `${INTAKE_DRAFT_PREFIX}${Date.now()}`;
+    const draft = {
+      savedAt: new Date().toISOString(),
+      productType,
+      intakeMethod,
+      formData,
+    };
+    localStorage.setItem(key, JSON.stringify(draft));
+  } catch (_) {
+    // localStorage can fail if storage is unavailable or full.
+  }
+}
+
+function ConfirmResetDialog({ onSaveDraft, onConfirm, onCancel }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(54,69,79,0.52)",
+        zIndex: 2000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div style={{ background: "#FAF9F6", borderRadius: 10, padding: "24px 28px", maxWidth: 420, width: "100%", boxShadow: "0 20px 50px rgba(54,69,79,0.28)" }}>
+        <p style={{ fontFamily: C.heb, fontSize: 15, color: C.ch, marginBottom: 20, lineHeight: 1.6, direction: "rtl", textAlign: "right" }}>
+          האם לאפס את הטופס? שינויים שלא נשמרו יאבדו.
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={onCancel} style={{ height: 40, padding: "0 18px", background: "transparent", border: "1px solid rgba(54,69,79,0.22)", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: C.chl }}>
+            ביטול
+          </button>
+          <button onClick={onSaveDraft} style={{ height: 40, padding: "0 18px", background: "rgba(197,179,88,0.12)", border: "1px solid rgba(197,179,88,0.4)", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: "#8a7a2a", fontWeight: 600 }}>
+            שמור טיוטה
+          </button>
+          <button onClick={onConfirm} style={{ height: 40, padding: "0 18px", background: C.ch, color: C.iv, border: "none", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, fontWeight: 700 }}>
+            איפוס
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Initial form state ───────────────────────────────────────────────────────
 const INITIAL_FORM = {
   productType: "",
@@ -107,10 +161,10 @@ const CLIENT_TYPE_DEFAULTS = {
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 const STEPS = [
-  { n: 1, label: "Type"    },
-  { n: 2, label: "Method"  },
-  { n: 3, label: "Details" },
-  { n: 4, label: "Review"  },
+  { n: 1, label: "סוג"    },
+  { n: 2, label: "שיטה"  },
+  { n: 3, label: "פרטים" },
+  { n: 4, label: "סקירה" },
 ];
 
 function StepIndicator({ current }) {
@@ -155,16 +209,29 @@ export function ProductIntakeWizard() {
   const [saving,       setSaving]       = useState(false);
   const [saveError,    setSaveError]    = useState(null);
   const [savedId,      setSavedId]      = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // ── Full reset — Fix 2: resets ALL 6 state variables ─────────────────────
-  const handleReset = useCallback(() => {
+  const doReset = useCallback(() => {
     setStep(1);
     setFormData({ ...INITIAL_FORM });
     setIntakeMethod(null);
     setSaving(false);
     setSaveError(null);
     setSavedId(null);
+    setShowResetConfirm(false);
   }, []);
+
+  const handleReset = useCallback(() => setShowResetConfirm(true), []);
+
+  const handleSaveDraftThenReset = useCallback(() => {
+    saveIntakeDraft(formData, formData.productType, intakeMethod);
+    doReset();
+  }, [formData, intakeMethod, doReset]);
+
+  const handleAddAnother = useCallback(() => {
+    doReset();
+  }, [doReset]);
 
   const setField = useCallback((field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -228,13 +295,20 @@ export function ProductIntakeWizard() {
 
   return (
     <div style={{ maxWidth: 780, margin: "0 auto" }}>
+      {showResetConfirm && (
+        <ConfirmResetDialog
+          onSaveDraft={handleSaveDraftThenReset}
+          onConfirm={doReset}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
 
       <div style={{ marginBottom: 18 }}>
         <h2 style={{ fontFamily: C.dat, fontSize: 18, fontWeight: 700, color: C.ch, marginBottom: 3 }}>
-          Intake — קליטת מוצר
+          קליטת מוצר
         </h2>
         <p style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, margin: 0 }}>
-          Add a new stone, parcel, or jewelry item to inventory
+          הוסף אבן, סט, חבילה, חלק או תכשיט למלאי
         </p>
       </div>
 
@@ -286,17 +360,17 @@ export function ProductIntakeWizard() {
               <div style={{ textAlign: "center", padding: "20px 0" }}>
                 <div style={{ fontSize: 38, marginBottom: 10 }}>✅</div>
                 <div style={{ fontFamily: C.dat, fontSize: 17, fontWeight: 700, color: C.ch, marginBottom: 6 }}>
-                  Product saved
+                  המוצר נשמר
                 </div>
                 <div style={{ fontFamily: C.heb, fontSize: 11, color: C.chl, marginBottom: 3 }}>
-                  Airtable record created
+                  נוצרה רשומה ב־Airtable
                 </div>
                 <div style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: C.chm, background: "rgba(54,69,79,0.05)", padding: "3px 10px", borderRadius: 4, display: "inline-block", marginBottom: 20 }}>
                   {savedId}
                 </div>
                 <div>
-                  <button onClick={handleReset} style={BTN_PRIMARY}>
-                    + Add Another Product
+                  <button onClick={handleAddAnother} style={BTN_PRIMARY}>
+                    + הוסף מוצר נוסף
                   </button>
                 </div>
               </div>
@@ -320,7 +394,7 @@ export function ProductIntakeWizard() {
                     title="Clear all and start from Step 1"
                     style={{ height: 40, padding: "0 16px", border: "1px solid rgba(54,69,79,0.2)", borderRadius: 7, background: "transparent", cursor: "pointer", fontFamily: C.heb, fontSize: 12, color: C.chl }}
                   >
-                    ↺ Reset Form
+                    ↺ איפוס טופס
                   </button>
                 </div>
               </>
@@ -337,7 +411,7 @@ export function ProductIntakeWizard() {
 function BackButton({ onClick }) {
   return (
     <button onClick={onClick} style={{ height: 38, padding: "0 14px", border: "1px solid rgba(54,69,79,0.18)", borderRadius: 7, background: "transparent", cursor: "pointer", fontFamily: C.heb, fontSize: 12, color: C.chl, display: "flex", alignItems: "center", gap: 5 }}>
-      ← Back
+      ← חזרה
     </button>
   );
 }
