@@ -53,7 +53,7 @@ const PAGE_CSS = `
 
 const TABS = [
   { key: "calc",   icon: "🔢", label: "מחשבון", sublabel: "Calculator" },
-  { key: "cert",   icon: "📋", label: "דוחות",  sublabel: "Reports"   },
+  { key: "cert",   icon: "📋", label: "תעודות", sublabel: "Certificates" },
   { key: "malai",  icon: "💎", label: "מלאי",   sublabel: "Inventory" },
   { key: "intake", icon: "🗂", label: "קליטה",  sublabel: "Intake"    },
 ];

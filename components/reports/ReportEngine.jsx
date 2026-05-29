@@ -130,7 +130,7 @@ function ConfirmResetDialog({ message, actionLabel, onSaveDraft, onConfirm, onCa
               onClick={onSaveDraft}
               style={{ height: 40, padding: "0 18px", background: "rgba(197,179,88,0.12)", border: "1px solid rgba(197,179,88,0.4)", borderRadius: 7, cursor: "pointer", fontFamily: C.heb, fontSize: 13, color: "#8a7a2a", fontWeight: 600 }}
             >
-              שמור טיוטה
+              שמור טיוטת תעודה
             </button>
           )}
           {/* איפוס — rightmost / destructive */}
@@ -171,7 +171,7 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
   const handleSave = () => {
     const name = saveName.trim();
     if (!name) { setSaveError("הזן שם לטיוטה."); return; }
-    if (!currentType || !currentData) { setSaveError("אין דוח פעיל לשמירה."); return; }
+    if (!currentType || !currentData) { setSaveError("אין תעודה פעילה לשמירה."); return; }
     setSaveError("");
     const draft = {
       id:           `${Date.now()}`,
@@ -231,14 +231,14 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <span style={{ fontFamily: C.dat, fontSize: 16, fontWeight: 700, color: C.ch }}>📂 טיוטות</span>
+          <span style={{ fontFamily: C.dat, fontSize: 16, fontWeight: 700, color: C.ch }}>📂 טיוטות תעודות</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.chl, fontSize: 18 }}>✕</button>
         </div>
 
         {/* Save / Save As section */}
         <div style={{ background: "rgba(197,179,88,0.07)", border: "1px solid rgba(197,179,88,0.28)", borderRadius: 7, padding: "14px 16px", marginBottom: 20 }}>
           <div style={{ fontFamily: C.heb, fontSize: 12, color: C.chl, marginBottom: 8, direction: "rtl" }}>
-            שמירת הדוח הנוכחי כטיוטה
+            שמירת התעודה הנוכחית כטיוטה
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
@@ -250,7 +250,7 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
               style={{ flex: 1, height: 42, border: "1px solid rgba(54,69,79,0.2)", borderRadius: 6, background: "#fff", padding: "0 12px", fontFamily: C.heb, fontSize: 13, color: C.ch, outline: "none" }}
             />
             <button onClick={handleSave} style={BTN_PRIMARY}>
-              שמור טיוטה
+              שמור טיוטת תעודה
             </button>
           </div>
           {saveError && (
@@ -297,7 +297,7 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
                       <button
                         onClick={() => handleUpdate(d)}
                         style={{ ...BTN_SMALL, borderColor: "rgba(197,179,88,0.4)", color: "#8a7a2a" }}
-                        title="עדכון הטיוטה עם הדוח הנוכחי"
+                        title="עדכון הטיוטה עם התעודה הנוכחית"
                       >
                         עדכן
                       </button>
@@ -449,9 +449,9 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
           message={
             pendingConfirm.action === "back"
               ? "לחזור למחשבון? שינויים שלא נשמרו יאבדו."
-              : "לשנות סוג דוח? שינויים שלא נשמרו יאבדו."
+              : "לשנות סוג תעודה? שינויים שלא נשמרו יאבדו."
           }
-          actionLabel={pendingConfirm.action === "back" ? "חזרה" : "שנה סוג"}
+          actionLabel={pendingConfirm.action === "back" ? "חזרה" : "שנה סוג תעודה"}
           onSaveDraft={handleSaveDraftThenProceed}
           onConfirm={handleConfirmProceed}
           onCancel={() => setPendingConfirm(null)}
@@ -479,13 +479,13 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
             ← מחשבון
           </button>
           <button onClick={handleChangeType} style={{ ...TOOL_BTN, fontSize: 12, color: C.chl }}>
-            ⇄ סוג דוח
+            ⇄ סוג תעודה
           </button>
           {reportType === "jewelry_valuation" && (
             <button
               onClick={handleRefreshFromCalc}
               style={{ ...TOOL_BTN, fontSize: 12, color: C.chl }}
-              title="סנכרון שדות הדוח מהמחשבון"
+              title="סנכרון שדות התעודה מהמחשבון"
             >
               ↺ סנכרון מהמחשבון
             </button>
@@ -493,9 +493,9 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
           <button
             onClick={() => setShowDrafts(true)}
             style={{ ...TOOL_BTN, fontSize: 12, color: C.chl, borderColor: "rgba(197,179,88,0.4)" }}
-            title="שמירה וטעינה של טיוטות"
+            title="שמירה וטעינה של טיוטות תעודות"
           >
-            📂 טיוטות
+            📂 טיוטות תעודות
           </button>
         </div>
 
@@ -513,7 +513,7 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
           style={{ height: 44, padding: "0 24px", background: C.ch, color: C.iv, border: "none", borderRadius: 6, cursor: "pointer", fontFamily: C.heb, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}
         >
           <span style={{ fontSize: 18 }}>🖨️</span>
-          הדפס / שמור PDF
+          הפקת תעודה / PDF
         </button>
       </div>
 
