@@ -37,7 +37,7 @@
  *   Preview column:  NO class              → .printable-container is print anchor
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { C }                         from "../../lib/constants";
 import { setDeep }                   from "../../lib/reports/reportUtils";
 import { REPORT_TYPES }              from "../../lib/reports/reportTypes";
@@ -333,7 +333,18 @@ function DraftManager({ currentType, currentData, onLoad, onClose }) {
 }
 
 // ─── ReportEngine ─────────────────────────────────────────────────────────────
-export function ReportEngine({ calculatorData = {}, onBack }) {
+/**
+ * v5.3.1 additions:
+ *   seed           {object|null}  — one-shot report seed from inventory bridge.
+ *                                   Shape: { reportType, reportData, fromItemId }
+ *                                   Set by pages/index.js handleCertFromItem().
+ *   onSeedConsumed {function}     — called once the seed has been applied so
+ *                                   the parent can clear it and prevent re-firing.
+ *
+ * Seed application uses a ref guard (appliedSeedRef) so re-renders don't
+ * re-apply the same seed object.
+ */
+export function ReportEngine({ calculatorData = {}, onBack, seed = null, onSeedConsumed }) {
 
   const [reportType, setReportType] = useState(null);
   const [reportData, setReportData] = useState(null);
@@ -345,6 +356,21 @@ export function ReportEngine({ calculatorData = {}, onBack }) {
   // Pending action blocked by confirmation dialog
   // shape: { action: "back" | "changeType" } | null
   const [pendingConfirm, setPendingConfirm] = useState(null);
+
+  // ── One-shot seed from inventory bridge ───────────────────────────────────
+  // When pages/index.js calls handleCertFromItem(item), it sets a certSeed
+  // object and passes it here. We apply it exactly once via this ref guard.
+  const appliedSeedRef = useRef(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    if (seed === appliedSeedRef.current) return; // already applied this seed
+    appliedSeedRef.current = seed;
+    setReportType(seed.reportType);
+    setReportData(seed.reportData);
+    setIsDirty(false);
+    onSeedConsumed?.(); // tell parent to clear certSeed so the effect won't re-fire
+  }, [seed, onSeedConsumed]);
 
   // ── Dot-path field setter — marks isDirty ─────────────────────────────────
   const setField = useCallback((path, value) => {
