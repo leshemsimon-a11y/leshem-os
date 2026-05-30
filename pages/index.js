@@ -1,40 +1,26 @@
 /**
- * pages/index.js  —  LESHEM.S OS  v5.3.1
+ * pages/index.js  —  LESHEM.S OS  v5.4
  *
- * Inventory Actions Bridge — additions to M5.3:
+ * Changes from M5.3.2:
  *
- * prefillCalcFromItem(item, useAs)
- *   Called by InventoryStudio after the UseAsDialog selection.
- *   useAs ∈ { "center", "side", "part" }
- *   Maps normalised inventory item fields to the calculator cfg state:
+ * Task 6 — Use in Calculator clears previous data:
+ *   prefillCalcFromItem now calls setCfg with DCFG spread first (full reset),
+ *   then overlays only the relevant fields from the inventory item.
+ *   This ensures stale calculator state from a previous item doesn't bleed through.
  *
- *     Center Stone:
- *       centerType    ← item.stoneType
- *       centerCt      ← item.caratWeight / stoneCount  (per-stone carat)
- *       centerCount   ← item.stoneCount
- *       centerColor   ← item.color   (Diamond only)
- *       centerClarity ← item.clarity (Diamond only)
- *       centerManual  ← ""  (clear override → auto-calc takes over)
+ * Task 7 — Multiple Center Stones foundation:
+ *   cfg.centerStones[] is managed in app state.
+ *   prefillCalcFromItem("center") pushes a new entry to centerStones[].
+ *   onRemoveCenterStone removes a stone from centerStones[] by index.
+ *   centerStones is passed to CalculatorForm as a prop.
+ *   CalculatorForm renders it as read-only chips above the center stone panel.
  *
- *     Side Stones (fills ss1 row):
- *       ss1Type   ← item.stoneType
- *       ss1Ct     ← item.caratWeight / stoneCount
- *       ss1Count  ← item.stoneCount
- *       ss1Manual ← ""
+ * Task 10 — CommandBar callbacks:
+ *   onNavigateToCalc(calcSugg): navigates to calc tab.
+ *     In a future version it will prefill cfg from calcSugg.
+ *   onNavigateToCert: navigates to cert tab.
  *
- *     Jewelry Part: navigates to calculator without field changes.
- *
- *   Manual overrides in CostSummary remain fully functional — the
- *   user can edit any field after prefilling.
- *
- * handleCertFromItem(item)
- *   Builds a fully-populated inhouse_stone report object from the
- *   normalised inventory item and seeds the ReportEngine via certSeed.
- *   ReportEngine applies it once via its useEffect/appliedSeedRef guard
- *   and immediately calls onSeedConsumed() so certSeed is cleared.
- *
- * All other state (cfg, currency, metalPrices, inventory fetch)
- * is unchanged from M5.3.
+ * calcSrcBanner, certSeed, all inventory fetch logic — unchanged from M5.3.2.
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
@@ -103,20 +89,16 @@ function ConfirmDialog({ message, confirmLabel, cancelLabel, onConfirm, onCancel
 
 export default function LeshemOS() {
 
-  const [cfg,              setCfg]              = useState({ ...DCFG });
+  const [cfg,              setCfg]              = useState({ ...DCFG, centerStones: [] });
   const [currency,         setCurrency]         = useState("USD");
   const [tab,              setTab]              = useState("calc");
   const [pieceImg,         setPieceImg]         = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // ── v5.3.1: Certificate seed from inventory bridge ───────────────────────
-  // Set by handleCertFromItem(). ReportEngine consumes it once via useEffect
-  // and calls onSeedConsumed() which clears it back to null.
-  const [certSeed, setCertSeed] = useState(null);
+  // Certificate seed from inventory bridge
+  const [certSeed,     setCertSeed]     = useState(null);
 
-  // ── v5.3.2: Prefill source banner ────────────────────────────────────────
-  // Set by prefillCalcFromItem(). Auto-dismisses after 4 s.
-  // Shape: { name: string, useAs: "center" | "side" | "part" }
+  // Prefill source banner (auto-dismisses after 4 s)
   const [calcSrcBanner, setCalcSrcBanner] = useState(null);
 
   const qNum    = useRef(`LS-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`);
@@ -134,7 +116,7 @@ export default function LeshemOS() {
   const res   = useMemo(() => calcApp(cfg, metalPrices), [cfg, metalPrices]);
   const fmtFn = useCallback((v) => fmt(v, currency), [currency]);
 
-  // ── v5.3.2: Auto-dismiss prefill banner after 4 s ────────────────────────
+  // Auto-dismiss calc source banner after 4 s
   useEffect(() => {
     if (!calcSrcBanner) return;
     const t = setTimeout(() => setCalcSrcBanner(null), 4000);
@@ -142,7 +124,7 @@ export default function LeshemOS() {
   }, [calcSrcBanner]);
 
   const doReset = useCallback(() => {
-    setCfg({ ...DCFG });
+    setCfg({ ...DCFG, centerStones: [] });
     setPieceImg(null);
     setTab("calc");
     setShowResetConfirm(false);
@@ -159,7 +141,7 @@ export default function LeshemOS() {
 
   const calculatorData = useMemo(() => ({ cfg, res, fmtFn, pieceImg, qNum: qNum.current }), [cfg, res, fmtFn, pieceImg]);
 
-  // Lazy inventory fetch + Airtable metal-price bridge
+  // Lazy inventory fetch + metal price bridge
   const handleTabChange = useCallback((newTab) => {
     setTab(newTab);
     if (!invFetched.current && (newTab === "malai" || newTab === "intake")) {
@@ -185,39 +167,47 @@ export default function LeshemOS() {
     }
   }, []);
 
-  // ── v5.3.1: prefillCalcFromItem ───────────────────────────────────────────
+  // ── prefillCalcFromItem ───────────────────────────────────────────────────
   /**
-   * Map a normalized inventory item onto the calculator cfg state.
+   * v5.4 Task 6: Clears previous calculator item data before loading new item.
+   * Spreads DCFG first (full reset), then overlays only the relevant fields.
    *
-   * @param {object} item   Normalized stone (from normalizeStone or demo items)
-   * @param {string} useAs  "center" | "side" | "part"
-   *
-   * Carat-per-stone: for multi-stone items (e.g. a matched pair, stoneCount=2)
-   * we divide the total caratWeight by stoneCount so the per-stone field is
-   * correct. The count is stored in centerCount / ss1Count respectively.
-   *
-   * Manual overrides (centerManual, ss1Manual) are cleared so the auto-
-   * estimator runs with the new values. The user can still enter a manual
-   * price at any time — the override system is unchanged.
+   * v5.4 Task 7: Pushes to centerStones[] when useAs === "center".
    */
   const prefillCalcFromItem = useCallback((item, useAs) => {
-    const totalCt  = parseFloat(item.caratWeight) || 0;
-    const count    = Math.max(1, parseInt(item.stoneCount, 10) || 1);
-    const ctPer    = totalCt > 0 ? totalCt / count : 0;
+    const totalCt = parseFloat(item.caratWeight) || 0;
+    const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
+    const ctPer   = totalCt > 0 ? totalCt / count : 0;
 
     setCfg((prev) => {
-      const next = { ...prev };
+      // v5.4: Start from DCFG (clear previous item data)
+      const next = { ...DCFG, centerStones: prev.centerStones || [] };
 
       if (useAs === "center") {
         if (item.stoneType)  next.centerType    = item.stoneType;
         if (ctPer > 0)       next.centerCt      = ctPer.toFixed(2);
         next.centerCount     = String(count);
-        // Colour + clarity only make sense for diamonds
         if (item.color   && item.stoneType === "Diamond") next.centerColor   = item.color;
         if (item.clarity && item.stoneType === "Diamond") next.centerClarity = item.clarity;
-        // Clear manual override so auto-estimator runs with the new values
         next.centerManual  = "";
         next.centerMode    = "total";
+
+        // v5.4 Task 7: Append to centerStones[]
+        const stoneEntry = {
+          source:            "inventory",
+          inventoryId:       item.id,
+          stoneType:         item.stoneType || "",
+          shape:             item.cutForm   || "",
+          carat:             ctPer > 0 ? `${ctPer.toFixed(2)} ct` : "",
+          color:             item.color     || "",
+          clarity:           item.clarity   || "",
+          cost:              item.costUsd   || 0,
+          certificateLab:    item.certLab   || "",
+          certificateNumber: item.certNumber || item.laserInscription || "",
+        };
+        // Add to array (don't duplicate by inventoryId)
+        const already = next.centerStones.some(s => s.inventoryId === item.id);
+        if (!already) next.centerStones = [...next.centerStones, stoneEntry];
 
       } else if (useAs === "side") {
         if (item.stoneType)  next.ss1Type      = item.stoneType;
@@ -225,14 +215,11 @@ export default function LeshemOS() {
         next.ss1Count        = String(count);
         next.ss1Manual       = "";
         next.ss1PriceMode    = "total";
-
       }
-      // "part": just navigate to calculator, no field prefill needed
 
       return next;
     });
 
-    // v5.3.2: show source banner in calculator tab for 4 s
     setCalcSrcBanner({
       name:  item.name || item.sku || item.stoneType || "פריט מלאי",
       useAs,
@@ -241,22 +228,15 @@ export default function LeshemOS() {
     handleTabChange("calc");
   }, [handleTabChange]);
 
-  // ── v5.3.1: handleCertFromItem ────────────────────────────────────────────
-  /**
-   * Build a pre-populated InHouseStoneReport from a normalized inventory item
-   * and seed the ReportEngine via certSeed state.
-   *
-   * Field mapping:
-   *   item.stoneType        → stone.type
-   *   item.caratWeight      → stone.carat   (numeric string, no "ct")
-   *   item.cutGrade         → stone.cut     (template uses st.cut)
-   *   item.measHeight       → stone.measDepth (Airtable stores depth as "גובה")
-   *   item.laserInscription → stone.certNumber (fallback when certNumber absent)
-   *   item.inventoryImages  → images[]      (up to 3)
-   *
-   * The seed is applied once by ReportEngine's useEffect/appliedSeedRef guard.
-   * After application, onSeedConsumed() clears certSeed back to null.
-   */
+  // Remove a stone from centerStones[] by index
+  const handleRemoveCenterStone = useCallback((index) => {
+    setCfg(prev => ({
+      ...prev,
+      centerStones: (prev.centerStones || []).filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // ── handleCertFromItem ────────────────────────────────────────────────────
   const handleCertFromItem = useCallback((item) => {
     const today = new Intl.DateTimeFormat("en-GB", {
       day: "2-digit", month: "long", year: "numeric",
@@ -266,10 +246,8 @@ export default function LeshemOS() {
       ? parseFloat(item.caratWeight).toFixed(2)
       : "";
 
-    // Build measurements string from raw mm values
     const measParts = [item.measLength, item.measWidth, item.measHeight]
-      .filter(Boolean)
-      .map((v) => parseFloat(v).toFixed(2));
+      .filter(Boolean).map((v) => parseFloat(v).toFixed(2));
     const measurements = measParts.length >= 2
       ? measParts.join(" × ") + " mm"
       : "";
@@ -299,10 +277,9 @@ export default function LeshemOS() {
         symmetry:         item.symmetry               || "",
         fluorescenceIntensity: item.fluorescenceIntensity || "",
         fluorescenceColor:     item.fluorescenceColor     || "",
-        fluorescence:     [item.fluorescenceIntensity, item.fluorescenceColor]
-                            .filter(Boolean).join(" "),
+        fluorescence:     [item.fluorescenceIntensity, item.fluorescenceColor].filter(Boolean).join(" "),
         fancyColorHue:       item.fancyColorHue       || "",
-        fancyColorIntensity: item.fancyColorIntensity  || "",
+        fancyColorIntensity: item.fancyColorIntensity || "",
         fancyColorOrigin:    "",
         growthMethod:     item.growthMethod            || "",
         colorDescription: item.color                  || "",
@@ -310,12 +287,9 @@ export default function LeshemOS() {
         treatment:        "",
         countryOfOrigin:  "",
         certLab:          item.certLab                || "",
-        // laserInscription from Airtable often contains "GIA 1348559504" —
-        // use it as certNumber when a parsed certNumber field isn't available
         certNumber:       item.certNumber || item.laserInscription || "",
       },
 
-      // Images — use inventory images if available, else thumbnail
       images:     (item.inventoryImages && item.inventoryImages.length > 0)
                     ? item.inventoryImages.slice(0, 3)
                     : (item.thumbnailUrl ? [item.thumbnailUrl] : []),
@@ -327,7 +301,7 @@ export default function LeshemOS() {
 
       comments: [
         item.internalNotes || null,
-        item.name          ? `Source: ${item.name}` : null,
+        item.name ? `Source: ${item.name}` : null,
       ].filter(Boolean).join("\n"),
 
       verification: {
@@ -384,13 +358,13 @@ export default function LeshemOS() {
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ display:"flex", border:`1.5px solid ${C.chm}`, borderRadius:6, overflow:"hidden", height:38 }}>
-              {[["USD", "$ USD"], ["ILS", "₪ ILS"]].map(([c, label]) => (
-                <button key={c} onClick={() => setCurrency(c)} style={{ padding:"0 14px", height:"100%", background:currency===c?C.gd:"transparent", color:currency===c?C.ch:C.chx, border:"none", cursor:"pointer", fontFamily:C.heb, fontSize:12, fontWeight:700 }}>
+              {[["USD","$ USD"],["ILS","₪ ILS"]].map(([c, label]) => (
+                <button key={c} onClick={()=>setCurrency(c)} style={{ padding:"0 14px", height:"100%", background:currency===c?C.gd:"transparent", color:currency===c?C.ch:C.chx, border:"none", cursor:"pointer", fontFamily:C.heb, fontSize:12, fontWeight:700 }}>
                   {label}
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowResetConfirm(true)} title="איפוס המחשבון" style={{ display:"flex", alignItems:"center", gap:6, height:38, padding:"0 14px", background:"transparent", border:`1.5px solid ${C.chm}`, borderRadius:6, color:C.chx, cursor:"pointer", fontFamily:C.heb, fontSize:12, fontWeight:600 }}>
+            <button onClick={()=>setShowResetConfirm(true)} title="איפוס המחשבון" style={{ display:"flex", alignItems:"center", gap:6, height:38, padding:"0 14px", background:"transparent", border:`1.5px solid ${C.chm}`, borderRadius:6, color:C.chx, cursor:"pointer", fontFamily:C.heb, fontSize:12, fontWeight:600 }}>
               ↺ איפוס
             </button>
           </div>
@@ -401,7 +375,7 @@ export default function LeshemOS() {
           {TABS.map(({ key, icon, label, sublabel }) => {
             const active = tab === key;
             return (
-              <button key={key} onClick={() => handleTabChange(key)} title={sublabel} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, padding:"0 20px", height:56, background:"transparent", border:"none", borderBottom:active?`3px solid ${C.gd}`:"3px solid transparent", cursor:"pointer", flexShrink:0, transition:"border-color 0.15s" }}>
+              <button key={key} onClick={()=>handleTabChange(key)} title={sublabel} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, padding:"0 20px", height:56, background:"transparent", border:"none", borderBottom:active?`3px solid ${C.gd}`:"3px solid transparent", cursor:"pointer", flexShrink:0, transition:"border-color 0.15s" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                   <span style={{ fontSize:14 }}>{icon}</span>
                   <span style={{ fontFamily:C.heb, fontSize:13, fontWeight:active?700:400, color:active?C.iv:C.chx, textShadow:active?"0 0 12px rgba(197,179,88,0.4)":"none", transition:"all 0.15s" }}>{label}</span>
@@ -418,7 +392,7 @@ export default function LeshemOS() {
 
             {tab === "calc" && (
               <>
-                {/* v5.3.2: Prefill source banner — auto-dismisses after 4 s */}
+                {/* Prefill source banner */}
                 {calcSrcBanner && (
                   <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16, padding:"11px 16px", background:"rgba(197,179,88,0.10)", border:"1px solid rgba(197,179,88,0.35)", borderRadius:8 }}>
                     <span style={{ fontSize:18, flexShrink:0 }}>
@@ -430,27 +404,24 @@ export default function LeshemOS() {
                       {calcSrcBanner.useAs === "side"   && " ← אבני צד (שורה א׳)"}
                       {calcSrcBanner.useAs === "part"   && " ← ניווט למחשבון"}
                     </div>
-                    <button
-                      onClick={() => setCalcSrcBanner(null)}
-                      style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(106,90,16,0.55)", fontSize:16, lineHeight:1, padding:"0 4px", flexShrink:0 }}
-                    >
-                      ✕
-                    </button>
+                    <button onClick={()=>setCalcSrcBanner(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(106,90,16,0.55)", fontSize:16, lineHeight:1, padding:"0 4px", flexShrink:0 }}>✕</button>
                   </div>
                 )}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:20, alignItems:"start" }}>
-                  <CalculatorForm cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} />
-                  <CostSummary cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} pieceImg={pieceImg} fileRef={fileRef} onImageUpload={handleImageUpload} onShowCert={() => handleTabChange("cert")} />
+                  {/* v5.4: pass centerStones + onRemoveCenterStone */}
+                  <CalculatorForm
+                    cfg={cfg}
+                    res={res}
+                    sf={sf}
+                    fmtFn={fmtFn}
+                    onRemoveCenterStone={handleRemoveCenterStone}
+                  />
+                  <CostSummary cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} pieceImg={pieceImg} fileRef={fileRef} onImageUpload={handleImageUpload} onShowCert={()=>handleTabChange("cert")} />
                 </div>
               </>
             )}
 
             {tab === "cert" && (
-              /*
-               * v5.3.1: seed prop carries the pre-populated report from an
-               * inventory item. ReportEngine applies it once via useEffect
-               * and calls onSeedConsumed() to clear it.
-               */
               <ReportEngine
                 calculatorData={calculatorData}
                 onBack={() => handleTabChange("calc")}
@@ -460,11 +431,6 @@ export default function LeshemOS() {
             )}
 
             {tab === "malai" && (
-              /*
-               * v5.3.1 callbacks:
-               *   onUseInCalculator(item, useAs) — prefills calculator fields
-               *   onCreateCertificate(item)      — seeds a stone report draft
-               */
               <InventoryStudio
                 stones={invStones}
                 metals={invMetals}
@@ -473,6 +439,8 @@ export default function LeshemOS() {
                 onAddNew={() => handleTabChange("intake")}
                 onUseInCalculator={prefillCalcFromItem}
                 onCreateCertificate={handleCertFromItem}
+                onNavigateToCalc={() => handleTabChange("calc")}
+                onNavigateToCert={() => handleTabChange("cert")}
               />
             )}
 

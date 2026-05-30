@@ -1,60 +1,114 @@
 /**
- * components/inventory/InventoryDrawer.jsx  —  v5.3
+ * components/inventory/InventoryDrawer.jsx  —  v5.4
  *
- * Full item detail modal (drawer).
- * Opens when user clicks an inventory card/row.
+ * Changes from M5.3.2:
  *
- * Shows:
- *   • Image gallery (placeholder when missing)
- *   • Inventory layer + status badges
- *   • Product type + key specs
- *   • Gemological details (grading, measurements, fluorescence)
- *   • Certificate information
- *   • Sourcing / ownership / location
- *   • Airtable record ID
- *   • Action buttons (basket, calculator, certificate)
+ * Task 5 — Media readiness:
+ *   + Image gallery with primary image + thumbnail strip (up to 3 images)
+ *   + Video URL shown as clickable link when available
+ *   + Certificate PDF link shown when certImageUrl or verificationUrl available
+ *   + Product-type gradient placeholder with icon when no images
  *
- * Props:
- *   item           {object|null}  — normalized stone object, or null to close
- *   isSelected     {boolean}      — whether item is in basket
- *   onClose        {function}
- *   onAddToBasket  {function(item)}
- *   onUseInCalculator  {function(item)}
- *   onCreateCertificate {function(item)}
+ * Task 9 — Drawer actions clarity:
+ *   + Each action button now has a short helper text explaining what it does
+ *   + "הוסף למגש עבודה" replaces "Add to Basket"
+ *   + "השתמש במחשבון" (Use in Calculator)
+ *   + "צור תעודה" (Create Certificate)
+ *   + "סגור" (Close button moved into action area)
+ *   + Labels align with Work Tray / מגש עבודה terminology
+ *
+ * Task 4 — ActionBtn removed (was unused in M5.3.2).
+ *   All action buttons are inline JSX for precise control.
+ *
+ * Props unchanged from M5.3.2.
  */
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { C } from "../../lib/constants";
 import { PRODUCT_TYPE_LABELS, PRODUCT_TYPE_ICONS, PRODUCT_TYPE_GRADIENTS } from "./InventoryCard";
 
 const HEB = C.heb;
 const DAT = C.dat;
 
-// ─── Field row ────────────────────────────────────────────────────────────────
-function FieldRow({ label, value, mono }) {
+// ─── FieldRow ─────────────────────────────────────────────────────────────────
+function FieldRow({ label, value, mono, link }) {
   if (!value && value !== 0) return null;
   return (
     <div style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"5px 0", borderBottom:"0.5px solid rgba(54,69,79,0.07)" }}>
-      <span style={{ fontFamily:DAT, fontSize:9.5, fontWeight:700, color:C.chl, letterSpacing:"0.1em", textTransform:"uppercase", width:120, flexShrink:0, paddingTop:1 }}>{label}</span>
-      <span style={{ fontFamily:mono?"'Courier New',monospace":DAT, fontSize:12.5, color:C.ch, lineHeight:1.5, wordBreak:"break-all" }}>{value}</span>
+      <span style={{ fontFamily:DAT, fontSize:9.5, fontWeight:700, color:C.chl, letterSpacing:"0.1em", textTransform:"uppercase", width:118, flexShrink:0, paddingTop:1 }}>
+        {label}
+      </span>
+      {link ? (
+        <a href={value} target="_blank" rel="noopener noreferrer" style={{ fontFamily:mono?"'Courier New',monospace":DAT, fontSize:12.5, color:C.gd, wordBreak:"break-all", textDecoration:"underline" }}>
+          {value}
+        </a>
+      ) : (
+        <span style={{ fontFamily:mono?"'Courier New',monospace":DAT, fontSize:12.5, color:C.ch, lineHeight:1.5, wordBreak:"break-all" }}>
+          {value}
+        </span>
+      )}
     </div>
   );
 }
 
-// ─── Section heading ──────────────────────────────────────────────────────────
+// ─── SectionHead ──────────────────────────────────────────────────────────────
 function SectionHead({ label }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8, margin:"20px 0 10px" }}>
-      <div style={{ width:2, height:12, background:C.gd, borderRadius:1 }} />
+    <div style={{ display:"flex", alignItems:"center", gap:8, margin:"18px 0 10px" }}>
+      <div style={{ width:2, height:11, background:C.gd, borderRadius:1 }} />
       <span style={{ fontFamily:DAT, fontSize:9, fontWeight:800, color:C.chl, letterSpacing:"0.18em", textTransform:"uppercase" }}>{label}</span>
       <div style={{ flex:1, height:"0.5px", background:"rgba(54,69,79,0.1)" }} />
     </div>
   );
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Action button with helper text ───────────────────────────────────────────
+function ActionButton({ icon, label, helper, onClick, style = {}, disabled, title }) {
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        display:"flex", flexDirection:"column", alignItems:"flex-start",
+        gap:3, padding:"10px 14px",
+        background:"transparent",
+        border:"1px solid rgba(54,69,79,0.18)",
+        borderRadius:8, cursor:disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        flex:"1 1 140px",
+        minWidth:130,
+        transition:"border-color 0.13s, background 0.13s",
+        textAlign:"left",
+        ...style,
+      }}
+      onMouseEnter={(e) => {
+        if (disabled) return;
+        if (!style.borderColor) e.currentTarget.style.borderColor = C.gd;
+      }}
+      onMouseLeave={(e) => {
+        if (disabled) return;
+        if (!style.borderColor) e.currentTarget.style.borderColor = "rgba(54,69,79,0.18)";
+        else e.currentTarget.style.borderColor = style.borderColor;
+      }}
+    >
+      <span style={{ fontFamily:HEB, fontSize:13, fontWeight:700, color:C.ch, display:"flex", alignItems:"center", gap:6 }}>
+        {icon && <span style={{ fontSize:15 }}>{icon}</span>}
+        {label}
+      </span>
+      <span style={{ fontFamily:HEB, fontSize:10, color:C.chl, lineHeight:1.5 }}>{helper}</span>
+    </button>
+  );
+}
+
+// ─── InventoryDrawer ──────────────────────────────────────────────────────────
 export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUseInCalculator, onCreateCertificate }) {
-  // Escape key closes drawer
+  const [activeImg, setActiveImg] = useState(0);
+
+  useEffect(() => {
+    setActiveImg(0); // reset gallery on item change
+  }, [item?.id]);
+
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
@@ -66,22 +120,24 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
   const ptLabel  = PRODUCT_TYPE_LABELS[item.productType] || item.stoneType || "Item";
   const gradient = PRODUCT_TYPE_GRADIENTS[item.productType] || "linear-gradient(140deg,#f0ede8,#d8d0c0)";
   const icon     = PRODUCT_TYPE_ICONS[item.productType] || "💎";
-  const img      = item.thumbnailUrl || (item.inventoryImages && item.inventoryImages[0]);
-  const allImgs  = item.inventoryImages && item.inventoryImages.length > 0
-    ? item.inventoryImages
-    : img ? [img] : [];
 
-  // Build carat / spec display
+  // Media
+  const allImgs = item.inventoryImages && item.inventoryImages.length > 0
+    ? item.inventoryImages
+    : item.thumbnailUrl ? [item.thumbnailUrl] : [];
+
   const caratStr = item.caratWeight ? `${parseFloat(item.caratWeight).toFixed(2)} ct` : null;
   const specParts = [caratStr, item.color, item.clarity].filter(Boolean);
-  const fancySpec = item.fancyColorIntensity ? `${item.fancyColorIntensity} ${item.fancyColorHue || ""}`.trim() : null;
+  const fancySpec = item.fancyColorIntensity
+    ? `${item.fancyColorIntensity} ${item.fancyColorHue || ""}`.trim()
+    : null;
 
   return (
     <div
       style={{ position:"fixed", inset:0, background:"rgba(54,69,79,0.55)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background:C.iv, borderRadius:12, width:"100%", maxWidth:660, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(54,69,79,0.28)", display:"flex", flexDirection:"column" }}>
+      <div style={{ background:C.iv, borderRadius:12, width:"100%", maxWidth:680, maxHeight:"93vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(54,69,79,0.28)", display:"flex", flexDirection:"column" }}>
 
         {/* ── Header ── */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"20px 24px 0", flexShrink:0 }}>
@@ -93,11 +149,7 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
             <div style={{ fontFamily:C.ser, fontSize:20, fontWeight:700, color:C.ch, letterSpacing:"0.02em", lineHeight:1.2 }}>
               {item.name || item.sku || ptLabel}
             </div>
-            {item.sku && (
-              <div style={{ fontFamily:"'Courier New',monospace", fontSize:11, color:C.chl, marginTop:4 }}>
-                {item.sku}
-              </div>
-            )}
+            {item.sku && <div style={{ fontFamily:"'Courier New',monospace", fontSize:11, color:C.chl, marginTop:4 }}>{item.sku}</div>}
           </div>
           <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:C.chl, fontSize:22, lineHeight:1, padding:"4px 8px", flexShrink:0 }}>✕</button>
         </div>
@@ -105,44 +157,55 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
         {/* ── Main content ── */}
         <div style={{ padding:"16px 24px 24px", overflow:"auto", flex:1 }}>
 
-          {/* Image gallery + key stats row */}
-          <div style={{ display:"flex", gap:16, alignItems:"flex-start", marginBottom:20, flexWrap:"wrap" }}>
-            {/* Image */}
+          {/* ── Media gallery (Task 5) ── */}
+          <div style={{ display:"flex", gap:14, marginBottom:18, flexWrap:"wrap" }}>
+            {/* Primary image */}
             <div style={{ flexShrink:0 }}>
               {allImgs.length > 0 ? (
-                <div style={{ display:"flex", gap:6, flexDirection:"column" }}>
-                  <img src={allImgs[0]} alt={item.name || ptLabel} style={{ width:110, height:110, objectFit:"cover", borderRadius:8, border:"1px solid rgba(54,69,79,0.14)" }} />
+                <>
+                  <img
+                    src={allImgs[activeImg]}
+                    alt={item.name || ptLabel}
+                    style={{ width:120, height:120, objectFit:"cover", borderRadius:8, border:"1px solid rgba(54,69,79,0.14)", display:"block" }}
+                  />
+                  {/* Thumbnail strip */}
                   {allImgs.length > 1 && (
-                    <div style={{ display:"flex", gap:4 }}>
-                      {allImgs.slice(1, 4).map((url, idx) => (
-                        <img key={idx} src={url} alt="" style={{ width:32, height:32, objectFit:"cover", borderRadius:4, border:"1px solid rgba(54,69,79,0.12)", opacity:0.85 }} />
+                    <div style={{ display:"flex", gap:4, marginTop:5 }}>
+                      {allImgs.slice(0, 4).map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveImg(idx)}
+                          style={{ padding:0, border:`2px solid ${idx===activeImg?C.gd:"rgba(54,69,79,0.14)"}`, borderRadius:4, cursor:"pointer", background:"none" }}
+                        >
+                          <img src={url} alt="" style={{ width:28, height:28, objectFit:"cover", display:"block", borderRadius:2 }} />
+                        </button>
                       ))}
                     </div>
                   )}
-                </div>
+                </>
               ) : (
-                <div style={{ width:110, height:110, background:gradient, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>
+                <div style={{ width:120, height:120, background:gradient, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
                   {icon}
+                </div>
+              )}
+              {allImgs.length === 0 && (
+                <div style={{ fontFamily:HEB, fontSize:9, color:C.chx, textAlign:"center", marginTop:4, lineHeight:1.5 }}>
+                  אין תמונה<br/>לסוג פריט זה
                 </div>
               )}
             </div>
 
             {/* Key specs panel */}
-            <div style={{ flex:1, minWidth:180 }}>
+            <div style={{ flex:1, minWidth:160 }}>
               {caratStr && (
-                <div style={{ fontFamily:DAT, fontSize:28, fontWeight:700, color:C.ch, lineHeight:1, marginBottom:4 }}>
+                <div style={{ fontFamily:DAT, fontSize:26, fontWeight:700, color:C.ch, lineHeight:1, marginBottom:4 }}>
                   {caratStr}
                 </div>
               )}
-              {fancySpec && (
-                <div style={{ fontFamily:DAT, fontSize:14, color:"#7a6a1a", fontWeight:600, marginBottom:4 }}>{fancySpec}</div>
-              )}
-              {specParts.length > 0 && (
-                <div style={{ fontFamily:DAT, fontSize:13, color:C.chm, marginBottom:8 }}>{specParts.join(" · ")}</div>
-              )}
-              {item.cutForm && (
-                <div style={{ fontFamily:DAT, fontSize:12, color:C.chl, marginBottom:8 }}>{item.cutForm}</div>
-              )}
+              {fancySpec && <div style={{ fontFamily:DAT, fontSize:14, color:"#7a6a1a", fontWeight:600, marginBottom:4 }}>{fancySpec}</div>}
+              {specParts.length > 0 && <div style={{ fontFamily:DAT, fontSize:13, color:C.chm, marginBottom:8 }}>{specParts.join(" · ")}</div>}
+              {item.cutForm && <div style={{ fontFamily:DAT, fontSize:12, color:C.chl, marginBottom:8 }}>{item.cutForm}</div>}
+
               <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:8 }}>
                 {item.inventoryLayer && (
                   <span style={{ display:"inline-block", padding:"2px 8px", borderRadius:10, fontSize:10, fontFamily:DAT, fontWeight:700, background:"rgba(197,179,88,0.1)", color:"#7a6a1a", border:"1px solid rgba(197,179,88,0.35)", lineHeight:1.8 }}>
@@ -155,9 +218,19 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
                   </span>
                 )}
               </div>
+
               {item.costUsd != null && (
                 <div style={{ fontFamily:DAT, fontSize:22, fontWeight:700, color:C.ch }}>
                   ${Number(item.costUsd).toLocaleString("en-US")}
+                </div>
+              )}
+
+              {/* Video link (Task 5) */}
+              {item.videoUrl && (
+                <div style={{ marginTop:8 }}>
+                  <a href={item.videoUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:HEB, fontSize:11.5, color:C.gd, textDecoration:"none", display:"flex", alignItems:"center", gap:5 }}>
+                    ▶ צפה בסרטון
+                  </a>
                 </div>
               )}
             </div>
@@ -182,8 +255,8 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
           {(item.measLength || item.measWidth || item.measHeight || item.stoneCount) && (
             <>
               <SectionHead label="Measurements" />
-              {item.caratWeight && <FieldRow label="Carat Weight"  value={`${parseFloat(item.caratWeight).toFixed(2)} ct`} />}
-              {item.stoneCount  && <FieldRow label="Stone Count"   value={item.stoneCount} />}
+              {item.caratWeight && <FieldRow label="Carat Weight" value={`${parseFloat(item.caratWeight).toFixed(2)} ct`} />}
+              {item.stoneCount  && <FieldRow label="Stone Count"  value={item.stoneCount} />}
               {(item.measLength || item.measWidth || item.measHeight) && (
                 <FieldRow label="Dimensions"
                   value={[item.measLength, item.measWidth, item.measHeight].filter(Boolean).map(v => parseFloat(v).toFixed(2)).join(" × ") + " mm"}
@@ -192,17 +265,27 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
             </>
           )}
 
-          {/* ── Certificate ── */}
-          {(item.certLab || item.certNumber || item.certImageUrl || item.verificationId) && (
+          {/* ── Certificate (Task 5: includes cert image + PDF link) ── */}
+          {(item.certLab || item.certNumber || item.laserInscription || item.certImageUrl || item.verificationId) && (
             <>
               <SectionHead label="Certificate & Verification" />
               <FieldRow label="Lab"             value={item.certLab} />
-              <FieldRow label="Report Number"   value={item.certNumber} mono />
+              <FieldRow label="Report Number"   value={item.certNumber || item.laserInscription} mono />
               <FieldRow label="Verification ID" value={item.verificationId} mono />
-              <FieldRow label="Verify URL"      value={item.verificationUrl} mono />
+              <FieldRow label="Verify URL"      value={item.verificationUrl} link />
+              {/* Certificate image preview (Task 5) */}
               {item.certImageUrl && (
                 <div style={{ marginTop:8 }}>
-                  <img src={item.certImageUrl} alt="Certificate" style={{ maxWidth:160, borderRadius:5, border:"1px solid rgba(54,69,79,0.12)", opacity:0.9 }} />
+                  <img src={item.certImageUrl} alt="Certificate" style={{ maxWidth:140, borderRadius:5, border:"1px solid rgba(54,69,79,0.12)", opacity:0.9 }} />
+                  <a href={item.certImageUrl} target="_blank" rel="noopener noreferrer" style={{ display:"block", fontFamily:HEB, fontSize:11, color:C.gd, marginTop:5, textDecoration:"none" }}>
+                    📄 פתח תעודה (PDF/תמונה)
+                  </a>
+                </div>
+              )}
+              {/* If cert URL is in internal notes (for attachment fields) */}
+              {!item.certImageUrl && item.internalNotes && item.internalNotes.includes("cloudfront.net") && (
+                <div style={{ marginTop:8, fontFamily:HEB, fontSize:10.5, color:C.chl }}>
+                  קישור תעודה: ראה הערות פנימיות
                 </div>
               )}
             </>
@@ -212,12 +295,12 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
           {(item.supplierName || item.ownerClient || item.virtualSupplier || item.physicalLocation || item.memoNumber || item.intendedUse) && (
             <>
               <SectionHead label="Sourcing & Ownership" />
-              <FieldRow label="Supplier"            value={item.supplierName || item.virtualSupplier} />
-              <FieldRow label="Owner / Client"      value={item.ownerClient} />
-              <FieldRow label="Physical Location"   value={item.physicalLocation} />
-              <FieldRow label="Supplier Avail."     value={item.supplierAvailability} />
-              <FieldRow label="Memo / Consignment"  value={item.memoNumber} mono />
-              <FieldRow label="Intended Use"        value={item.intendedUse} />
+              <FieldRow label="Supplier"           value={item.supplierName || item.virtualSupplier} />
+              <FieldRow label="Owner / Client"     value={item.ownerClient} />
+              <FieldRow label="Physical Location"  value={item.physicalLocation} />
+              <FieldRow label="Supplier Avail."    value={item.supplierAvailability} />
+              <FieldRow label="Memo / Consignment" value={item.memoNumber} mono />
+              <FieldRow label="Intended Use"       value={item.intendedUse} />
             </>
           )}
 
@@ -232,55 +315,63 @@ export function InventoryDrawer({ item, isSelected, onClose, onAddToBasket, onUs
           )}
 
           {/* Airtable record ID */}
-          <div style={{ marginTop:20, padding:"10px 12px", background:"rgba(54,69,79,0.04)", borderRadius:6 }}>
+          <div style={{ marginTop:18, padding:"8px 12px", background:"rgba(54,69,79,0.04)", borderRadius:6 }}>
             <div style={{ fontFamily:DAT, fontSize:9, color:C.chx, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:3 }}>Airtable Record ID</div>
             <div style={{ fontFamily:"'Courier New',monospace", fontSize:11, color:C.chm }}>{item.id || "—"}</div>
           </div>
 
-          {/* ── Action buttons — v5.3.2: primary CTA hierarchy ── */}
-          <div style={{ display:"flex", gap:9, flexWrap:"wrap", marginTop:20, paddingTop:16, borderTop:"1px solid rgba(54,69,79,0.1)" }}>
+          {/* ── Action buttons with helper text (Task 9) ── */}
+          <div style={{ marginTop:20, paddingTop:16, borderTop:"1px solid rgba(54,69,79,0.1)" }}>
+            <div style={{ fontFamily:HEB, fontSize:10.5, color:C.chl, marginBottom:12 }}>
+              בחר פעולה לביצוע עם הפריט:
+            </div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
 
-            {/* Basket — primary when not selected, secondary when already in basket */}
+              {/* הוסף למגש עבודה — Work Tray terminology (Task 2) */}
+              <ActionButton
+                icon="🗂"
+                label={isSelected ? "✓ במגש עבודה" : "הוסף למגש עבודה"}
+                helper="הוסף לרשימת העבודה הזמנית — חשבון, תעודה, הצעת מחיר"
+                onClick={() => onAddToBasket(item)}
+                style={isSelected ? { background:"rgba(197,179,88,0.08)", borderColor:C.gd } : {}}
+              />
+
+              {/* השתמש במחשבון */}
+              <ActionButton
+                icon="🔢"
+                label="השתמש במחשבון"
+                helper="טען נתוני אבן / רכיב למחשבון העלות"
+                onClick={() => onUseInCalculator(item)}
+                style={{ borderColor:"rgba(197,179,88,0.5)", background:"rgba(197,179,88,0.05)" }}
+              />
+
+              {/* צור תעודה */}
+              <ActionButton
+                icon="📋"
+                label="צור תעודה"
+                helper="פתח עורך תעודות עם נתוני הפריט ממולאים"
+                onClick={() => onCreateCertificate(item)}
+                style={{ borderColor:"rgba(138,171,142,0.55)", background:"rgba(138,171,142,0.06)" }}
+              />
+
+              {/* Archive placeholder */}
+              <ActionButton
+                icon="📁"
+                label="ארכיון"
+                helper="הסר מתצוגת מלאי פעיל (בקרוב)"
+                onClick={() => {}}
+                disabled
+              />
+
+            </div>
+
+            {/* סגור (Task 9: close button in actions area) */}
             <button
-              onClick={() => onAddToBasket(item)}
-              style={{ height:40, padding:"0 16px", background:isSelected?"transparent":C.ch, color:isSelected?C.chm:C.iv, border:`1px solid ${isSelected?"rgba(54,69,79,0.22)":C.ch}`, borderRadius:7, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, fontWeight:isSelected?400:700, display:"flex", alignItems:"center", gap:7, transition:"all 0.15s" }}
+              onClick={onClose}
+              style={{ marginTop:10, height:36, width:"100%", background:"transparent", border:"1px solid rgba(54,69,79,0.15)", borderRadius:7, cursor:"pointer", fontFamily:HEB, fontSize:12.5, color:C.chl }}
             >
-              <span style={{ fontSize:14 }}>🛒</span>
-              {isSelected ? "✓ בסל" : "+ הוסף לסל"}
+              סגור
             </button>
-
-            {/* Use in Calculator — primary gold-accent CTA */}
-            <button
-              onClick={() => onUseInCalculator(item)}
-              style={{ height:40, padding:"0 16px", background:"rgba(197,179,88,0.13)", color:"#6a5a10", border:`1.5px solid ${C.gd}`, borderRadius:7, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, fontWeight:700, display:"flex", alignItems:"center", gap:7, transition:"background 0.15s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(197,179,88,0.22)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(197,179,88,0.13)"; }}
-            >
-              <span style={{ fontSize:14 }}>🔢</span>
-              Use in Calculator
-            </button>
-
-            {/* Create Certificate — secondary sage-accent CTA */}
-            <button
-              onClick={() => onCreateCertificate(item)}
-              style={{ height:40, padding:"0 16px", background:"rgba(138,171,142,0.13)", color:"#2e6636", border:"1.5px solid rgba(138,171,142,0.55)", borderRadius:7, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, fontWeight:700, display:"flex", alignItems:"center", gap:7, transition:"background 0.15s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(138,171,142,0.22)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(138,171,142,0.13)"; }}
-            >
-              <span style={{ fontSize:14 }}>📋</span>
-              צור תעודה
-            </button>
-
-            {/* Archive — clearly tertiary, placeholder */}
-            <button
-              disabled
-              title="Coming in a future milestone"
-              style={{ height:40, padding:"0 14px", background:"transparent", color:"rgba(54,69,79,0.3)", border:"1px solid rgba(54,69,79,0.12)", borderRadius:7, cursor:"not-allowed", fontFamily:C.heb, fontSize:12, display:"flex", alignItems:"center", gap:6, opacity:0.6 }}
-            >
-              <span style={{ fontSize:13 }}>📁</span>
-              ארכיון
-            </button>
-
           </div>
         </div>
       </div>

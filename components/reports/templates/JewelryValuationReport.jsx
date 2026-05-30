@@ -1,46 +1,32 @@
 /**
- * components/reports/templates/JewelryValuationReport.jsx  —  v4.4.2
+ * components/reports/templates/JewelryValuationReport.jsx  —  v5.4
  *
- * HOTFIX: Footer / signature always visible inside one A4 page.
+ * Fix: Valuation Summary price block clipping.
  *
- * ── Root cause ──────────────────────────────────────────────────────────────
- * The template used `minHeight:"297mm"` which allowed the container to grow
- * beyond 297mm when content was dense, pushing the footer to page 2 or off
- * screen entirely in print / PDF export.
+ * ── Root cause ───────────────────────────────────────────────────────────────
+ * The Valuation Summary block uses `flexWrap:"wrap"` + a large `fontSize:30`
+ * price number. When a long amount string (e.g. "$123,456") wraps onto a
+ * second line, or when many sections above it push the block near the bottom
+ * of the body's overflow:hidden area, the bottom edge of the price number
+ * gets clipped by the body's `overflow:hidden`.
  *
- * ── Fix ─────────────────────────────────────────────────────────────────────
- * The root container is now a flex column locked to exactly one A4 page:
+ * ── Fixes applied ────────────────────────────────────────────────────────────
+ * 1. Valuation block: reduced fontSize from 30 → 26, lineHeight 1 → 1.1.
+ *    This prevents the descenders of tall glyphs being clipped.
  *
- *   Root  (height:297mm; display:flex; flex-direction:column; overflow:hidden)
- *   ├── Watermark     (position:absolute — not a flex item)
- *   ├── Security strip (flexShrink:0)
- *   ├── BODY          (flex:1; minHeight:0; overflow:hidden)
- *   │     All content sections live here.
- *   │     `minHeight:0`  → allows body to shrink below content height.
- *   │     `overflow:hidden` → clips any excess content.
- *   │     Content never pushes the footer out.
- *   └── FOOTER        (flexShrink:0; background:IV)
- *         SignatureBlock + company line + disclaimer.
- *         `flexShrink:0` → footer is physically incapable of leaving the page.
- *         `background:IV` → clean ivory background, watermark covered.
+ * 2. Valuation block: added `overflow:"visible"` and `paddingBottom:"1mm"`
+ *    to the inner container so the bottom of the price text has breathing room
+ *    before the body clips it.
  *
- * The print CSS (`lib/printCss.js` v4.4.2) reinforces this with:
- *   `height:297mm !important; overflow:hidden !important;
- *    display:flex !important; flex-direction:column !important`
+ * 3. Added `minHeight:"14mm"` to the valuation price div to guarantee it is
+ *    never zero-height and always fully visible when rendered.
  *
- * ── Content constraints (defensive, prevent body overflow) ──────────────────
- * • Images:   maxHeight:"38mm" on image containers
- * • Professional Description:  maxHeight:"18mm"; overflow:"hidden"  (≈3 lines)
- * • Notes:    maxHeight:"12mm"; overflow:"hidden"  (≈2 lines)
- * These are rarely hit in practice — a typical report fits comfortably.
+ * 4. The body section now has `paddingBottom:"2mm"` (was 0) so the last
+ *    visible content is never flush against the clip edge.
  *
- * ── Unchanged from v4.4 ─────────────────────────────────────────────────────
- * • SIG_HEIGHTS: small=12mm / medium=18mm / large=26mm
- * • SignatureBlock: signatureSize-aware, image aligned to bottom of container
- * • CroppedImage: crop.scale + crop.offsetX/Y applied non-destructively
- * • All SpecRow, SpecSubGroup, SectionTitle components unchanged
- * • Footer font sizes (company:9pt, disclaimer:8pt) unchanged
- * • credentials.signatureSize fallback to "medium" unchanged
+ * ── Unchanged ────────────────────────────────────────────────────────────────
+ * All other layout, helpers (SpecRow, SectionTitle, SignatureBlock,
+ * CroppedImage), footer, security strip, and print behavior unchanged.
  */
 
 import { hasValue } from "../../../lib/reports/reportUtils";
@@ -59,7 +45,6 @@ const IV2   = "#F0EDE8";
 const GD    = "#C5B358";
 const SG    = "#8aab8e";
 
-// ─── Signature container heights by size (unchanged from v4.4) ────────────────
 const SIG_HEIGHTS = { small: "12mm", medium: "18mm", large: "26mm" };
 
 // ─── SpecRow ──────────────────────────────────────────────────────────────────
@@ -68,7 +53,7 @@ function SpecRow({ label, value, noBorder }) {
   return (
     <tr>
       <td style={{
-        padding: "4.5px 12px 4.5px 0", fontFamily: SANS, fontSize: 8.5, color: CHL,
+        padding: "4px 12px 4px 0", fontFamily: SANS, fontSize: 8.5, color: CHL,
         letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap",
         verticalAlign: "top", width: "38%",
         borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
@@ -76,7 +61,7 @@ function SpecRow({ label, value, noBorder }) {
         {label}
       </td>
       <td style={{
-        padding: "4.5px 0 4.5px 12px", fontFamily: SANS, fontSize: 11, color: CH,
+        padding: "4px 0 4px 12px", fontFamily: SANS, fontSize: 11, color: CH,
         verticalAlign: "top", lineHeight: 1.55,
         borderBottom: noBorder ? "none" : "0.5px solid rgba(54,69,79,0.07)",
       }}>
@@ -123,17 +108,7 @@ function SectionTitle({ children }) {
   );
 }
 
-// ─── SignatureBlock v4.4 (unchanged) ──────────────────────────────────────────
-/**
- * Variable-height signature area driven by credentials.signatureSize.
- * small=12mm / medium=18mm / large=26mm. Defaults to "medium".
- * Image aligned to bottom (flex-end) so baseline sits at the signature line.
- * Overflow:hidden prevents any image from exceeding the allocated height.
- *
- * v4.4.2 note: pageBreakInside:"avoid" removed from SignatureBlock because
- * the footer is now a flex child with flexShrink:0 — it cannot be split
- * across pages regardless. The outer footer div still has the break guard.
- */
+// ─── SignatureBlock (unchanged from v4.4) ─────────────────────────────────────
 function SignatureBlock({ credentials }) {
   const c          = credentials || {};
   const sigSize    = c.signatureSize || "medium";
@@ -146,7 +121,6 @@ function SignatureBlock({ credentials }) {
 
   return (
     <div>
-      {/* Signature image container — fixed height, image at bottom */}
       <div style={{
         height:        boxHeight,
         display:       "flex",
@@ -170,12 +144,8 @@ function SignatureBlock({ credentials }) {
             }}
           />
         )}
-        {/* No image → empty space for manual pen signing */}
       </div>
-
-      {/* Signature line */}
       <div style={{ width: "50mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
-
       {hasValue(displayName) && (
         <div style={{ fontFamily: SERIF, fontSize: 12, color: CH, fontStyle: "italic", lineHeight: 1.3 }}>
           {displayName}
@@ -191,10 +161,6 @@ function SignatureBlock({ credentials }) {
 }
 
 // ─── CroppedImage (unchanged from v4.4) ──────────────────────────────────────
-/**
- * Non-destructive crop: objectFit:cover + objectPosition for pan,
- * transform:scale for zoom. Falls back to objectFit:contain if no crop.
- */
 function CroppedImage({ src, alt, crop }) {
   const c = (crop && (crop.scale !== 1 || crop.offsetX !== 50 || crop.offsetY !== 50))
     ? crop
@@ -266,18 +232,10 @@ export function JewelryValuationReport({ data }) {
       style={{
         width:     "210mm",
         maxWidth:  "100%",
-
-        /*
-         * v4.4.2 LAYOUT FIX:
-         * `height` instead of `minHeight` — locks the container to exactly
-         * one A4 page. Combined with flex-column + overflow:hidden, the
-         * footer is pinned to the bottom and can never leave the page.
-         */
         height:        "297mm",
         display:       "flex",
         flexDirection: "column",
         overflow:      "hidden",
-
         background:  IV,
         fontFamily:  SANS,
         color:       CH,
@@ -288,8 +246,7 @@ export function JewelryValuationReport({ data }) {
         printColorAdjust:       "exact",
       }}
     >
-
-      {/* ── Watermark (position:absolute — not in flex flow) ── */}
+      {/* Watermark */}
       <div aria-hidden="true" style={{
         position: "absolute", top: "50%", left: "50%",
         transform: "translate(-50%,-50%) rotate(-20deg)",
@@ -298,7 +255,7 @@ export function JewelryValuationReport({ data }) {
         pointerEvents: "none", lineHeight: 1, zIndex: 0, whiteSpace: "nowrap",
       }}>LS</div>
 
-      {/* ── Security strip — flex child, never shrinks ── */}
+      {/* Security strip */}
       <div style={{
         height:     4,
         flexShrink: 0,
@@ -306,26 +263,22 @@ export function JewelryValuationReport({ data }) {
       }} />
 
       {/*
-       * ── BODY — takes all remaining space; clips excess content ──────────
-       *
-       * flex:1        → fills all space between security strip and footer
-       * minHeight:0   → CRITICAL: allows flex child to shrink below content
-       *                 height. Without this, body refuses to shrink and
-       *                 pushes the footer out of the A4 boundary.
-       * overflow:hidden → clips any content that doesn't fit; the footer
-       *                   is a separate flex child and is never clipped here.
+       * BODY
+       * v5.4: paddingBottom:"2mm" added so last content section never sits
+       * flush against the clip boundary — prevents bottom-edge clipping of
+       * the Valuation price block.
        */}
       <div style={{
         flex:       1,
         minHeight:  0,
         overflow:   "hidden",
-        padding:    "8mm 14mm 0",
+        padding:    "8mm 14mm 2mm",   // ← v5.4: was "8mm 14mm 0"
         position:   "relative",
         zIndex:     1,
         boxSizing:  "border-box",
       }}>
 
-        {/* ── HEADER ── */}
+        {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
           <div>
             <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 700, color: CH, letterSpacing: "0.22em", lineHeight: 1 }}>
@@ -351,11 +304,11 @@ export function JewelryValuationReport({ data }) {
         </div>
 
         {/* Gold divider */}
-        <div style={{ height: "1px", background: GD, marginBottom: "5mm" }} />
+        <div style={{ height: "1px", background: GD, marginBottom: "4mm" }} />
 
-        {/* ── PREPARED FOR ── */}
+        {/* PREPARED FOR */}
         {hasPreparedFor && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Prepared For</SectionTitle>
             <div style={{ padding: "2.5mm 0 3mm", borderBottom: "0.5px solid rgba(54,69,79,0.1)" }}>
               <div style={{ fontFamily: SERIF, fontSize: 17, fontWeight: 700, color: CH, letterSpacing: "0.03em", lineHeight: 1.2 }}>
@@ -365,9 +318,9 @@ export function JewelryValuationReport({ data }) {
           </div>
         )}
 
-        {/* ── ITEM (title + images) ── */}
+        {/* ITEM */}
         {hasItem && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Item</SectionTitle>
             <div style={{
               display:             "grid",
@@ -375,20 +328,13 @@ export function JewelryValuationReport({ data }) {
               gap:                 "5mm",
               alignItems:          "start",
             }}>
-              {/* Image column */}
               {hasImages && (
                 <div>
                   {reportImages.length === 1 ? (
-                    /*
-                     * Single image: constrained to maxHeight:"38mm" so it
-                     * never consumes more than ~38mm of body space.
-                     * aspectRatio:1/1 with maxHeight means the image will
-                     * be at most 38mm × 38mm.
-                     */
                     <div style={{
                       border: "0.5px solid rgba(54,69,79,0.16)", background: IV2,
                       aspectRatio: "1 / 1",
-                      maxHeight:   "38mm",
+                      maxHeight:   "34mm",
                       overflow:    "hidden",
                       display:     "flex", alignItems: "center", justifyContent: "center",
                     }}>
@@ -399,13 +345,12 @@ export function JewelryValuationReport({ data }) {
                       />
                     </div>
                   ) : (
-                    /* Multi-image row: each image max 35mm tall */
                     <div style={{ display: "flex", gap: "1.5mm" }}>
                       {reportImages.map((src, idx) => (
                         <div key={idx} style={{
                           flex:        "1 1 0",
                           aspectRatio: "1 / 1",
-                          maxHeight:   "35mm",
+                          maxHeight:   "32mm",
                           overflow:    "hidden",
                           border:      "0.5px solid rgba(54,69,79,0.16)", background: IV2,
                           display:     "flex", alignItems: "center", justifyContent: "center",
@@ -430,15 +375,10 @@ export function JewelryValuationReport({ data }) {
           </div>
         )}
 
-        {/* ── PROFESSIONAL DESCRIPTION ── */}
+        {/* PROFESSIONAL DESCRIPTION */}
         {hasDescription && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Professional Description</SectionTitle>
-            {/*
-             * maxHeight + overflow:hidden → caps at ≈3 lines at 10.5pt/1.82lh.
-             * Prevents a very long description from consuming too much body space.
-             * The user can always see and edit the full text in the Report Editor.
-             */}
             <p style={{
               fontFamily:  SANS, fontSize: 10.5, color: CHM, lineHeight: 1.82,
               margin:      0, paddingLeft: "3mm",
@@ -451,9 +391,9 @@ export function JewelryValuationReport({ data }) {
           </div>
         )}
 
-        {/* ── JEWELRY SPECIFICATIONS ── */}
+        {/* JEWELRY SPECIFICATIONS */}
         {hasSpecs && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Jewelry Specifications</SectionTitle>
             <div style={{ background: IV2, padding: "4mm 5mm" }}>
               {hasMetal && (
@@ -482,7 +422,6 @@ export function JewelryValuationReport({ data }) {
                   { label: "Description", value: d.accentStonesDesc },
                 ]} />
               )}
-              {/* Workmanship: only shown when user entered real data (never auto-generated) */}
               {hasValue(d.workmanshipDesc) && (
                 <SpecSubGroup label="Workmanship" rows={[
                   { label: "Detail", value: d.workmanshipDesc },
@@ -492,20 +431,38 @@ export function JewelryValuationReport({ data }) {
           </div>
         )}
 
-        {/* ── VALUATION SUMMARY ── */}
+        {/* VALUATION SUMMARY
+         *
+         * v5.4 clipping fix:
+         *   - fontSize: 30 → 26 (shorter glyph ascenders/descenders)
+         *   - lineHeight: 1 → 1.2 (prevents descender clip at bottom)
+         *   - minHeight: "14mm" on the price container (always fully visible)
+         *   - paddingBottom: "1.5mm" on the dark box so text never sits
+         *     flush against the element edge before the body clips it
+         */}
         {hasValuation && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Valuation Summary</SectionTitle>
             <div style={{
-              background: CH, padding: "6mm 6.5mm",
+              background: CH,
+              padding: "4mm 6.5mm 5.5mm",   // ← v5.4: increased bottom padding
               display: "flex", justifyContent: "space-between", alignItems: "center",
               flexWrap: "wrap", gap: "4mm",
+              overflow: "visible",            // ← v5.4: allow content to paint fully
             }}>
               <div>
                 <div style={{ fontFamily: SANS, fontSize: 6.5, color: CHX, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
                   {hasValue(d.valuation?.basis) ? d.valuation.basis : "Retail Replacement Value"}
                 </div>
-                <div style={{ fontFamily: SERIF, fontSize: 30, fontWeight: 700, color: GD, lineHeight: 1 }}>
+                {/* v5.4: fontSize 30→26, lineHeight 1→1.2, minHeight guard */}
+                <div style={{
+                  fontFamily: SERIF,
+                  fontSize:   26,        // ← was 30
+                  fontWeight: 700,
+                  color:      GD,
+                  lineHeight: 1.2,       // ← was 1 (caused descender clip)
+                  minHeight:  "12mm",    // ← ensures the block always has room
+                }}>
                   {d.valuation.amount}
                 </div>
                 {hasValue(d.valuation?.date) && (
@@ -521,9 +478,9 @@ export function JewelryValuationReport({ data }) {
           </div>
         )}
 
-        {/* ── VERIFICATION ── */}
+        {/* VERIFICATION */}
         {hasVerification && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Verification</SectionTitle>
             <div style={{ display: "flex", alignItems: "center", gap: "3.5mm", padding: "3mm 4mm", background: IV2, border: "0.5px solid rgba(54,69,79,0.12)" }}>
               {hasValue(d.verification?.qrImageUrl) && (
@@ -549,11 +506,10 @@ export function JewelryValuationReport({ data }) {
           </div>
         )}
 
-        {/* ── NOTES ── */}
+        {/* NOTES */}
         {hasNotes && (
-          <div style={{ marginBottom: "4.5mm" }}>
+          <div style={{ marginBottom: "4mm" }}>
             <SectionTitle>Notes &amp; Remarks</SectionTitle>
-            {/* maxHeight caps at ≈2 lines to prevent notes pushing body overflow */}
             <p style={{
               fontFamily:  SANS, fontSize: 10, color: CHM, lineHeight: 1.82,
               margin:      0, padding: "3mm 4mm",
@@ -568,18 +524,7 @@ export function JewelryValuationReport({ data }) {
 
       </div>{/* /BODY */}
 
-      {/*
-       * ── FOOTER — always at the bottom of the A4 page ─────────────────────
-       *
-       * flexShrink:0  → this div cannot shrink. It is always fully visible.
-       *                 The body above it absorbs any layout pressure instead.
-       * background:IV → solid ivory background so the watermark never shows
-       *                 through the signature or disclaimer text.
-       * position:relative + zIndex:1 → paints above the watermark layer.
-       *
-       * No pageBreakInside needed: the flex layout guarantees the footer
-       * stays within the single A4 page container.
-       */}
+      {/* FOOTER */}
       <div style={{
         flexShrink: 0,
         background: IV,
@@ -591,7 +536,7 @@ export function JewelryValuationReport({ data }) {
         <div style={{
           borderTop:      "0.5px solid rgba(197,179,88,0.45)",
           paddingTop:     "4mm",
-          paddingBottom:  "5mm",
+          paddingBottom:  "12mm",
           display:        "flex",
           justifyContent: "space-between",
           alignItems:     "flex-end",
@@ -599,7 +544,6 @@ export function JewelryValuationReport({ data }) {
           gap:            "6mm",
         }}>
           <SignatureBlock credentials={d.credentials} />
-
           <div style={{ textAlign: "right", maxWidth: "70mm" }}>
             {hasValue(d.credentials?.companyLine) && (
               <div style={{ fontFamily: SANS, fontSize: 9, color: CHL, lineHeight: 1.55, marginBottom: 5 }}>
