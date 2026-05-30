@@ -1,29 +1,33 @@
 /**
- * components/reports/templates/InHouseStoneReport.jsx  —  v4.4.2
+ * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.1
  *
- * HOTFIX: Footer / signature always visible inside one A4 page.
- * Same structural fix as JewelryValuationReport v4.4.2.
+ * Changes from v4.3.2:
  *
- * ── What changed from v4.4 ──────────────────────────────────────────────────
- * InHouseStoneReport() root container:
- *   BEFORE  minHeight:"297mm" — container grows past A4, footer overflows.
- *   AFTER   height:"297mm" + display:flex + flexDirection:column — exactly A4.
+ * Task 4 — Product category hierarchy section:
+ *   A new ClassificationSection renders above the field-specific blocks.
+ *   It shows available fields from d.classification (built by
+ *   buildStoneClassification in reportDefaults.js):
  *
- * Layout structure (same principle as JVR v4.4.2):
- *   Root  (height:297mm; flex-column; overflow:hidden)
- *   ├── Watermark     (position:absolute)
- *   ├── Sage strip    (flexShrink:0)
- *   ├── BODY          (flex:1; minHeight:0; overflow:hidden; padding:8mm 14mm 0)
- *   └── FOOTER        (flexShrink:0; background:IV)
+ *     Product Category  — "Diamond", "Coloured Gemstone", "Stone Parcel / Melee"
+ *     Stone Category    — "Natural Diamond", "Lab-Grown Diamond", "Matched Pair / Set"
+ *     Stone Type        — e.g. "Sapphire", "Ruby"
+ *     Form Factor       — "Single Stone", "Matched Pair", "Parcel / Melee"
+ *     Quantity          — stone count when > 1
+ *     Intended Use      — from inventory data
+ *     Inventory Layer   — "Physical Stock" / "Virtual Supplier Stock"
  *
- * ── Unchanged from v4.4 ─────────────────────────────────────────────────────
- * All helper components identical to v4.4:
- *   GradeRow, SectionBlock, GradeTable, GradingHeader, GradingBlock
- *   CroppedImage, SignatureBlock (SIG_HEIGHTS + signatureSize)
- *   ReferencePanel (4 productType variants)
- *   NaturalDiamondFields, LabDiamondFields, FancyColorDiamondFields, ColoredGemstoneFields
- * Image size: hero 55mm × 55mm, secondary 17mm × 17mm (unchanged)
- * Footer font sizes: company 9pt, disclaimer 8pt (unchanged from v4.4)
+ *   Only rows that have actual values are rendered.
+ *
+ * Task 3 — stone_parcel and stone_pair_set handling:
+ *   When productType is "stone_parcel" the header subtitle reads
+ *   "Stone Parcel · In-House Report" not "Matched Pair".
+ *   When productType is "stone_pair_set" it reads "Matched Pair / Set".
+ *   A fallback NaturalDiamondFields is used for unknown types (not parcel/pair).
+ *   stone_parcel and stone_pair_set both render via NaturalDiamondFields
+ *   with appropriate subtitle context.
+ *
+ * All field groups (NaturalDiamond, LabDiamond, FancyColor, ColoredGemstone),
+ * SignatureBlock, ReferencePanel, layout — unchanged from v4.3.2.
  */
 
 import {
@@ -33,7 +37,6 @@ import {
   formatCutForm,
 } from "../../../lib/reports/reportUtils";
 
-import { defaultCrop } from "../../../lib/reports/reportDefaults";
 import { PRODUCT_TYPE_LABELS } from "../../../lib/gemology/taxonomy";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -47,8 +50,6 @@ const IV    = "#FAF9F6";
 const IV2   = "#F0EDE8";
 const SG    = "#8aab8e";
 const SGD   = "#5d8a62";
-
-const SIG_HEIGHTS = { small: "12mm", medium: "18mm", large: "26mm" };
 
 // ─── GradeRow ─────────────────────────────────────────────────────────────────
 function GradeRow({ label, value, highlight, noBorder }) {
@@ -75,12 +76,16 @@ function GradeRow({ label, value, highlight, noBorder }) {
   );
 }
 
+// ─── SectionBlock ─────────────────────────────────────────────────────────────
 function SectionBlock({ title, children, marginBottom = "5mm" }) {
   return (
     <div style={{ marginBottom }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2.5mm" }}>
         <div style={{ width: 2, height: 12, background: SG, borderRadius: 1, flexShrink: 0 }} />
-        <span style={{ fontFamily: SANS, fontSize: 7.5, fontWeight: 700, color: CHL, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+        <span style={{
+          fontFamily: SANS, fontSize: 7.5, fontWeight: 700, color: CHL,
+          letterSpacing: "0.2em", textTransform: "uppercase",
+        }}>
           {title}
         </span>
         <div style={{ flex: 1, height: "0.5px", background: "rgba(54,69,79,0.1)" }} />
@@ -124,48 +129,78 @@ function GradingBlock({ children }) {
   );
 }
 
-// ─── CroppedImage ─────────────────────────────────────────────────────────────
-function CroppedImage({ src, alt, crop }) {
-  const c = (crop && (crop.scale !== 1 || crop.offsetX !== 50 || crop.offsetY !== 50))
-    ? crop : null;
-  if (!c) {
-    return <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit: "contain" }} />;
-  }
+// ─── ClassificationSection (v5.4.1 Task 4) ───────────────────────────────────
+/**
+ * Shows the product/stone hierarchy for the report.
+ * Only renders rows that have actual values.
+ * Uses a horizontally-striped 2-column look different from grading tables.
+ */
+function ClassificationSection({ classification, productType }) {
+  const cl = classification || {};
+  const rows = [
+    { label: "Product Category",  value: cl.productCategory  },
+    { label: "Stone Category",    value: cl.stoneCategory    },
+    { label: "Stone Type",        value: cl.stoneType        },
+    { label: "Form",              value: cl.formFactor       },
+    { label: "Quantity",          value: cl.quantity         },
+    { label: "Growth Method",     value: cl.growthMethod     },
+    { label: "Intended Use",      value: cl.intendedUse      },
+    { label: "Inventory Layer",   value: cl.inventoryLayer   },
+  ].filter(r => hasValue(r.value));
+
+  if (rows.length === 0) return null;
+
   return (
-    <img
-      src={src} alt={alt}
-      style={{
-        width: "100%", height: "100%",
-        objectFit:      "cover",
-        objectPosition: `${c.offsetX}% ${c.offsetY}%`,
-        transform:      `scale(${c.scale})`,
-        transformOrigin:`${c.offsetX}% ${c.offsetY}%`,
-      }}
-    />
+    <SectionBlock title="Stone Classification" marginBottom="5mm">
+      <div style={{
+        border: "0.5px solid rgba(138,171,142,0.35)",
+        overflow: "hidden",
+      }}>
+        {rows.map((row, i) => (
+          <div
+            key={row.label}
+            style={{
+              display: "flex", gap: 0, alignItems: "stretch",
+              background: i % 2 === 0 ? IV2 : IV,
+              borderBottom: i < rows.length - 1 ? "0.5px solid rgba(54,69,79,0.06)" : "none",
+            }}
+          >
+            <div style={{
+              width: "38%", padding: "4px 10px", flexShrink: 0,
+              fontFamily: SANS, fontSize: 8.5, color: CHL,
+              letterSpacing: "0.09em", textTransform: "uppercase",
+              display: "flex", alignItems: "center",
+              borderRight: "0.5px solid rgba(54,69,79,0.07)",
+            }}>
+              {row.label}
+            </div>
+            <div style={{
+              flex: 1, padding: "4px 10px",
+              fontFamily: SANS, fontSize: 11.5, fontWeight: i === 0 ? 700 : 400, color: CH,
+              display: "flex", alignItems: "center",
+            }}>
+              {row.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionBlock>
   );
 }
 
-// ─── SignatureBlock v4.4 (unchanged) ──────────────────────────────────────────
+// ─── SignatureBlock ───────────────────────────────────────────────────────────
 function SignatureBlock({ credentials }) {
-  const c           = credentials || {};
-  const sigSize     = c.signatureSize || "medium";
-  const boxHeight   = SIG_HEIGHTS[sigSize] || "18mm";
-  const imgMaxH     = sigSize === "large" ? "22mm" : sigSize === "small" ? "10mm" : "16mm";
-  const imgMaxW     = sigSize === "large" ? "56mm" : "36mm";
+  const c            = credentials || {};
   const displayName  = hasValue(c.examinerName)  ? c.examinerName  : (c.signatoryName || "");
   const displayTitle = hasValue(c.examinerTitle) ? c.examinerTitle : (c.title         || "");
   const hasSigImg    = hasValue(c.signatureImageUrl);
 
   return (
     <div>
-      <div style={{
-        height: boxHeight, display: "flex", alignItems: "flex-end",
-        paddingBottom: "1mm", overflow: "hidden", boxSizing: "border-box",
-      }}>
+      <div style={{ height: "18mm", display: "flex", alignItems: "flex-end", paddingBottom: "1mm", overflow: "hidden", boxSizing: "border-box" }}>
         {hasSigImg && (
           <img src={c.signatureImageUrl} alt="signature"
-               style={{ maxWidth: imgMaxW, maxHeight: imgMaxH, width: "auto", height: "auto",
-                        objectFit: "contain", objectPosition: "bottom left", display: "block" }} />
+               style={{ maxWidth: "36mm", maxHeight: "16mm", width: "auto", height: "auto", objectFit: "contain", objectPosition: "bottom left", display: "block" }} />
         )}
       </div>
       <div style={{ width: "50mm", height: "0.5px", background: "rgba(54,69,79,0.3)", marginBottom: "3mm" }} />
@@ -175,7 +210,7 @@ function SignatureBlock({ credentials }) {
         </div>
       )}
       {hasValue(displayTitle) && (
-        <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 4, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: SANS, fontSize: 7.5, color: CHL, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 4, lineHeight: 1.5 }}>
           {displayTitle}
         </div>
       )}
@@ -183,7 +218,7 @@ function SignatureBlock({ credentials }) {
   );
 }
 
-// ─── ReferencePanel (unchanged from v4.3) ────────────────────────────────────
+// ─── ReferencePanel ───────────────────────────────────────────────────────────
 const PANEL_STYLE = { border: "0.5px solid rgba(138,171,142,0.35)", background: "rgba(240,237,232,0.55)", padding: "3.5mm 4.5mm", marginBottom: "5mm" };
 const PANEL_TITLE = { fontFamily: SANS, fontSize: 6.5, fontWeight: 700, color: CHL, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "3mm", paddingBottom: "1.5mm", borderBottom: "0.5px solid rgba(138,171,142,0.3)" };
 const PANEL_ROW   = { display: "flex", gap: "3mm", alignItems: "baseline", marginBottom: "2mm" };
@@ -191,7 +226,7 @@ const PANEL_LABEL = { fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL
 const PANEL_VALUE = { fontFamily: SANS, fontSize: 7.5, color: CHM, lineHeight: 1.55 };
 
 function ReferencePanel({ productType }) {
-  if (productType === "natural_diamond") {
+  if (productType === "natural_diamond" || productType === "stone_pair_set") {
     return (
       <div style={PANEL_STYLE}>
         <div style={PANEL_TITLE}>Diamond Quality Reference</div>
@@ -217,7 +252,7 @@ function ReferencePanel({ productType }) {
         <div style={PANEL_TITLE}>Fancy Colour Grading Reference</div>
         <div style={PANEL_ROW}><span style={PANEL_LABEL}>Intensity Scale</span><span style={PANEL_VALUE}>Faint · Very Light · Light · Fancy Light · Fancy · Fancy Intense · Fancy Vivid · Fancy Deep · Fancy Dark</span></div>
         <div style={PANEL_ROW}><span style={PANEL_LABEL}>Primary Hues</span><span style={PANEL_VALUE}>Yellow · Pink · Blue · Green · Orange · Purple · Red · Brown · Gray · Black</span></div>
-        <div style={{ ...PANEL_ROW, marginBottom: 0 }}><span style={PANEL_LABEL}>Value Factors</span><span style={PANEL_VALUE}>Fancy Vivid represents peak saturation and commands the highest premiums · Blue and Pink command exceptional values</span></div>
+        <div style={{ ...PANEL_ROW, marginBottom: 0 }}><span style={PANEL_LABEL}>Value Factors</span><span style={PANEL_VALUE}>Fancy Vivid represents peak saturation and commands the highest premiums</span></div>
       </div>
     );
   }
@@ -231,28 +266,42 @@ function ReferencePanel({ productType }) {
       </div>
     );
   }
+  if (productType === "stone_parcel") {
+    return (
+      <div style={PANEL_STYLE}>
+        <div style={PANEL_TITLE}>Stone Parcel — Assessment Note</div>
+        <div style={PANEL_ROW}><span style={PANEL_LABEL}>Parcel</span><span style={PANEL_VALUE}>This report covers a parcel or melee lot of multiple stones. Individual stones may vary in grading characteristics.</span></div>
+        <div style={{ ...PANEL_ROW, marginBottom: 0 }}><span style={PANEL_LABEL}>Weight</span><span style={PANEL_VALUE}>Carat weight stated is the total parcel weight. Average stone weight is derived when stone count is available.</span></div>
+      </div>
+    );
+  }
   return null;
 }
 
-// ─── productType field groups (unchanged from v4.3.2 / v4.4) ─────────────────
+// ─── Field groups (unchanged from v4.3.2) ────────────────────────────────────
+
 function NaturalDiamondFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
   const cutFormStr = formatCutForm(st.cutForm, st.shape);
   const cfLabel    = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
+
   const hasMeasurements = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(measStr);
-  const hasGrading      = hasValue(st.color) || hasValue(st.clarity) || hasValue(st.cut) || hasValue(st.polish) || hasValue(st.symmetry) || hasValue(fluorStr);
+  const hasGrading      = hasValue(st.color)   || hasValue(st.clarity)   || hasValue(st.cut) ||
+                          hasValue(st.polish)  || hasValue(st.symmetry)  || hasValue(fluorStr);
   const hasLab          = hasValue(st.certLab) || hasValue(st.certNumber);
+
   if (!hasMeasurements && !hasGrading && !hasLab) return null;
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginBottom: "5mm" }}>
       <div>
         {hasMeasurements && (
           <SectionBlock title="Weight & Shape" marginBottom={hasLab ? "4mm" : "0"}>
             <GradeTable>
-              {hasValue(cutFormStr) && <GradeRow label={cfLabel}      value={cutFormStr}               />}
-              {hasValue(st.carat)   && <GradeRow label="Carat Weight" value={`${st.carat} ct`} highlight />}
-              {hasValue(measStr)    && <GradeRow label="Measurements" value={measStr}          noBorder />}
+              {hasValue(cutFormStr) && <GradeRow label={cfLabel}       value={cutFormStr}               />}
+              {hasValue(st.carat)   && <GradeRow label="Carat Weight"  value={`${st.carat} ct`} highlight />}
+              {hasValue(measStr)    && <GradeRow label="Measurements"  value={measStr}          noBorder />}
             </GradeTable>
           </SectionBlock>
         )}
@@ -266,16 +315,18 @@ function NaturalDiamondFields({ st }) {
         )}
       </div>
       {hasGrading && (
-        <SectionBlock title="Grading Results" marginBottom="0">
-          <GradingBlock>
-            {hasValue(st.color)    && <GradeRow label="Colour Grade"  value={st.color}    highlight />}
-            {hasValue(st.clarity)  && <GradeRow label="Clarity Grade" value={st.clarity}  highlight />}
-            {hasValue(st.cut)      && <GradeRow label="Cut Grade"     value={st.cut}               />}
-            {hasValue(st.polish)   && <GradeRow label="Polish"        value={st.polish}            />}
-            {hasValue(st.symmetry) && <GradeRow label="Symmetry"      value={st.symmetry}          />}
-            {hasValue(fluorStr)    && <GradeRow label="Fluorescence"  value={fluorStr}    noBorder />}
-          </GradingBlock>
-        </SectionBlock>
+        <div>
+          <SectionBlock title="Grading Results" marginBottom="0">
+            <GradingBlock>
+              {hasValue(st.color)    && <GradeRow label="Colour Grade"  value={st.color}    highlight />}
+              {hasValue(st.clarity)  && <GradeRow label="Clarity Grade" value={st.clarity}  highlight />}
+              {hasValue(st.cut)      && <GradeRow label="Cut Grade"     value={st.cut}               />}
+              {hasValue(st.polish)   && <GradeRow label="Polish"        value={st.polish}            />}
+              {hasValue(st.symmetry) && <GradeRow label="Symmetry"      value={st.symmetry}          />}
+              {hasValue(fluorStr)    && <GradeRow label="Fluorescence"  value={fluorStr}    noBorder />}
+            </GradingBlock>
+          </SectionBlock>
+        </div>
       )}
     </div>
   );
@@ -286,10 +337,14 @@ function LabDiamondFields({ st }) {
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
   const cutFormStr = formatCutForm(st.cutForm, st.shape);
   const cfLabel    = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
+
   const hasMeasurements = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(measStr) || hasValue(st.growthMethod);
-  const hasGrading      = hasValue(st.color) || hasValue(st.clarity) || hasValue(st.cut) || hasValue(st.polish) || hasValue(st.symmetry) || hasValue(fluorStr);
+  const hasGrading      = hasValue(st.color)   || hasValue(st.clarity)   || hasValue(st.cut) ||
+                          hasValue(st.polish)  || hasValue(st.symmetry)  || hasValue(fluorStr);
   const hasLab          = hasValue(st.certLab) || hasValue(st.certNumber);
+
   if (!hasMeasurements && !hasGrading && !hasLab) return null;
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginBottom: "5mm" }}>
       <div>
@@ -313,16 +368,18 @@ function LabDiamondFields({ st }) {
         )}
       </div>
       {hasGrading && (
-        <SectionBlock title="Grading Results" marginBottom="0">
-          <GradingBlock>
-            {hasValue(st.color)    && <GradeRow label="Colour Grade"  value={st.color}    highlight />}
-            {hasValue(st.clarity)  && <GradeRow label="Clarity Grade" value={st.clarity}  highlight />}
-            {hasValue(st.cut)      && <GradeRow label="Cut Grade"     value={st.cut}               />}
-            {hasValue(st.polish)   && <GradeRow label="Polish"        value={st.polish}            />}
-            {hasValue(st.symmetry) && <GradeRow label="Symmetry"      value={st.symmetry}          />}
-            {hasValue(fluorStr)    && <GradeRow label="Fluorescence"  value={fluorStr}    noBorder />}
-          </GradingBlock>
-        </SectionBlock>
+        <div>
+          <SectionBlock title="Grading Results" marginBottom="0">
+            <GradingBlock>
+              {hasValue(st.color)    && <GradeRow label="Colour Grade"  value={st.color}    highlight />}
+              {hasValue(st.clarity)  && <GradeRow label="Clarity Grade" value={st.clarity}  highlight />}
+              {hasValue(st.cut)      && <GradeRow label="Cut Grade"     value={st.cut}               />}
+              {hasValue(st.polish)   && <GradeRow label="Polish"        value={st.polish}            />}
+              {hasValue(st.symmetry) && <GradeRow label="Symmetry"      value={st.symmetry}          />}
+              {hasValue(fluorStr)    && <GradeRow label="Fluorescence"  value={fluorStr}    noBorder />}
+            </GradingBlock>
+          </SectionBlock>
+        </div>
       )}
     </div>
   );
@@ -334,10 +391,15 @@ function FancyColorDiamondFields({ st }) {
   const cutFormStr    = formatCutForm(st.cutForm, st.shape);
   const cfLabel       = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
   const fancyGradeStr = [st.fancyColorIntensity, st.fancyColorHue].filter(hasValue).join(" ");
+
   const hasMeasurements = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(measStr);
-  const hasFancyGrading = hasValue(fancyGradeStr) || hasValue(st.fancyColorOrigin) || hasValue(st.clarity) || hasValue(st.polish) || hasValue(st.symmetry) || hasValue(fluorStr);
-  const hasLab          = hasValue(st.certLab) || hasValue(st.certNumber);
+  const hasFancyGrading = hasValue(fancyGradeStr) || hasValue(st.fancyColorOrigin) ||
+                          hasValue(st.clarity)    || hasValue(st.polish) ||
+                          hasValue(st.symmetry)   || hasValue(fluorStr);
+  const hasLab          = hasValue(st.certLab)    || hasValue(st.certNumber);
+
   if (!hasMeasurements && !hasFancyGrading && !hasLab) return null;
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginBottom: "5mm" }}>
       <div>
@@ -360,16 +422,18 @@ function FancyColorDiamondFields({ st }) {
         )}
       </div>
       {hasFancyGrading && (
-        <SectionBlock title="Colour Grading" marginBottom="0">
-          <GradingBlock>
-            {hasValue(fancyGradeStr)       && <GradeRow label="Fancy Colour Grade" value={fancyGradeStr}       highlight />}
-            {hasValue(st.fancyColorOrigin) && <GradeRow label="Colour Origin"      value={st.fancyColorOrigin}           />}
-            {hasValue(st.clarity)          && <GradeRow label="Clarity Grade"      value={st.clarity}                    />}
-            {hasValue(st.polish)           && <GradeRow label="Polish"             value={st.polish}                     />}
-            {hasValue(st.symmetry)         && <GradeRow label="Symmetry"           value={st.symmetry}                   />}
-            {hasValue(fluorStr)            && <GradeRow label="Fluorescence"       value={fluorStr}            noBorder />}
-          </GradingBlock>
-        </SectionBlock>
+        <div>
+          <SectionBlock title="Colour Grading" marginBottom="0">
+            <GradingBlock>
+              {hasValue(fancyGradeStr)       && <GradeRow label="Fancy Colour Grade" value={fancyGradeStr}       highlight />}
+              {hasValue(st.fancyColorOrigin) && <GradeRow label="Colour Origin"      value={st.fancyColorOrigin}           />}
+              {hasValue(st.clarity)          && <GradeRow label="Clarity Grade"      value={st.clarity}                    />}
+              {hasValue(st.polish)           && <GradeRow label="Polish"             value={st.polish}                     />}
+              {hasValue(st.symmetry)         && <GradeRow label="Symmetry"           value={st.symmetry}                   />}
+              {hasValue(fluorStr)            && <GradeRow label="Fluorescence"       value={fluorStr}            noBorder />}
+            </GradingBlock>
+          </SectionBlock>
+        </div>
       )}
     </div>
   );
@@ -380,11 +444,15 @@ function ColoredGemstoneFields({ st }) {
   const cutFormStr = formatCutForm(st.cutForm, st.shape);
   const cfLabel    = hasValue(st.cutForm) ? "Cut / Form" : "Shape";
   const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
-  const hasIdentity   = hasValue(st.species) || hasValue(st.variety);
-  const hasMeasure    = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(measStr);
-  const hasAppearance = hasValue(st.colorDescription) || hasValue(st.transparency) || hasValue(st.clarity) || hasValue(fluorStr);
-  const hasTreatment  = hasValue(st.treatment) || hasValue(st.countryOfOrigin);
+
+  const hasIdentity   = hasValue(st.species)          || hasValue(st.variety);
+  const hasMeasure    = hasValue(cutFormStr)           || hasValue(st.carat) || hasValue(measStr);
+  const hasAppearance = hasValue(st.colorDescription)  || hasValue(st.transparency) ||
+                        hasValue(st.clarity)           || hasValue(fluorStr);
+  const hasTreatment  = hasValue(st.treatment)         || hasValue(st.countryOfOrigin);
+
   if (!hasIdentity && !hasMeasure && !hasAppearance && !hasTreatment) return null;
+
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginBottom: "5mm" }}>
@@ -418,7 +486,7 @@ function ColoredGemstoneFields({ st }) {
                       {hasValue(st.colorDescription) && <GradeRow label="Colour Description" value={st.colorDescription} highlight />}
                       {hasValue(st.transparency)     && <GradeRow label="Transparency"        value={st.transparency}              />}
                       {hasValue(st.clarity)          && <GradeRow label="Clarity"             value={st.clarity}                   />}
-                      {hasValue(fluorStr)            && <GradeRow label="Fluorescence"        value={fluorStr}            noBorder />}
+                      {hasValue(fluorStr)            && <GradeRow label="Fluorescence"        value={fluorStr}           noBorder />}
                     </tbody>
                   </table>
                 </div>
@@ -439,29 +507,46 @@ function ColoredGemstoneFields({ st }) {
   );
 }
 
+// ─── Subtitle helper (v5.4.1) ─────────────────────────────────────────────────
+function getProductSubtitle(pt) {
+  switch (pt) {
+    case "natural_diamond":     return "Natural Diamond";
+    case "lab_grown_diamond":   return "Laboratory-Grown Diamond";
+    case "fancy_color_diamond": return "Fancy Colour Diamond";
+    case "colored_gemstone":    return "Coloured Gemstone";
+    case "stone_pair_set":      return "Matched Pair / Set";
+    case "stone_parcel":        return "Stone Parcel · Melee";  // ← NOT "Matched Pair"
+    case "jewelry_part":        return "Jewelry Component";
+    case "finished_jewelry":    return "Finished Jewelry";
+    default:                    return PRODUCT_TYPE_LABELS[pt] || "Stone Report";
+  }
+}
+
 // ─── InHouseStoneReport ───────────────────────────────────────────────────────
 export function InHouseStoneReport({ data }) {
   if (!data) return null;
   const d  = data;
   const st = d.stone || {};
 
-  const pt           = d.productType || "natural_diamond";
-  const ptLabel      = PRODUCT_TYPE_LABELS[pt] || "Stone Report";
+  const pt           = d.productType  || "natural_diamond";
+  const ptSubtitle   = getProductSubtitle(pt);   // v5.4.1: uses correct mapping
   const showRefPanel = d.displaySettings?.showReferencePanel !== false;
 
   const images        = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
-  const imageCrops    = Array.isArray(d.imageCrops) ? d.imageCrops : [];
   const reportImages  = images.slice(0, 3);
   const hasImages     = reportImages.length > 0;
   const heroImg       = reportImages[0] || null;
   const secondaryImgs = reportImages.slice(1);
 
-  const hasExtReports = Array.isArray(d.externalReports) && d.externalReports.length > 0 &&
-                        d.externalReports.some((r) => hasValue(r.lab) || hasValue(r.reportNumber));
+  const hasExtReports =
+    Array.isArray(d.externalReports) && d.externalReports.length > 0 &&
+    d.externalReports.some((r) => hasValue(r.lab) || hasValue(r.reportNumber));
   const hasComments     = hasValue(d.comments);
-  const hasVerification = hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
+  const hasVerification =
+    hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
 
-  const KNOWN_TYPES = ["natural_diamond", "lab_grown_diamond", "fancy_color_diamond", "colored_gemstone"];
+  // Which field group to render for this product type
+  const GEMSTONE_TYPES = ["natural_diamond", "lab_grown_diamond", "fancy_color_diamond", "colored_gemstone"];
 
   return (
     <div
@@ -470,23 +555,14 @@ export function InHouseStoneReport({ data }) {
       style={{
         width:    "210mm",
         maxWidth: "100%",
-
-        /*
-         * v4.4.2 LAYOUT FIX — same approach as JewelryValuationReport v4.4.2:
-         * height:297mm + flex-column locks to exactly one A4 page.
-         * Footer is a separate flexShrink:0 child — always visible.
-         */
-        height:        "297mm",
-        display:       "flex",
-        flexDirection: "column",
-        overflow:      "hidden",
-
-        background:  IV,
-        fontFamily:  SANS,
-        color:       CH,
-        position:    "relative",
-        boxSizing:   "border-box",
-        margin:      "0 auto",
+        minHeight: "297mm",
+        background: IV,
+        fontFamily: SANS,
+        color:      CH,
+        position:   "relative",
+        overflow:   "hidden",
+        boxSizing:  "border-box",
+        margin:     "0 auto",
         WebkitPrintColorAdjust: "exact",
         printColorAdjust:       "exact",
       }}
@@ -500,62 +576,54 @@ export function InHouseStoneReport({ data }) {
         pointerEvents: "none", lineHeight: 1, zIndex: 0, whiteSpace: "nowrap",
       }}>LS</div>
 
-      {/* Sage strip — never shrinks */}
-      <div style={{
-        height:     4,
-        flexShrink: 0,
-        background: `linear-gradient(90deg, ${SGD} 0%, ${SG} 60%, #b0c8b2 100%)`,
-      }} />
+      {/* Sage strip */}
+      <div style={{ height: 4, background: `linear-gradient(90deg, ${SGD} 0%, ${SG} 60%, #b0c8b2 100%)` }} />
 
-      {/*
-       * ── BODY — flex:1; minHeight:0; overflow:hidden ────────────────────────
-       * Takes all space between the sage strip and footer.
-       * minHeight:0 is critical — allows the body to shrink below its content
-       * height so the footer always stays within the 297mm boundary.
-       */}
-      <div style={{
-        flex:      1,
-        minHeight: 0,
-        overflow:  "hidden",
-        padding:   "8mm 14mm 0",
-        position:  "relative",
-        zIndex:    1,
-        boxSizing: "border-box",
-      }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "10mm 14mm 12mm" }}>
 
-        {/* ── HEADER ── */}
+        {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4mm" }}>
           <div>
-            <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 700, color: CH, letterSpacing: "0.22em", lineHeight: 1 }}>LESHEM.S</div>
-            <div style={{ fontFamily: SANS, fontSize: 7.5, color: SG, letterSpacing: "0.2em", textTransform: "uppercase", marginTop: 4 }}>Fine Jewelry · Est. 2018</div>
+            <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 700, color: CH, letterSpacing: "0.22em", lineHeight: 1 }}>
+              LESHEM.S
+            </div>
+            <div style={{ fontFamily: SANS, fontSize: 7.5, color: SG, letterSpacing: "0.2em", textTransform: "uppercase", marginTop: 4 }}>
+              Fine Jewelry · Est. 2018
+            </div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: SANS, fontSize: 8.5, fontWeight: 700, color: CH, letterSpacing: "0.18em", textTransform: "uppercase", lineHeight: 1 }}>In-House Stone Report</div>
-            <div style={{ fontFamily: SANS, fontSize: 7.5, color: SG, letterSpacing: "0.12em", marginTop: 3, textTransform: "uppercase" }}>{ptLabel}</div>
+            <div style={{ fontFamily: SANS, fontSize: 8.5, fontWeight: 700, color: CH, letterSpacing: "0.18em", textTransform: "uppercase", lineHeight: 1 }}>
+              In-House Stone Report
+            </div>
+            {/* v5.4.1: ptSubtitle uses correct mapping (stone_parcel ≠ Matched Pair) */}
+            <div style={{ fontFamily: SANS, fontSize: 7.5, color: SG, letterSpacing: "0.12em", marginTop: 3, textTransform: "uppercase" }}>
+              {ptSubtitle}
+            </div>
             {hasValue(d.reportNumber) && (
-              <div style={{ fontFamily: SANS, fontSize: 8.5, color: CHL, marginTop: 4, letterSpacing: "0.04em" }}>
+              <div style={{ fontFamily: SANS, fontSize: 8.5, color: "#7a8e98", marginTop: 4, letterSpacing: "0.04em" }}>
                 Report No. <span style={{ color: CH, fontWeight: 600 }}>{d.reportNumber}</span>
               </div>
             )}
             {hasValue(d.reportDate) && (
-              <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, marginTop: 2 }}>{d.reportDate}</div>
+              <div style={{ fontFamily: SANS, fontSize: 8, color: "#7a8e98", marginTop: 2 }}>{d.reportDate}</div>
             )}
           </div>
         </div>
 
+        {/* Sage rule */}
         <div style={{ height: "1px", background: SG, marginBottom: "5mm" }} />
 
-        {/* ── IMAGES ── */}
+        {/* IMAGES */}
         {hasImages && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "5mm", gap: "2mm" }}>
             <div style={{ width: "55mm", height: "55mm", border: "0.5px solid rgba(54,69,79,0.16)", background: IV2, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CroppedImage src={heroImg} alt="stone" crop={imageCrops[0]} />
+              <img src={heroImg} alt="stone" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             {secondaryImgs.length > 0 && (
               <div style={{ display: "flex", gap: "2mm" }}>
                 {secondaryImgs.map((src, i) => (
                   <div key={i} style={{ width: "17mm", height: "17mm", border: "0.5px solid rgba(54,69,79,0.12)", background: IV2, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <CroppedImage src={src} alt={`view ${i + 2}`} crop={imageCrops[i + 1]} />
+                    <img src={src} alt={`view ${i + 2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 ))}
               </div>
@@ -563,31 +631,46 @@ export function InHouseStoneReport({ data }) {
           </div>
         )}
 
-        {/* ── PRODUCT-TYPE CONDITIONAL FIELDS ── */}
-        {pt === "natural_diamond"     && <NaturalDiamondFields      st={st} />}
-        {pt === "lab_grown_diamond"   && <LabDiamondFields           st={st} />}
-        {pt === "fancy_color_diamond" && <FancyColorDiamondFields    st={st} />}
-        {pt === "colored_gemstone"    && <ColoredGemstoneFields      st={st} />}
-        {!KNOWN_TYPES.includes(pt)    && <NaturalDiamondFields      st={st} />}
+        {/* v5.4.1: CLASSIFICATION SECTION — above field-specific grading */}
+        <ClassificationSection
+          classification={d.classification}
+          productType={pt}
+        />
+
+        {/* PRODUCT-TYPE CONDITIONAL FIELDS */}
+        {pt === "natural_diamond"     && <NaturalDiamondFields     st={st} />}
+        {pt === "lab_grown_diamond"   && <LabDiamondFields          st={st} />}
+        {pt === "fancy_color_diamond" && <FancyColorDiamondFields   st={st} />}
+        {pt === "colored_gemstone"    && <ColoredGemstoneFields     st={st} />}
+        {/* stone_pair_set: use NaturalDiamondFields (pair of diamonds is most common) */}
+        {pt === "stone_pair_set"      && <NaturalDiamondFields      st={st} />}
+        {/* stone_parcel: use NaturalDiamondFields but classification section makes it clear */}
+        {pt === "stone_parcel"        && <NaturalDiamondFields      st={st} />}
+        {/* Fallback for unknown types — NOT parcel, NOT pair */}
+        {!["natural_diamond","lab_grown_diamond","fancy_color_diamond","colored_gemstone","stone_pair_set","stone_parcel"].includes(pt) && (
+          <NaturalDiamondFields st={st} />
+        )}
 
         {(hasExtReports || hasComments || hasVerification || showRefPanel) && (
           <div style={{ height: "0.5px", background: "rgba(54,69,79,0.08)", marginBottom: "4mm" }} />
         )}
 
-        {/* ── EXTERNAL REPORTS ── */}
+        {/* EXTERNAL REPORTS */}
         {hasExtReports && (
           <SectionBlock title="External Lab Reports">
-            {d.externalReports.filter((r) => hasValue(r.lab) || hasValue(r.reportNumber)).map((rpt, idx) => (
-              <div key={idx} style={{ display: "flex", gap: "4mm", padding: "2.5mm 3.5mm", background: idx % 2 === 0 ? IV2 : "#f4f1eb", alignItems: "center", flexWrap: "wrap" }}>
-                {hasValue(rpt.lab)            && <span style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, color: CH, letterSpacing: "0.04em" }}>{rpt.lab}</span>}
-                {hasValue(rpt.reportNumber)   && <span style={{ fontFamily: SANS, fontSize: 10, color: CHM }}>No. {rpt.reportNumber}</span>}
-                {hasValue(rpt.attachmentName) && <span style={{ fontFamily: SANS, fontSize: 9, color: CHL, fontStyle: "italic" }}>{rpt.attachmentName}</span>}
-              </div>
-            ))}
+            {d.externalReports
+              .filter((r) => hasValue(r.lab) || hasValue(r.reportNumber))
+              .map((rpt, idx) => (
+                <div key={idx} style={{ display: "flex", gap: "4mm", padding: "2.5mm 3.5mm", background: idx % 2 === 0 ? IV2 : "#f4f1eb", alignItems: "center", flexWrap: "wrap" }}>
+                  {hasValue(rpt.lab)          && <span style={{ fontFamily: SANS, fontSize: 10, fontWeight: 700, color: CH }}>{rpt.lab}</span>}
+                  {hasValue(rpt.reportNumber) && <span style={{ fontFamily: SANS, fontSize: 10, color: CHM }}>No. {rpt.reportNumber}</span>}
+                  {hasValue(rpt.attachmentName) && <span style={{ fontFamily: SANS, fontSize: 9, color: CHL, fontStyle: "italic" }}>{rpt.attachmentName}</span>}
+                </div>
+              ))}
           </SectionBlock>
         )}
 
-        {/* ── COMMENTS ── */}
+        {/* COMMENTS */}
         {hasComments && (
           <SectionBlock title="Comments">
             <p style={{ fontFamily: SANS, fontSize: 10.5, color: CHM, lineHeight: 1.82, margin: 0, padding: "3mm 4mm", background: IV2, borderLeft: `2px solid ${SG}`, fontStyle: "italic" }}>
@@ -596,65 +679,51 @@ export function InHouseStoneReport({ data }) {
           </SectionBlock>
         )}
 
-        {/* ── VERIFICATION ── */}
+        {/* VERIFICATION */}
         {hasVerification && (
           <SectionBlock title="Verification">
             <div style={{ display: "flex", alignItems: "center", gap: "3.5mm", padding: "3mm 4mm", background: IV2, border: "0.5px solid rgba(54,69,79,0.12)" }}>
               {hasValue(d.verification?.qrImageUrl) && (
-                <img src={d.verification.qrImageUrl} alt="QR"
-                     style={{ width: "13mm", height: "13mm", objectFit: "contain", flexShrink: 0 }} />
+                <img src={d.verification.qrImageUrl} alt="Verification QR" style={{ width: "13mm", height: "13mm", objectFit: "contain", flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 3 }}>Authenticated Report</div>
-                {hasValue(d.verification?.verificationId)  && <div style={{ fontFamily: MONO, fontSize: 9.5, color: CH, letterSpacing: "0.08em" }}>ID: {d.verification.verificationId}</div>}
-                {hasValue(d.verification?.verificationUrl) && <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, fontStyle: "italic", marginTop: 2 }}>{d.verification.verificationUrl}</div>}
+                <div style={{ fontFamily: SANS, fontSize: 7, fontWeight: 700, color: CHL, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 3 }}>
+                  Authenticated Report
+                </div>
+                {hasValue(d.verification?.verificationId) && (
+                  <div style={{ fontFamily: MONO, fontSize: 9.5, color: CH, letterSpacing: "0.08em" }}>
+                    ID: {d.verification.verificationId}
+                  </div>
+                )}
+                {hasValue(d.verification?.verificationUrl) && (
+                  <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, fontStyle: "italic", marginTop: 2 }}>
+                    {d.verification.verificationUrl}
+                  </div>
+                )}
               </div>
             </div>
           </SectionBlock>
         )}
 
-        {/* ── REFERENCE PANEL ── */}
+        {/* REFERENCE PANEL */}
         {showRefPanel && <ReferencePanel productType={pt} />}
 
-      </div>{/* /BODY */}
-
-      {/*
-       * ── FOOTER — always visible at the bottom of the A4 page ─────────────
-       * flexShrink:0 → cannot be compressed out of view.
-       * background:IV → ivory covers the watermark behind the signature.
-       */}
-      <div style={{
-        flexShrink: 0,
-        background: IV,
-        position:   "relative",
-        zIndex:     1,
-        padding:    "0 14mm",
-        boxSizing:  "border-box",
-      }}>
-        <div style={{
-          borderTop:      "0.5px solid rgba(138,171,142,0.55)",
-          paddingTop:     "4mm",
-          paddingBottom:  "5mm",
-          display:        "flex",
-          justifyContent: "space-between",
-          alignItems:     "flex-end",
-          flexWrap:       "wrap",
-          gap:            "6mm",
-        }}>
+        {/* FOOTER */}
+        <div style={{ borderTop: "0.5px solid rgba(138,171,142,0.55)", paddingTop: "5mm", marginTop: "4mm", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "6mm" }}>
           <SignatureBlock credentials={d.credentials} />
           <div style={{ textAlign: "right", maxWidth: "70mm" }}>
             {hasValue(d.credentials?.companyLine) && (
-              <div style={{ fontFamily: SANS, fontSize: 9, color: CHL, lineHeight: 1.55, marginBottom: 5 }}>
+              <div style={{ fontFamily: SANS, fontSize: 8, color: CHL, lineHeight: 1.55, marginBottom: 5 }}>
                 {d.credentials.companyLine}
               </div>
             )}
-            <div style={{ fontFamily: SANS, fontSize: 8, color: "rgba(54,69,79,0.42)", lineHeight: 1.65, fontStyle: "italic" }}>
+            <div style={{ fontFamily: SANS, fontSize: 7, color: "rgba(54,69,79,0.38)", lineHeight: 1.65, fontStyle: "italic" }}>
               This report reflects the professional assessment of LESHEM.S and is provided for informational purposes only.
             </div>
           </div>
         </div>
-      </div>{/* /FOOTER */}
 
+      </div>
     </div>
   );
 }

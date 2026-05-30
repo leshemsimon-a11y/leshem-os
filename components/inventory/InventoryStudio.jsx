@@ -25,7 +25,7 @@
  * All other features (views, demo items, loading, errors) unchanged.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { C } from "../../lib/constants";
 import { InventoryCard, PRODUCT_TYPE_LABELS, PRODUCT_TYPE_GRADIENTS, PRODUCT_TYPE_ICONS } from "./InventoryCard";
 import { InventoryFilters, EMPTY_FILTERS, applyFilters }                                   from "./InventoryFilters";
@@ -133,10 +133,15 @@ export function InventoryStudio({
   error   = null,
   onRetry,
   onAddNew,
-  onUseInCalculator,
+  onUseInCalculator,      // v5.3.1: triggers CalcLoadDialog in index.js
   onCreateCertificate,
-  onNavigateToCalc,   // v5.4: for CommandBar calculate suggestion
-  onNavigateToCert,   // v5.4: for CommandBar certificate suggestion
+  onNavigateToCalc,
+  onNavigateToCert,
+  // v5.4.1: after CalcLoadDialog resolves, index.js sets pendingCalcItem
+  // to signal InventoryStudio to open UseAsDialog for that item
+  pendingCalcItem     = null,
+  onUseInCalculatorFinal = null,   // called with (item, useAs) after UseAsDialog
+  onClearPendingCalcItem = null,   // called when UseAsDialog closes without selection
 }) {
   const [viewMode,    setViewMode]    = useState("card");
   const [searchText,  setSearchText]  = useState("");
@@ -144,6 +149,14 @@ export function InventoryStudio({
   const [drawerItem,  setDrawerItem]  = useState(null);
   const [trayItems,   setTrayItems]   = useState([]);
   const [useAsItem,   setUseAsItem]   = useState(null);
+
+  // v5.4.1: when pendingCalcItem changes (set by index.js after CalcLoadDialog),
+  // open UseAsDialog for that item
+  useEffect(() => {
+    if (pendingCalcItem) {
+      setUseAsItem(pendingCalcItem);
+    }
+  }, [pendingCalcItem]);
 
   const isShowingDemo = !loading && stones.length === 0;
   const allItems      = useMemo(() => (isShowingDemo ? DEMO_ITEMS : stones), [stones, isShowingDemo]);
@@ -162,13 +175,29 @@ export function InventoryStudio({
   const clearTray      = useCallback(() => setTrayItems([]), []);
 
   // UseAsDialog flow
-  const handleUseInCalcRequest = useCallback((item) => { setUseAsItem(item); }, []);
-  const handleUseAsSelected    = useCallback((useAs) => {
+  const handleUseInCalcRequest = useCallback((item) => {
+    // v5.4.1: Instead of directly prefilling, we ask index.js to show
+    // CalcLoadDialog first. The item goes to onUseInCalculator (index.js).
+    // If there's already a pending item via pendingCalcItem, open UseAsDialog directly.
+    if (onUseInCalculatorFinal) {
+      // We are in the second step (CalcLoadDialog already resolved)
+      setUseAsItem(item);
+    } else {
+      onUseInCalculator?.(item);
+    }
+  }, [onUseInCalculator, onUseInCalculatorFinal]);
+
+  const handleUseAsSelected = useCallback((useAs) => {
     const item = useAsItem;
     setUseAsItem(null);
     setDrawerItem(null);
-    onUseInCalculator?.(item, useAs);
-  }, [useAsItem, onUseInCalculator]);
+    if (onUseInCalculatorFinal) {
+      // Second step: final prefill
+      onUseInCalculatorFinal(item, useAs);
+    } else {
+      onUseInCalculator?.(item, useAs);
+    }
+  }, [useAsItem, onUseInCalculator, onUseInCalculatorFinal]);
 
   // Cert request
   const handleCertRequest = useCallback((item) => {
@@ -215,7 +244,7 @@ export function InventoryStudio({
   return (
     <div style={{ maxWidth:1360, margin:"0 auto", paddingBottom: trayItems.length > 0 ? 64 : 0 }}>
 
-      {useAsItem && <UseAsDialog item={useAsItem} onSelect={handleUseAsSelected} onCancel={() => setUseAsItem(null)} />}
+      {useAsItem && <UseAsDialog item={useAsItem} onSelect={handleUseAsSelected} onCancel={() => { setUseAsItem(null); onClearPendingCalcItem?.(); }} />}
 
       {/* Header */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:12 }}>

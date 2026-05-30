@@ -1,26 +1,29 @@
 /**
- * pages/index.js  —  LESHEM.S OS  v5.4
+ * pages/index.js  —  LESHEM.S OS  v5.4.1
  *
- * Changes from M5.3.2:
+ * Changes from v5.4:
  *
- * Task 6 — Use in Calculator clears previous data:
- *   prefillCalcFromItem now calls setCfg with DCFG spread first (full reset),
- *   then overlays only the relevant fields from the inventory item.
- *   This ensures stale calculator state from a previous item doesn't bleed through.
+ * Task 5 — "Start New Product / Add to Current Product" dialog:
+ *   When user clicks "Use in Calculator" from inventory, they first see:
+ *     ○ Start New Product (default) — clears DCFG, loads item
+ *     ○ Add to Current Product — appends item to existing cfg
+ *   After choosing, UseAsDialog appears as before.
+ *   The two-step flow is handled by CalcLoadDialog component.
  *
- * Task 7 — Multiple Center Stones foundation:
- *   cfg.centerStones[] is managed in app state.
- *   prefillCalcFromItem("center") pushes a new entry to centerStones[].
- *   onRemoveCenterStone removes a stone from centerStones[] by index.
- *   centerStones is passed to CalculatorForm as a prop.
- *   CalculatorForm renders it as read-only chips above the center stone panel.
+ * Task 6 — Global CommandBar in header:
+ *   A compact CommandBar appears in the main header between the logo and
+ *   the currency/reset controls. It can navigate between tabs and search
+ *   inventory from anywhere in the app.
+ *   The full CommandBar still appears inside InventoryStudio.
  *
- * Task 10 — CommandBar callbacks:
- *   onNavigateToCalc(calcSugg): navigates to calc tab.
- *     In a future version it will prefill cfg from calcSugg.
- *   onNavigateToCert: navigates to cert tab.
+ * Task 3 — Correct certificate mapping:
+ *   handleCertFromItem now calls mapProductTypeToCertificate() from
+ *   reportDefaults.js. stone_parcel → inhouse_stone/stone_parcel (not pair).
+ *   jewelry_part shows a confirmation dialog before creating a cert.
+ *   finished_jewelry → creates a jewelry_valuation report.
+ *   classification metadata attached via buildStoneClassification().
  *
- * calcSrcBanner, certSeed, all inventory fetch logic — unchanged from M5.3.2.
+ * Task 7 — Terminology: no "Basket", no "הגדרה".
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
@@ -29,12 +32,17 @@ import Head from "next/head";
 import { DCFG, C }                        from "../lib/constants";
 import { calcApp, fmt, buildMetalPrices } from "../lib/calculations";
 import { PRINT_CSS }                      from "../lib/printCss";
+import {
+  mapProductTypeToCertificate,
+  buildStoneClassification,
+}                                         from "../lib/reports/reportDefaults";
 
 import { CalculatorForm }      from "../components/CalculatorForm";
 import { CostSummary }         from "../components/CostSummary";
 import { ReportEngine }        from "../components/reports/ReportEngine";
 import { InventoryStudio }     from "../components/inventory/InventoryStudio";
 import { ProductIntakeWizard } from "../components/inventory/ProductIntakeWizard";
+import { CommandBar }          from "../components/inventory/CommandBar";
 
 const PAGE_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,7 +54,6 @@ const PAGE_CSS = `
     ::-webkit-scrollbar-thumb       { background: rgba(54,69,79,0.22); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(54,69,79,0.40); }
   }
-  .editor-section-nav::-webkit-scrollbar { display: none; }
   input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: #C5B358 !important;
@@ -58,12 +65,13 @@ const PAGE_CSS = `
 `;
 
 const TABS = [
-  { key: "calc",   icon: "🔢", label: "מחשבון", sublabel: "Calculator"   },
-  { key: "cert",   icon: "📋", label: "תעודות", sublabel: "Certificates"  },
-  { key: "malai",  icon: "💎", label: "מלאי",   sublabel: "Inventory"     },
-  { key: "intake", icon: "🗂", label: "קליטה",  sublabel: "Intake"        },
+  { key: "calc",   icon: "🔢", label: "מחשבון", sublabel: "Calculator"  },
+  { key: "cert",   icon: "📋", label: "תעודות", sublabel: "Certificates" },
+  { key: "malai",  icon: "💎", label: "מלאי",   sublabel: "Inventory"    },
+  { key: "intake", icon: "🗂", label: "קליטה",  sublabel: "Intake"       },
 ];
 
+// ─── ConfirmDialog ─────────────────────────────────────────────────────────────
 function ConfirmDialog({ message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
   return (
     <div
@@ -75,18 +83,81 @@ function ConfirmDialog({ message, confirmLabel, cancelLabel, onConfirm, onCancel
           {message}
         </p>
         <div style={{ display:"flex", justifyContent:"flex-end", gap:10 }}>
-          <button onClick={onCancel} style={{ height:40, padding:"0 18px", background:"transparent", border:"1px solid rgba(54,69,79,0.22)", borderRadius:7, cursor:"pointer", fontFamily:"'Assistant','Heebo',Arial,sans-serif", fontSize:13, color:"#7a8e98" }}>
-            {cancelLabel}
-          </button>
-          <button onClick={onConfirm} style={{ height:40, padding:"0 18px", background:"#36454F", color:"#FAF9F6", border:"none", borderRadius:7, cursor:"pointer", fontFamily:"'Assistant','Heebo',Arial,sans-serif", fontSize:13, fontWeight:700 }}>
-            {confirmLabel}
-          </button>
+          <button onClick={onCancel}  style={{ height:40, padding:"0 18px", background:"transparent", border:"1px solid rgba(54,69,79,0.22)", borderRadius:7, cursor:"pointer", fontFamily:"'Assistant','Heebo',Arial,sans-serif", fontSize:13, color:"#7a8e98" }}>{cancelLabel}</button>
+          <button onClick={onConfirm} style={{ height:40, padding:"0 18px", background:"#36454F", color:"#FAF9F6", border:"none", borderRadius:7, cursor:"pointer", fontFamily:"'Assistant','Heebo',Arial,sans-serif", fontSize:13, fontWeight:700 }}>{confirmLabel}</button>
         </div>
       </div>
     </div>
   );
 }
 
+// ─── CalcLoadDialog (Task 5) ──────────────────────────────────────────────────
+/**
+ * Shown before UseAsDialog when user clicks "Use in Calculator".
+ * User chooses: Start New Product (default) or Add to Current Product.
+ *
+ * onSelect(mode) where mode ∈ { "new", "add" }
+ */
+function CalcLoadDialog({ item, onSelect, onCancel }) {
+  if (!item) return null;
+  const pt = item.productType || "";
+  const nameStr = item.name || item.sku || item.stoneType || "פריט";
+  const ctStr   = item.caratWeight ? ` · ${parseFloat(item.caratWeight).toFixed(2)} ct` : "";
+
+  return (
+    <div
+      style={{ position:"fixed", inset:0, background:"rgba(54,69,79,0.6)", zIndex:1400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+      onClick={(e) => { if (e.target===e.currentTarget) onCancel(); }}
+    >
+      <div style={{ background:C.iv, borderRadius:12, padding:"22px 26px", maxWidth:430, width:"100%", boxShadow:"0 24px 60px rgba(54,69,79,0.3)" }}>
+        <div style={{ fontFamily:C.dat, fontSize:13.5, fontWeight:700, color:C.ch, marginBottom:4 }}>
+          Use in Calculator
+        </div>
+        <div style={{ fontFamily:C.heb, fontSize:12, color:C.chl, marginBottom:18, lineHeight:1.6 }}>
+          {nameStr}{ctStr} — כיצד לטעון את הפריט?
+        </div>
+
+        {[
+          {
+            key: "new",
+            icon: "🆕",
+            label: "מוצר חדש",
+            sub:   "Start New Product — clears all current data and loads this item",
+            bold:  true,
+          },
+          {
+            key: "add",
+            icon: "➕",
+            label: "הוסף למוצר הנוכחי",
+            sub:   "Add to Current Product — appends this item to existing calculator data",
+            bold:  false,
+          },
+        ].map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => onSelect(opt.key)}
+            style={{ display:"flex", alignItems:"center", gap:13, padding:"12px 14px", background:opt.bold?"rgba(54,69,79,0.04)":"#fff", border:`1.5px solid ${opt.bold?"rgba(54,69,79,0.2)":"rgba(54,69,79,0.12)"}`, borderRadius:9, cursor:"pointer", textAlign:"left", width:"100%", marginBottom:8, transition:"border-color 0.13s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor=C.gd; e.currentTarget.style.background="rgba(197,179,88,0.06)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor=opt.bold?"rgba(54,69,79,0.2)":"rgba(54,69,79,0.12)"; e.currentTarget.style.background=opt.bold?"rgba(54,69,79,0.04)":"#fff"; }}
+          >
+            <span style={{ fontSize:22, flexShrink:0 }}>{opt.icon}</span>
+            <div>
+              <div style={{ fontFamily:C.heb, fontSize:13.5, fontWeight:opt.bold?700:400, color:C.ch }}>
+                {opt.label}
+                {opt.bold && <span style={{ fontFamily:C.dat, fontSize:9.5, fontWeight:400, color:C.gd, marginRight:8 }}> (ברירת מחדל)</span>}
+              </div>
+              <div style={{ fontFamily:C.dat, fontSize:11, color:C.chl, marginTop:2 }}>{opt.sub}</div>
+            </div>
+          </button>
+        ))}
+
+        <button onClick={onCancel} style={{ marginTop:6, height:36, width:"100%", background:"transparent", border:"1px solid rgba(54,69,79,0.18)", borderRadius:8, cursor:"pointer", fontFamily:C.heb, fontSize:12.5, color:C.chl }}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main app ─────────────────────────────────────────────────────────────────
 export default function LeshemOS() {
 
   const [cfg,              setCfg]              = useState({ ...DCFG, centerStones: [] });
@@ -95,16 +166,23 @@ export default function LeshemOS() {
   const [pieceImg,         setPieceImg]         = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // Certificate seed from inventory bridge
+  // Certificate seed
   const [certSeed,     setCertSeed]     = useState(null);
-
-  // Prefill source banner (auto-dismisses after 4 s)
+  // Prefill source banner (4 s auto-dismiss)
   const [calcSrcBanner, setCalcSrcBanner] = useState(null);
+
+  // v5.4.1 Task 5: CalcLoadDialog state
+  // Stores { item } — shown before UseAsDialog so user picks new/add
+  const [calcLoadItem,  setCalcLoadItem]  = useState(null);  // shows CalcLoadDialog
+  const [calcLoadMode,  setCalcLoadMode]  = useState(null);  // "new" or "add"
+  const [calcUseAsItem, setCalcUseAsItem] = useState(null);  // passes to InventoryStudio
+
+  // v5.4.1: jewelry_part cert confirmation
+  const [certPartConfirm, setCertPartConfirm] = useState(null); // item
 
   const qNum    = useRef(`LS-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`);
   const fileRef = useRef(null);
 
-  // Inventory state
   const invFetched = useRef(false);
   const [invStones,  setInvStones]  = useState([]);
   const [invMetals,  setInvMetals]  = useState([]);
@@ -116,7 +194,6 @@ export default function LeshemOS() {
   const res   = useMemo(() => calcApp(cfg, metalPrices), [cfg, metalPrices]);
   const fmtFn = useCallback((v) => fmt(v, currency), [currency]);
 
-  // Auto-dismiss calc source banner after 4 s
   useEffect(() => {
     if (!calcSrcBanner) return;
     const t = setTimeout(() => setCalcSrcBanner(null), 4000);
@@ -141,7 +218,6 @@ export default function LeshemOS() {
 
   const calculatorData = useMemo(() => ({ cfg, res, fmtFn, pieceImg, qNum: qNum.current }), [cfg, res, fmtFn, pieceImg]);
 
-  // Lazy inventory fetch + metal price bridge
   const handleTabChange = useCallback((newTab) => {
     setTab(newTab);
     if (!invFetched.current && (newTab === "malai" || newTab === "intake")) {
@@ -167,32 +243,51 @@ export default function LeshemOS() {
     }
   }, []);
 
-  // ── prefillCalcFromItem ───────────────────────────────────────────────────
+  // ── v5.4.1 Task 5: "Use in Calculator" two-step flow ─────────────────────
   /**
-   * v5.4 Task 6: Clears previous calculator item data before loading new item.
-   * Spreads DCFG first (full reset), then overlays only the relevant fields.
+   * Step 1: Show CalcLoadDialog (New vs Add to Current).
+   * Step 2: CalcLoadDialog resolves → set calcLoadMode, trigger UseAsDialog
+   *         in InventoryStudio via calcUseAsItem.
    *
-   * v5.4 Task 7: Pushes to centerStones[] when useAs === "center".
+   * When InventoryStudio's UseAsDialog resolves it calls
+   * handleUseInCalculatorFinal(item, useAs) which runs the actual prefill.
+   */
+  const handleUseInCalculatorRequest = useCallback((item) => {
+    setCalcLoadItem(item);
+  }, []);
+
+  const handleCalcLoadSelected = useCallback((mode) => {
+    const item = calcLoadItem;
+    setCalcLoadItem(null);
+    setCalcLoadMode(mode);
+    // Signal InventoryStudio to open UseAsDialog for this item
+    setCalcUseAsItem(item);
+  }, [calcLoadItem]);
+
+  /**
+   * Called by InventoryStudio after UseAsDialog resolves.
+   * At this point calcLoadMode is already set.
    */
   const prefillCalcFromItem = useCallback((item, useAs) => {
+    const isNew = calcLoadMode !== "add";  // default to "new"
+
     const totalCt = parseFloat(item.caratWeight) || 0;
     const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
     const ctPer   = totalCt > 0 ? totalCt / count : 0;
 
     setCfg((prev) => {
-      // v5.4: Start from DCFG (clear previous item data)
-      const next = { ...DCFG, centerStones: prev.centerStones || [] };
+      // Start New: reset to DCFG, then overlay
+      const base = isNew ? { ...DCFG, centerStones: [] } : { ...prev };
 
       if (useAs === "center") {
-        if (item.stoneType)  next.centerType    = item.stoneType;
-        if (ctPer > 0)       next.centerCt      = ctPer.toFixed(2);
-        next.centerCount     = String(count);
-        if (item.color   && item.stoneType === "Diamond") next.centerColor   = item.color;
-        if (item.clarity && item.stoneType === "Diamond") next.centerClarity = item.clarity;
-        next.centerManual  = "";
-        next.centerMode    = "total";
+        if (item.stoneType)  base.centerType    = item.stoneType;
+        if (ctPer > 0)       base.centerCt      = ctPer.toFixed(2);
+        base.centerCount     = String(count);
+        if (item.color   && item.stoneType === "Diamond") base.centerColor   = item.color;
+        if (item.clarity && item.stoneType === "Diamond") base.centerClarity = item.clarity;
+        base.centerManual    = "";
+        base.centerMode      = "total";
 
-        // v5.4 Task 7: Append to centerStones[]
         const stoneEntry = {
           source:            "inventory",
           inventoryId:       item.id,
@@ -205,58 +300,77 @@ export default function LeshemOS() {
           certificateLab:    item.certLab   || "",
           certificateNumber: item.certNumber || item.laserInscription || "",
         };
-        // Add to array (don't duplicate by inventoryId)
-        const already = next.centerStones.some(s => s.inventoryId === item.id);
-        if (!already) next.centerStones = [...next.centerStones, stoneEntry];
+        const already = base.centerStones.some(s => s.inventoryId === item.id);
+        if (!already) base.centerStones = [...(base.centerStones || []), stoneEntry];
 
       } else if (useAs === "side") {
-        if (item.stoneType)  next.ss1Type      = item.stoneType;
-        if (ctPer > 0)       next.ss1Ct        = ctPer.toFixed(3);
-        next.ss1Count        = String(count);
-        next.ss1Manual       = "";
-        next.ss1PriceMode    = "total";
+        if (item.stoneType)  base.ss1Type      = item.stoneType;
+        if (ctPer > 0)       base.ss1Ct        = ctPer.toFixed(3);
+        base.ss1Count        = String(count);
+        base.ss1Manual       = "";
+        base.ss1PriceMode    = "total";
       }
-
-      return next;
+      return base;
     });
 
     setCalcSrcBanner({
       name:  item.name || item.sku || item.stoneType || "פריט מלאי",
       useAs,
+      mode:  isNew ? "new" : "add",
     });
 
+    setCalcLoadMode(null);
+    setCalcUseAsItem(null);
     handleTabChange("calc");
-  }, [handleTabChange]);
+  }, [calcLoadMode, handleTabChange]);
 
-  // Remove a stone from centerStones[] by index
   const handleRemoveCenterStone = useCallback((index) => {
-    setCfg(prev => ({
-      ...prev,
-      centerStones: (prev.centerStones || []).filter((_, i) => i !== index),
-    }));
+    setCfg(prev => ({ ...prev, centerStones: (prev.centerStones||[]).filter((_,i) => i !== index) }));
   }, []);
 
-  // ── handleCertFromItem ────────────────────────────────────────────────────
+  // ── v5.4.1 Task 3: correct certificate creation ───────────────────────────
   const handleCertFromItem = useCallback((item) => {
+    const mapping = mapProductTypeToCertificate(item.productType);
+
+    // jewelry_part: ask for confirmation first
+    if (mapping.reportType === null) {
+      setCertPartConfirm(item);
+      return;
+    }
+
+    _buildAndSeedCert(item, mapping);
+  }, []);
+
+  const handleCertPartConfirmed = useCallback(() => {
+    const item = certPartConfirm;
+    setCertPartConfirm(null);
+    if (!item) return;
+    _buildAndSeedCert(item, { reportType: "inhouse_stone", productType: "natural_diamond" });
+  }, [certPartConfirm]);
+
+  function _buildAndSeedCert(item, mapping) {
     const today = new Intl.DateTimeFormat("en-GB", {
       day: "2-digit", month: "long", year: "numeric",
     }).format(new Date());
 
-    const caratStr = item.caratWeight
-      ? parseFloat(item.caratWeight).toFixed(2)
-      : "";
+    const caratStr = item.caratWeight ? parseFloat(item.caratWeight).toFixed(2) : "";
 
     const measParts = [item.measLength, item.measWidth, item.measHeight]
-      .filter(Boolean).map((v) => parseFloat(v).toFixed(2));
-    const measurements = measParts.length >= 2
-      ? measParts.join(" × ") + " mm"
-      : "";
+      .filter(Boolean).map(v => parseFloat(v).toFixed(2));
+    const measurements = measParts.length >= 2 ? measParts.join(" × ") + " mm" : "";
+
+    // v5.4.1: build classification metadata for InHouseStoneReport
+    const classification = buildStoneClassification({
+      ...item,
+      productType:  mapping.productType || item.productType,
+    });
 
     const reportData = {
-      reportType:   "inhouse_stone",
-      productType:  item.productType || "natural_diamond",
-      reportNumber: item.sku || `LS-INV-${Date.now().toString(36).toUpperCase()}`,
-      reportDate:   today,
+      reportType:     mapping.reportType,
+      productType:    mapping.productType,  // ← uses CORRECT mapping, not item.productType raw
+      reportNumber:   item.sku || `LS-INV-${Date.now().toString(36).toUpperCase()}`,
+      reportDate:     today,
+      classification, // v5.4.1
 
       stone: {
         type:             item.stoneType              || "",
@@ -323,9 +437,9 @@ export default function LeshemOS() {
       displaySettings: { showReferencePanel: true },
     };
 
-    setCertSeed({ reportType: "inhouse_stone", reportData, fromItemId: item.id });
+    setCertSeed({ reportType: mapping.reportType, reportData, fromItemId: item.id });
     handleTabChange("cert");
-  }, [handleTabChange]);
+  }
 
   return (
     <>
@@ -338,33 +452,67 @@ export default function LeshemOS() {
         <style>{PRINT_CSS}</style>
       </Head>
 
+      {/* Global dialogs */}
       {showResetConfirm && (
         <ConfirmDialog
           message="האם לאפס את המחשבון? שינויים שלא נשמרו יאבדו."
-          confirmLabel="איפוס"
-          cancelLabel="ביטול"
-          onConfirm={doReset}
-          onCancel={() => setShowResetConfirm(false)}
+          confirmLabel="איפוס" cancelLabel="ביטול"
+          onConfirm={doReset} onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+
+      {/* v5.4.1 Task 5: CalcLoadDialog — "Start New / Add to Current" */}
+      {calcLoadItem && (
+        <CalcLoadDialog
+          item={calcLoadItem}
+          onSelect={handleCalcLoadSelected}
+          onCancel={() => setCalcLoadItem(null)}
+        />
+      )}
+
+      {/* v5.4.1 Task 3: jewelry_part certificate confirmation */}
+      {certPartConfirm && (
+        <ConfirmDialog
+          message={`פריט מסוג "חלק / רכיב תכשיט" אינו מוגדר לתעודה ברירת מחדל. האם ליצור תעודה אבן עבור ${certPartConfirm.name || certPartConfirm.sku || "פריט זה"}?`}
+          confirmLabel="כן, צור תעודה" cancelLabel="ביטול"
+          onConfirm={handleCertPartConfirmed}
+          onCancel={() => setCertPartConfirm(null)}
         />
       )}
 
       <div dir="rtl" style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:C.iv }}>
 
         {/* HEADER */}
-        <header className="no-print" style={{ background:C.ch, padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:60, flexShrink:0, borderBottom:`2px solid ${C.gd}` }}>
-          <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-            <span style={{ fontFamily:C.ser, fontSize:17, fontWeight:700, color:C.iv, letterSpacing:"0.18em" }}>LESHEM.S</span>
-            <span style={{ fontFamily:C.dat, fontSize:9, color:C.chx, letterSpacing:"0.12em", textTransform:"uppercase" }}>OS v5</span>
+        <header className="no-print" style={{ background:C.ch, padding:"0 16px", display:"flex", alignItems:"center", gap:12, height:56, flexShrink:0, borderBottom:`2px solid ${C.gd}` }}>
+          {/* Logo */}
+          <div style={{ display:"flex", alignItems:"baseline", gap:8, flexShrink:0 }}>
+            <span style={{ fontFamily:C.ser, fontSize:16, fontWeight:700, color:C.iv, letterSpacing:"0.18em" }}>LESHEM.S</span>
+            <span style={{ fontFamily:C.dat, fontSize:8.5, color:C.chx, letterSpacing:"0.12em", textTransform:"uppercase" }}>OS v5</span>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ display:"flex", border:`1.5px solid ${C.chm}`, borderRadius:6, overflow:"hidden", height:38 }}>
-              {[["USD","$ USD"],["ILS","₪ ILS"]].map(([c, label]) => (
-                <button key={c} onClick={()=>setCurrency(c)} style={{ padding:"0 14px", height:"100%", background:currency===c?C.gd:"transparent", color:currency===c?C.ch:C.chx, border:"none", cursor:"pointer", fontFamily:C.heb, fontSize:12, fontWeight:700 }}>
+
+          {/* v5.4.1 Task 6: Global CommandBar — compact mode in header */}
+          <div style={{ flex:1, maxWidth:500 }}>
+            <CommandBar
+              compact
+              onNavigate={handleTabChange}
+              onSearch={() => { handleTabChange("malai"); }}
+              onCalculate={() => handleTabChange("calc")}
+              onCertificate={() => handleTabChange("cert")}
+              onClearFilters={() => {}}
+              allItems={invStones}
+            />
+          </div>
+
+          {/* Currency + Reset */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            <div style={{ display:"flex", border:`1.5px solid ${C.chm}`, borderRadius:6, overflow:"hidden", height:34 }}>
+              {[["USD","$ USD"],["ILS","₪ ILS"]].map(([c,label]) => (
+                <button key={c} onClick={() => setCurrency(c)} style={{ padding:"0 12px", height:"100%", background:currency===c?C.gd:"transparent", color:currency===c?C.ch:C.chx, border:"none", cursor:"pointer", fontFamily:C.heb, fontSize:11.5, fontWeight:700 }}>
                   {label}
                 </button>
               ))}
             </div>
-            <button onClick={()=>setShowResetConfirm(true)} title="איפוס המחשבון" style={{ display:"flex", alignItems:"center", gap:6, height:38, padding:"0 14px", background:"transparent", border:`1.5px solid ${C.chm}`, borderRadius:6, color:C.chx, cursor:"pointer", fontFamily:C.heb, fontSize:12, fontWeight:600 }}>
+            <button onClick={() => setShowResetConfirm(true)} style={{ display:"flex", alignItems:"center", gap:5, height:34, padding:"0 12px", background:"transparent", border:`1.5px solid ${C.chm}`, borderRadius:6, color:C.chx, cursor:"pointer", fontFamily:C.heb, fontSize:11.5, fontWeight:600 }}>
               ↺ איפוס
             </button>
           </div>
@@ -375,48 +523,42 @@ export default function LeshemOS() {
           {TABS.map(({ key, icon, label, sublabel }) => {
             const active = tab === key;
             return (
-              <button key={key} onClick={()=>handleTabChange(key)} title={sublabel} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, padding:"0 20px", height:56, background:"transparent", border:"none", borderBottom:active?`3px solid ${C.gd}`:"3px solid transparent", cursor:"pointer", flexShrink:0, transition:"border-color 0.15s" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <span style={{ fontSize:14 }}>{icon}</span>
-                  <span style={{ fontFamily:C.heb, fontSize:13, fontWeight:active?700:400, color:active?C.iv:C.chx, textShadow:active?"0 0 12px rgba(197,179,88,0.4)":"none", transition:"all 0.15s" }}>{label}</span>
+              <button key={key} onClick={() => handleTabChange(key)} title={sublabel} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, padding:"0 20px", height:50, background:"transparent", border:"none", borderBottom:active?`3px solid ${C.gd}`:"3px solid transparent", cursor:"pointer", flexShrink:0, transition:"border-color 0.15s" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ fontSize:13 }}>{icon}</span>
+                  <span style={{ fontFamily:C.heb, fontSize:12.5, fontWeight:active?700:400, color:active?C.iv:C.chx, transition:"all 0.15s" }}>{label}</span>
                 </div>
-                <span style={{ fontFamily:C.dat, fontSize:9, color:active?C.chx:"rgba(168,188,196,0.5)", letterSpacing:"0.08em", textTransform:"uppercase" }}>{sublabel}</span>
+                <span style={{ fontFamily:C.dat, fontSize:8.5, color:active?C.chx:"rgba(168,188,196,0.5)", letterSpacing:"0.08em", textTransform:"uppercase" }}>{sublabel}</span>
               </button>
             );
           })}
         </nav>
 
         {/* MAIN CONTENT */}
-        <main style={{ flex:1, overflowY:"auto", padding:"24px 16px 48px" }}>
+        <main style={{ flex:1, overflowY:"auto", padding:"20px 16px 48px" }}>
           <div style={{ maxWidth:1360, margin:"0 auto" }}>
 
             {tab === "calc" && (
               <>
-                {/* Prefill source banner */}
                 {calcSrcBanner && (
-                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16, padding:"11px 16px", background:"rgba(197,179,88,0.10)", border:"1px solid rgba(197,179,88,0.35)", borderRadius:8 }}>
-                    <span style={{ fontSize:18, flexShrink:0 }}>
-                      {calcSrcBanner.useAs === "side" ? "✨" : calcSrcBanner.useAs === "part" ? "🔗" : "💎"}
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14, padding:"10px 14px", background:"rgba(197,179,88,0.10)", border:"1px solid rgba(197,179,88,0.35)", borderRadius:8 }}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>
+                      {calcSrcBanner.useAs==="side"?"✨":calcSrcBanner.useAs==="part"?"🔗":"💎"}
                     </span>
                     <div style={{ flex:1, fontFamily:C.heb, fontSize:12.5, color:"#6a5a10" }}>
-                      <strong>מולא ממלאי:</strong> {calcSrcBanner.name}
-                      {calcSrcBanner.useAs === "center" && " ← אבן מרכזית"}
-                      {calcSrcBanner.useAs === "side"   && " ← אבני צד (שורה א׳)"}
-                      {calcSrcBanner.useAs === "part"   && " ← ניווט למחשבון"}
+                      <strong>{calcSrcBanner.mode==="add"?"הוסף למוצר נוכחי":"מוצר חדש"} ממלאי:</strong> {calcSrcBanner.name}
+                      {calcSrcBanner.useAs==="center" && " ← אבן מרכזית"}
+                      {calcSrcBanner.useAs==="side"   && " ← אבני צד (שורה א׳)"}
                     </div>
-                    <button onClick={()=>setCalcSrcBanner(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(106,90,16,0.55)", fontSize:16, lineHeight:1, padding:"0 4px", flexShrink:0 }}>✕</button>
+                    <button onClick={() => setCalcSrcBanner(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(106,90,16,0.55)", fontSize:16, lineHeight:1, padding:"0 2px", flexShrink:0 }}>✕</button>
                   </div>
                 )}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:20, alignItems:"start" }}>
-                  {/* v5.4: pass centerStones + onRemoveCenterStone */}
                   <CalculatorForm
-                    cfg={cfg}
-                    res={res}
-                    sf={sf}
-                    fmtFn={fmtFn}
+                    cfg={cfg} res={res} sf={sf} fmtFn={fmtFn}
                     onRemoveCenterStone={handleRemoveCenterStone}
                   />
-                  <CostSummary cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} pieceImg={pieceImg} fileRef={fileRef} onImageUpload={handleImageUpload} onShowCert={()=>handleTabChange("cert")} />
+                  <CostSummary cfg={cfg} res={res} sf={sf} fmtFn={fmtFn} pieceImg={pieceImg} fileRef={fileRef} onImageUpload={handleImageUpload} onShowCert={() => handleTabChange("cert")} />
                 </div>
               </>
             )}
@@ -437,10 +579,16 @@ export default function LeshemOS() {
                 loading={invLoading}
                 error={invError}
                 onAddNew={() => handleTabChange("intake")}
-                onUseInCalculator={prefillCalcFromItem}
+                onUseInCalculator={handleUseInCalculatorRequest}
                 onCreateCertificate={handleCertFromItem}
                 onNavigateToCalc={() => handleTabChange("calc")}
                 onNavigateToCert={() => handleTabChange("cert")}
+                // v5.4.1: after CalcLoadDialog, we re-trigger UseAsDialog
+                // by passing the pending item. InventoryStudio opens UseAsDialog
+                // when this prop is set, then calls onUseInCalculatorFinal.
+                pendingCalcItem={calcUseAsItem}
+                onUseInCalculatorFinal={prefillCalcFromItem}
+                onClearPendingCalcItem={() => setCalcUseAsItem(null)}
               />
             )}
 
