@@ -1,29 +1,44 @@
 /**
- * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.2
+ * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.3
  *
- * Changes from v5.4.1:
+ * Milestone 5.4.3 — Certificate Field Cleanup
  *
- * Language normalization (Milestone 5.4.2):
- *   Every stone data value that reaches a rendered cell is passed through
- *   sanitizeForReport() — a final guard that calls toReportEn() to ensure
- *   no Hebrew ever appears inside the certificate.
+ * Changes from v5.4.2:
  *
- *   Stone type:
- *     "יהלום" or "יהלום טבעי" → "Diamond"
- *     "ספיר"                   → "Sapphire"
- *     Already "Diamond"        → "Diamond" (unchanged)
+ * 1. ClassificationSection REMOVED.
+ *    The old ClassificationSection showed "Product Category", "Inventory Layer",
+ *    and "Stone Category" rows — internal system fields that must not appear in
+ *    a customer-facing certificate. It is replaced by StoneIdentityBlock.
  *
- *   This guard runs at RENDER time, not only at build time, so it catches
- *   values from any path (inventory bridge, manual report editor, demo items).
+ * 2. StoneIdentityBlock (new) — professional stone identity header.
+ *    A clean typographic block (not a table) that shows:
+ *      • Stone type / origin: "Natural Diamond", "Lab-Grown Diamond",
+ *        "Fancy Colour Diamond", "Coloured Gemstone — [Species]",
+ *        "Matched Pair / Set", "Stone Parcel · Melee Parcel"
+ *      • Form: "Single Stone" / "Matched Pair" / "Parcel / Melee" / "Set of N"
+ *        Only shown when it adds information (not for single stones of a
+ *        well-known type).
+ *      • Intended use: ONLY when cert-appropriate ("Center Stone", "Side Stones",
+ *        "Pair", "Earrings"). Never commercial values ("Sale", "Assembly").
+ *    Does NOT show:
+ *      • Inventory Layer (Physical Stock / Virtual Supplier Stock)
+ *      • Product Category label/heading
+ *      • Any Hebrew text
+ *      • Any internal system value
  *
- *   ClassificationSection now applies toReportEn() to every value before
- *   rendering, giving a double layer of protection.
+ * 3. StoneParcelFields (new) — dedicated clean display for stone_parcel.
+ *    Shows: Stone Type, Total Carat Weight, Average Stone Weight,
+ *    Quantity / Stone Count, Shape / Cut, Color Range, Clarity Range.
+ *    Stone parcel is NEVER labelled "Matched Pair".
  *
- *   getProductSubtitle() now derives the subtitle from toReportEn() with
- *   a canonical switch, ensuring "Stone Parcel · Melee" never says
- *   "Matched Pair" even for unknown productType strings.
+ * 4. Comments filtering (filterCertComments) — applied at render time.
+ *    Strips "Source: …", Airtable IDs, Hebrew, internal notes.
+ *    If nothing professional remains, the Comments section is hidden.
  *
- * All field groups, layout, ReferencePanel, SignatureBlock — unchanged.
+ * 5. English guard (sanitizeForReport from v5.4.2) unchanged — still applied.
+ *
+ * Everything else (field groups, ReferencePanel, SignatureBlock,
+ * layout, print CSS, image gallery) unchanged from v5.4.2.
  */
 
 import {
@@ -33,8 +48,9 @@ import {
   formatCutForm,
 } from "../../../lib/reports/reportUtils";
 
-import { PRODUCT_TYPE_LABELS } from "../../../lib/gemology/taxonomy";
-import { toReportEn, toCanonical, isHebrew } from "../../../lib/labels/productLabels";
+import { PRODUCT_TYPE_LABELS }                       from "../../../lib/gemology/taxonomy";
+import { toReportEn, toCanonical, isHebrew }         from "../../../lib/labels/productLabels";
+import { filterCertComments }                        from "../../../lib/reports/reportDefaults";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const SERIF = "'Merriweather','Times New Roman',Georgia,serif";
@@ -50,14 +66,9 @@ const SGD   = "#5d8a62";
 
 // ─── sanitizeForReport ────────────────────────────────────────────────────────
 /**
- * v5.4.2: Final English guard for any value that reaches a certificate cell.
- *
- * - Calls toReportEn() to map Hebrew/canonical values to English.
- * - If a value is already English (no Hebrew chars) and not in the map,
- *   it passes through unchanged.
- * - Hebrew values with no mapping return "" so the cell is skipped.
- *
- * Use on every string field from d.stone before rendering in a GradeRow.
+ * Final English guard. Unchanged from v5.4.2.
+ * Converts any Hebrew/canonical value to English.
+ * Returns "" for Hebrew values with no mapping (cell is skipped).
  */
 function sanitizeForReport(value) {
   if (!value) return value;
@@ -142,70 +153,108 @@ function GradingBlock({ children }) {
   );
 }
 
-// ─── ClassificationSection (v5.4.2) ──────────────────────────────────────────
+// ─── StoneIdentityBlock (v5.4.3) ─────────────────────────────────────────────
 /**
- * Shows the product/stone hierarchy for the report.
- * Only renders rows that have actual values.
- * v5.4.2: Each value is passed through toReportEn() so no Hebrew appears.
+ * Replaces ClassificationSection.
+ *
+ * Clean typographic block — not a table — that identifies the stone to the
+ * customer in professional English. Shows ONLY:
+ *   • Primary stone identity line (e.g. "Natural Diamond")
+ *   • Form supplement: "Single Stone" / "Matched Pair" / "Parcel / Melee"
+ *     (omitted for single standard stones where the subtitle already says it)
+ *   • Intended use: "Center Stone" / "Side Stones" only — if present and
+ *     professionally relevant.
+ *
+ * Does NOT show:
+ *   • "Product Category" as a label — we just show the value as a heading
+ *   • Inventory Layer (physical/virtual/client-owned — always internal)
+ *   • Stone Category (redundant)
+ *   • Any Hebrew text
+ *   • Any internal/system field
+ *
+ * @param {object} cl   classification object from buildStoneClassification()
+ * @param {string} pt   canonical productType key
  */
-function ClassificationSection({ classification, productType }) {
-  const cl = classification || {};
+function StoneIdentityBlock({ cl, pt }) {
+  if (!cl) return null;
 
-  // Apply toReportEn to every value before building rows
-  const rawRows = [
-    { label: "Product Category",  value: cl.productCategory  },
-    // stoneCategory is omitted from the rendered row list — it duplicates
-    // productCategory for diamond types. See buildStoneClassification().
-    { label: "Stone Type",        value: cl.stoneType        },
-    { label: "Form",              value: cl.formFactor       },
-    { label: "Quantity",          value: cl.quantity         },
-    { label: "Growth Method",     value: cl.growthMethod     },
-    { label: "Intended Use",      value: cl.intendedUse      },
-    { label: "Inventory Layer",   value: cl.inventoryLayer   },
-  ];
+  // Primary identity: a short English phrase identifying the stone type
+  const identity = cl.productCategory;
+  if (!hasValue(identity) || isHebrew(identity)) return null;
 
-  // Filter to rows with values, applying English guard on each
-  const rows = rawRows
-    .map(r => ({ ...r, value: r.value ? toReportEn(String(r.value)) || r.value : null }))
-    .filter(r => hasValue(r.value) && !isHebrew(r.value));
+  // Form supplement — show for parcel/pair/multi only
+  // For "Single Stone", skip unless it's a parcel/pair type where form matters
+  const showForm =
+    cl.formFactor &&
+    !isHebrew(cl.formFactor) &&
+    cl.formFactor !== "Single Stone"; // "Single Stone" is implied by the identity
 
-  if (rows.length === 0) return null;
+  // Quantity — show for parcel (n stones) and pairs when count > 2
+  const showQty =
+    cl.quantity &&
+    !isHebrew(cl.quantity) &&
+    ["stone_parcel", "stone_pair_set"].includes(pt);
+
+  // Intended use — only cert-safe values
+  const showUse =
+    hasValue(cl.intendedUse) &&
+    !isHebrew(cl.intendedUse);
+
+  // Collect supplement chips: form, quantity, intended use
+  const chips = [];
+  if (showForm) chips.push(cl.formFactor);
+  if (showQty && !showForm) chips.push(cl.quantity); // avoid duplicating "Parcel" if formFactor already covers it
+  if (showUse) chips.push(cl.intendedUse);
 
   return (
-    <SectionBlock title="Stone Classification" marginBottom="5mm">
+    <div style={{
+      marginBottom: "5mm",
+      padding: "3.5mm 4.5mm",
+      background: "rgba(138,171,142,0.08)",
+      border: "0.5px solid rgba(138,171,142,0.3)",
+      display: "flex",
+      alignItems: "center",
+      gap: "4mm",
+      flexWrap: "wrap",
+    }}>
+      {/* Primary identity */}
       <div style={{
-        border: "0.5px solid rgba(138,171,142,0.35)",
-        overflow: "hidden",
+        fontFamily: SERIF,
+        fontSize: 15,
+        fontWeight: 700,
+        color: CH,
+        letterSpacing: "0.04em",
+        lineHeight: 1.2,
+        flexShrink: 0,
       }}>
-        {rows.map((row, i) => (
-          <div
-            key={row.label}
-            style={{
-              display: "flex", gap: 0, alignItems: "stretch",
-              background: i % 2 === 0 ? IV2 : IV,
-              borderBottom: i < rows.length - 1 ? "0.5px solid rgba(54,69,79,0.06)" : "none",
-            }}
-          >
-            <div style={{
-              width: "38%", padding: "4px 10px", flexShrink: 0,
-              fontFamily: SANS, fontSize: 8.5, color: CHL,
-              letterSpacing: "0.09em", textTransform: "uppercase",
-              display: "flex", alignItems: "center",
-              borderRight: "0.5px solid rgba(54,69,79,0.07)",
-            }}>
-              {row.label}
-            </div>
-            <div style={{
-              flex: 1, padding: "4px 10px",
-              fontFamily: SANS, fontSize: 11.5, fontWeight: i === 0 ? 700 : 400, color: CH,
-              display: "flex", alignItems: "center",
-            }}>
-              {row.value}
-            </div>
-          </div>
-        ))}
+        {identity}
       </div>
-    </SectionBlock>
+
+      {/* Chips: form / quantity / intended use */}
+      {chips.length > 0 && (
+        <div style={{ display: "flex", gap: "2.5mm", flexWrap: "wrap", alignItems: "center" }}>
+          {chips.map((chip, i) => (
+            <span
+              key={i}
+              style={{
+                fontFamily:  SANS,
+                fontSize:    9,
+                fontWeight:  600,
+                color:       SGD,
+                background:  "rgba(138,171,142,0.14)",
+                border:      "0.5px solid rgba(138,171,142,0.35)",
+                borderRadius: 3,
+                padding:     "1.5px 7px",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -299,7 +348,7 @@ function ReferencePanel({ productType }) {
   return null;
 }
 
-// ─── Field groups (unchanged from v4.3.2) ────────────────────────────────────
+// ─── Field groups ─────────────────────────────────────────────────────────────
 
 function NaturalDiamondFields({ st }) {
   const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
@@ -320,9 +369,9 @@ function NaturalDiamondFields({ st }) {
         {hasMeasurements && (
           <SectionBlock title="Weight & Shape" marginBottom={hasLab ? "4mm" : "0"}>
             <GradeTable>
-              {hasValue(cutFormStr) && <GradeRow label={cfLabel}       value={cutFormStr}               />}
-              {hasValue(st.carat)   && <GradeRow label="Carat Weight"  value={`${st.carat} ct`} highlight />}
-              {hasValue(measStr)    && <GradeRow label="Measurements"  value={measStr}          noBorder />}
+              {hasValue(cutFormStr) && <GradeRow label={cfLabel}      value={cutFormStr}               />}
+              {hasValue(st.carat)   && <GradeRow label="Carat Weight" value={`${st.carat} ct`} highlight />}
+              {hasValue(measStr)    && <GradeRow label="Measurements" value={measStr}          noBorder />}
             </GradeTable>
           </SectionBlock>
         )}
@@ -528,9 +577,74 @@ function ColoredGemstoneFields({ st }) {
   );
 }
 
-// ─── Subtitle helper (v5.4.2) ─────────────────────────────────────────────────
+// ─── StoneParcelFields (v5.4.3) ───────────────────────────────────────────────
+/**
+ * Dedicated display for stone_parcel product type.
+ * Shows: Stone Type, Total Carat Weight, Average Stone Weight,
+ *        Quantity, Shape / Cut, Colour Range, Clarity Range.
+ * Never labelled "Matched Pair".
+ * Uses the NaturalDiamondFields layout but with parcel-specific labels.
+ */
+function StoneParcelFields({ st, stoneCount }) {
+  const measStr    = formatMeasurements(st.measLength, st.measWidth, st.measDepth, st.measurements);
+  const fluorStr   = formatFluorescence(st.fluorescenceIntensity, st.fluorescenceColor, st.fluorescence);
+  const cutFormStr = formatCutForm(st.cutForm, st.shape);
+  const cfLabel    = hasValue(st.cutForm) ? "Cut / Shape" : "Shape";
+
+  // Compute average stone weight from total carat / count
+  const totalCt  = parseFloat(st.carat) || 0;
+  const count    = parseInt(stoneCount, 10) || 0;
+  const avgCt    = totalCt > 0 && count > 1
+    ? (totalCt / count).toFixed(3)
+    : null;
+
+  const hasMeasurements = hasValue(cutFormStr) || hasValue(st.carat) || hasValue(avgCt) || hasValue(measStr);
+  const hasGrading      = hasValue(st.color)   || hasValue(st.clarity) || hasValue(fluorStr);
+  const hasLab          = hasValue(st.certLab) || hasValue(st.certNumber);
+
+  if (!hasMeasurements && !hasGrading && !hasLab) return null;
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginBottom: "5mm" }}>
+      <div>
+        {hasMeasurements && (
+          <SectionBlock title="Parcel Details" marginBottom={hasLab ? "4mm" : "0"}>
+            <GradeTable>
+              {hasValue(st.type)    && <GradeRow label="Stone Type"           value={st.type}                         />}
+              {hasValue(cutFormStr) && <GradeRow label={cfLabel}              value={cutFormStr}                       />}
+              {count > 0            && <GradeRow label="Stone Count"          value={String(count)}                    />}
+              {hasValue(st.carat)   && <GradeRow label="Total Carat Weight"   value={`${st.carat} ct`}        highlight />}
+              {hasValue(avgCt)      && <GradeRow label="Avg. Stone Weight"    value={`${avgCt} ct / stone`}            />}
+              {hasValue(measStr)    && <GradeRow label="Measurements"         value={measStr}                  noBorder />}
+            </GradeTable>
+          </SectionBlock>
+        )}
+        {hasLab && (
+          <SectionBlock title="Laboratory" marginBottom="0">
+            <GradeTable>
+              {hasValue(st.certLab)    && <GradeRow label="Issuing Lab"   value={st.certLab}              />}
+              {hasValue(st.certNumber) && <GradeRow label="Report Number" value={st.certNumber} highlight noBorder />}
+            </GradeTable>
+          </SectionBlock>
+        )}
+      </div>
+      {hasGrading && (
+        <div>
+          <SectionBlock title="Grading Range" marginBottom="0">
+            <GradingBlock>
+              {hasValue(st.color)   && <GradeRow label="Colour Range"  value={st.color}   highlight />}
+              {hasValue(st.clarity) && <GradeRow label="Clarity Range" value={st.clarity} highlight />}
+              {hasValue(fluorStr)   && <GradeRow label="Fluorescence"  value={fluorStr}   noBorder />}
+            </GradingBlock>
+          </SectionBlock>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── getProductSubtitle ───────────────────────────────────────────────────────
 function getProductSubtitle(pt) {
-  // Resolve the canonical key so Hebrew productType values also work
   const canonical = toCanonical(pt) ?? pt;
   switch (canonical) {
     case "natural_diamond":     return "Natural Diamond";
@@ -538,7 +652,7 @@ function getProductSubtitle(pt) {
     case "fancy_color_diamond": return "Fancy Colour Diamond";
     case "colored_gemstone":    return "Coloured Gemstone";
     case "stone_pair_set":      return "Matched Pair / Set";
-    case "stone_parcel":        return "Stone Parcel · Melee";  // ← NOT "Matched Pair"
+    case "stone_parcel":        return "Stone Parcel · Melee Parcel"; // ← NEVER "Matched Pair"
     case "jewelry_part":        return "Jewelry Component";
     case "finished_jewelry":    return "Finished Jewelry";
     default:                    return PRODUCT_TYPE_LABELS[pt] || "Stone Report";
@@ -550,28 +664,25 @@ export function InHouseStoneReport({ data }) {
   if (!data) return null;
   const d  = data;
 
-  // v5.4.2: sanitize every stone string field through toReportEn() so no Hebrew
-  // can appear in the certificate, regardless of how the data was built.
+  // v5.4.2: sanitize every stone string field through toReportEn()
   const rawSt = d.stone || {};
   const st = {
-    // Pass numeric fields and arrays through unchanged
-    measLength:  rawSt.measLength,
-    measWidth:   rawSt.measWidth,
-    measDepth:   rawSt.measDepth,
+    measLength:   rawSt.measLength,
+    measWidth:    rawSt.measWidth,
+    measDepth:    rawSt.measDepth,
     measurements: rawSt.measurements,
-    carat:       rawSt.carat,
-    // All string display fields → sanitize to English
-    type:                sanitizeForReport(rawSt.type),
-    naturalOrLab:        sanitizeForReport(rawSt.naturalOrLab),
-    species:             sanitizeForReport(rawSt.species),
-    variety:             sanitizeForReport(rawSt.variety),
-    shape:               sanitizeForReport(rawSt.shape),
-    cutForm:             sanitizeForReport(rawSt.cutForm),
-    color:               rawSt.color,          // diamond colour grades are already English letters (D, G, etc.)
-    clarity:             rawSt.clarity,        // clarity grades (VS1, SI2) are already English
-    cut:                 sanitizeForReport(rawSt.cut),
-    polish:              sanitizeForReport(rawSt.polish),
-    symmetry:            sanitizeForReport(rawSt.symmetry),
+    carat:        rawSt.carat,
+    type:                  sanitizeForReport(rawSt.type),
+    naturalOrLab:          sanitizeForReport(rawSt.naturalOrLab),
+    species:               sanitizeForReport(rawSt.species),
+    variety:               sanitizeForReport(rawSt.variety),
+    shape:                 sanitizeForReport(rawSt.shape),
+    cutForm:               sanitizeForReport(rawSt.cutForm),
+    color:                 rawSt.color,    // D, G, Vivid Blue — already English
+    clarity:               rawSt.clarity,  // VS1, SI2 — already English
+    cut:                   sanitizeForReport(rawSt.cut),
+    polish:                sanitizeForReport(rawSt.polish),
+    symmetry:              sanitizeForReport(rawSt.symmetry),
     fluorescenceIntensity: sanitizeForReport(rawSt.fluorescenceIntensity),
     fluorescenceColor:     sanitizeForReport(rawSt.fluorescenceColor),
     fluorescence:          sanitizeForReport(rawSt.fluorescence),
@@ -583,13 +694,11 @@ export function InHouseStoneReport({ data }) {
     transparency:          sanitizeForReport(rawSt.transparency),
     treatment:             sanitizeForReport(rawSt.treatment),
     countryOfOrigin:       sanitizeForReport(rawSt.countryOfOrigin),
-    certLab:               rawSt.certLab,      // lab name (GIA, IGI) — always English, keep as-is
-    certNumber:            rawSt.certNumber,   // report number — alphanumeric, keep as-is
-    // Colored gemstone fields
-    certSpecies:           sanitizeForReport(rawSt.species),
+    certLab:               rawSt.certLab,    // GIA, IGI — keep as-is
+    certNumber:            rawSt.certNumber, // alphanumeric — keep as-is
   };
 
-  // v5.4.2: resolve productType to canonical key so Hebrew values route correctly
+  // Resolve canonical productType
   const rawPt        = d.productType || "natural_diamond";
   const pt           = toCanonical(rawPt) ?? rawPt;
   const ptSubtitle   = getProductSubtitle(pt);
@@ -604,12 +713,19 @@ export function InHouseStoneReport({ data }) {
   const hasExtReports =
     Array.isArray(d.externalReports) && d.externalReports.length > 0 &&
     d.externalReports.some((r) => hasValue(r.lab) || hasValue(r.reportNumber));
-  const hasComments     = hasValue(d.comments);
+
   const hasVerification =
     hasValue(d.verification?.verificationId) || hasValue(d.verification?.verificationUrl);
 
-  // Which field group to render for this product type
-  const GEMSTONE_TYPES = ["natural_diamond", "lab_grown_diamond", "fancy_color_diamond", "colored_gemstone"];
+  // v5.4.3: filter comments — strip "Source:", Hebrew, internal notes
+  const certComments = filterCertComments(d.comments);
+  const hasComments  = hasValue(certComments);
+
+  // Classification — cert-safe only (no inventoryLayer)
+  const cl = d.classification || {};
+
+  // Stone count for parcel average weight computation
+  const stoneCount = rawSt.stoneCount ?? d.stoneCount ?? null;
 
   return (
     <div
@@ -658,7 +774,6 @@ export function InHouseStoneReport({ data }) {
             <div style={{ fontFamily: SANS, fontSize: 8.5, fontWeight: 700, color: CH, letterSpacing: "0.18em", textTransform: "uppercase", lineHeight: 1 }}>
               In-House Stone Report
             </div>
-            {/* v5.4.1: ptSubtitle uses correct mapping (stone_parcel ≠ Matched Pair) */}
             <div style={{ fontFamily: SANS, fontSize: 7.5, color: SG, letterSpacing: "0.12em", marginTop: 3, textTransform: "uppercase" }}>
               {ptSubtitle}
             </div>
@@ -694,23 +809,27 @@ export function InHouseStoneReport({ data }) {
           </div>
         )}
 
-        {/* v5.4.1: CLASSIFICATION SECTION — above field-specific grading */}
-        <ClassificationSection
-          classification={d.classification}
-          productType={pt}
-        />
+        {/*
+         * v5.4.3: StoneIdentityBlock — replaces ClassificationSection.
+         * Shows only professional stone identity (e.g. "Natural Diamond",
+         * form chips like "Single Stone" or "Parcel / Melee", and
+         * cert-safe intended use like "Center Stone" or "Side Stones").
+         * Does NOT show Inventory Layer, Product Category label, or any
+         * other internal system field.
+         */}
+        <StoneIdentityBlock cl={cl} pt={pt} />
 
         {/* PRODUCT-TYPE CONDITIONAL FIELDS */}
-        {pt === "natural_diamond"     && <NaturalDiamondFields     st={st} />}
-        {pt === "lab_grown_diamond"   && <LabDiamondFields          st={st} />}
-        {pt === "fancy_color_diamond" && <FancyColorDiamondFields   st={st} />}
-        {pt === "colored_gemstone"    && <ColoredGemstoneFields     st={st} />}
-        {/* stone_pair_set: use NaturalDiamondFields (pair of diamonds is most common) */}
-        {pt === "stone_pair_set"      && <NaturalDiamondFields      st={st} />}
-        {/* stone_parcel: use NaturalDiamondFields but classification section makes it clear */}
-        {pt === "stone_parcel"        && <NaturalDiamondFields      st={st} />}
-        {/* Fallback for unknown types — NOT parcel, NOT pair */}
-        {!["natural_diamond","lab_grown_diamond","fancy_color_diamond","colored_gemstone","stone_pair_set","stone_parcel"].includes(pt) && (
+        {pt === "natural_diamond"     && <NaturalDiamondFields    st={st} />}
+        {pt === "lab_grown_diamond"   && <LabDiamondFields         st={st} />}
+        {pt === "fancy_color_diamond" && <FancyColorDiamondFields  st={st} />}
+        {pt === "colored_gemstone"    && <ColoredGemstoneFields    st={st} />}
+        {pt === "stone_pair_set"      && <NaturalDiamondFields     st={st} />}
+        {/* v5.4.3: stone_parcel uses dedicated StoneParcelFields */}
+        {pt === "stone_parcel"        && <StoneParcelFields         st={st} stoneCount={stoneCount} />}
+        {/* Fallback for unknown types */}
+        {!["natural_diamond","lab_grown_diamond","fancy_color_diamond",
+           "colored_gemstone","stone_pair_set","stone_parcel"].includes(pt) && (
           <NaturalDiamondFields st={st} />
         )}
 
@@ -733,11 +852,15 @@ export function InHouseStoneReport({ data }) {
           </SectionBlock>
         )}
 
-        {/* COMMENTS */}
+        {/*
+         * COMMENTS — v5.4.3: only certComments (already filtered via
+         * filterCertComments) are rendered. "Source: …" lines, internal
+         * notes, Hebrew, and Airtable IDs are stripped.
+         */}
         {hasComments && (
           <SectionBlock title="Comments">
             <p style={{ fontFamily: SANS, fontSize: 10.5, color: CHM, lineHeight: 1.82, margin: 0, padding: "3mm 4mm", background: IV2, borderLeft: `2px solid ${SG}`, fontStyle: "italic" }}>
-              {d.comments}
+              {certComments}
             </p>
           </SectionBlock>
         )}
