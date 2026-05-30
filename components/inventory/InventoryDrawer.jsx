@@ -1,36 +1,33 @@
 /**
- * components/inventory/InventoryDrawer.jsx  —  v5.4.1
+ * components/inventory/InventoryDrawer.jsx  —  v5.5
  *
- * Task 1 — Inventory drawer edit mode:
- *   Two modes: view (default) and edit.
- *   "ערוך פריט" button switches to edit mode.
- *   In edit mode all listed fields are editable.
- *   On save: calls PATCH /api/airtable/update-stone (if record has a real
- *   Airtable ID starting with "rec"). Demo items show a note that saving
- *   is not available for demo items.
- *   Save result: success toast or error message inline.
+ * Task 1 — Inventory drawer edit mode (SAVE RETAINED):
+ *   Two modes: view (default) and edit. "ערוך פריט" switches to edit.
+ *   Real Airtable items (id starts with "rec") save editable fields through
+ *   the existing server-side route PATCH /api/airtable/update-stone.
+ *   Demo items are NOT saveable (no real record) and say so.
+ *   Save result: success / error message inline. No fake success.
  *
- * Task 2 — Media: unchanged from v5.4 (image gallery, video link, cert PDF).
+ * Task 2 — Media editing (URL fields only — no file upload yet):
+ *   Edit mode allows entering/updating:
+ *     • main image URL          (imageUrl)
+ *     • additional image/media  (additionalMediaUrl)
+ *     • video URL               (videoUrl)
+ *     • certificate PDF / URL   (certPdfUrl)
+ *   View mode shows the gallery, video link and certificate link when present.
  *
  * Task 7 — Terminology:
  *   "הוסף למגש עבודה" / "השתמש במחשבון" / "צור תעודה" / "ערוך פריט"
- *   "עיצוב תכשיט — בקרוב" (disabled)
- *   No "Basket", no "הגדרה"
- *
- * Edit fields available:
- *   title/name, product type, stone type, intended use, inventory layer,
- *   status, carat weight, stone count, shape/cut form, color, clarity,
- *   dimensions L/W/D, cert lab, cert number / laser inscription,
- *   cert URL, image URL, video URL, internal notes
+ *   "עיצוב תכשיט — בקרוב" (disabled). No "Basket", no "הגדרה".
  *
  * Props:
  *   item {object}         — normalized inventory item
  *   isSelected {bool}
  *   onClose {function}
- *   onAddToBasket {function(item)}
+ *   onAddToBasket {function(item)}     — internal prop name; UI says "מגש עבודה"
  *   onUseInCalculator {function(item)}
  *   onCreateCertificate {function(item)}
- *   onItemUpdated {function(updatedItem)} — called after successful save
+ *   onItemUpdated {function(updatedItem)} — called after a successful save
  */
 
 import { useState, useEffect } from "react";
@@ -534,12 +531,16 @@ export function InventoryDrawer({
               {/* Certificate */}
               <SectionHead label="תעודה" />
               <EditFieldPair label1="מעבדה" value1={ef("certLab")} onChange1={set("certLab")} placeholder1="GIA, IGI, GRS…" label2="מספר תעודה / חריטה" value2={ef("laserInscription")} onChange2={set("laserInscription")} placeholder2="GIA 2473659812" />
-              <EditField label="קישור תעודה PDF" value={ef("certPdfUrl")} onChange={set("certPdfUrl")} placeholder="https://…" />
 
               {/* Media */}
               <SectionHead label="מדיה" />
-              <EditField label="קישור תמונה ראשית" value={ef("imageUrl")} onChange={set("imageUrl")} placeholder="https://…" />
+              <EditField label="קישור תמונה ראשית" value={ef("imageUrl")} onChange={set("imageUrl")} placeholder="https://… (main image)" />
+              <EditField label="קישור תמונה / מדיה נוספת" value={ef("additionalMediaUrl")} onChange={set("additionalMediaUrl")} placeholder="https://… (additional image or media)" />
               <EditField label="קישור וידאו" value={ef("videoUrl")} onChange={set("videoUrl")} placeholder="https://youtube.com/…" />
+              <EditField label="קישור תעודה PDF / URL" value={ef("certPdfUrl")} onChange={set("certPdfUrl")} placeholder="https://… (certificate PDF or page)" />
+              <div style={{ fontFamily:HEB, fontSize:10, color:C.chx, marginTop:2, lineHeight:1.6 }}>
+                * הזנת קישורי URL בלבד. העלאת קבצים תתווסף בשלב הבא.
+              </div>
 
               {/* Notes */}
               <SectionHead label="הערות פנימיות" />

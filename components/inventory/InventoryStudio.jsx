@@ -1,5 +1,12 @@
 /**
- * components/inventory/InventoryStudio.jsx  —  v5.4
+ * components/inventory/InventoryStudio.jsx  —  v5.5
+ *
+ * v5.5 — Work Tray multi-item send:
+ *   WorkTray calls onSendToCalculator(items, useAs).
+ *   • 1 item  → standard per-item flow (CalcLoadDialog → UseAsDialog).
+ *   • N items → WorkTray asks one shared role (center/side/part) and the
+ *     studio forwards the whole batch to onSendBatchToCalculator(items, useAs).
+ *     No item is silently dropped.
  *
  * Changes from M5.3.2:
  *
@@ -142,6 +149,7 @@ export function InventoryStudio({
   pendingCalcItem     = null,
   onUseInCalculatorFinal = null,   // called with (item, useAs) after UseAsDialog
   onClearPendingCalcItem = null,   // called when UseAsDialog closes without selection
+  onSendBatchToCalculator = null,  // v5.5: called with (items, useAs) for multi-item tray send
 }) {
   const [viewMode,    setViewMode]    = useState("card");
   const [searchText,  setSearchText]  = useState("");
@@ -205,21 +213,27 @@ export function InventoryStudio({
     onCreateCertificate?.(item);
   }, [onCreateCertificate]);
 
-  // Multi-item send to calculator from Work Tray
-  const handleSendTrayToCalc = useCallback((items) => {
-    if (items.length === 0) return;
-    if (items.length === 1) {
-      // Single item: show UseAsDialog
-      setUseAsItem(items[0]);
-    } else {
-      // Multiple items: use first as center stone, remainder as side stones (simplified for now)
-      // Full multi-stone assignment UI is a future milestone
-      const first = items[0];
-      onUseInCalculator?.(first, "center");
-      // Remaining items are queued as side stones
-      items.slice(1).forEach((item) => onUseInCalculator?.(item, "side"));
+  // Send to calculator from Work Tray.
+  // v5.5: WorkTray calls back with (items, useAs).
+  //   • useAs === null  → single item; run the standard per-item flow
+  //                       (CalcLoadDialog: New/Add → UseAsDialog: role).
+  //   • useAs set        → a batch with one shared role chosen in WorkTray.
+  //                       Hand the whole batch to the parent, which loads every
+  //                       item (first respects New/Add, rest append).
+  const handleSendTrayToCalc = useCallback((items, useAs) => {
+    if (!items || items.length === 0) return;
+    if (!useAs) {
+      // Single-item path (WorkTray only sends null for a 1-item tray).
+      handleUseInCalcRequest(items[0]);
+      return;
     }
-  }, [onUseInCalculator]);
+    if (onSendBatchToCalculator) {
+      onSendBatchToCalculator(items, useAs);
+    } else {
+      // Fallback: route the first item through the normal flow so nothing is silently lost.
+      handleUseInCalcRequest(items[0]);
+    }
+  }, [handleUseInCalcRequest, onSendBatchToCalculator]);
 
   // CommandBar handlers
   const handleCommandSearch = useCallback((filterSuggestions) => {
@@ -275,14 +289,20 @@ export function InventoryStudio({
         </div>
       </div>
 
-      {/* CommandBar (Task 10) */}
-      <CommandBar
-        onSearch={handleCommandSearch}
-        onCalculate={(calcSugg) => onNavigateToCalc?.(calcSugg)}
-        onCertificate={() => onNavigateToCert?.()}
-        onClearFilters={() => setFilters({ ...EMPTY_FILTERS })}
-        allItems={allItems}
-      />
+      {/* CommandBar — prominent local command/search bar (Task 10) */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontFamily:C.dat, fontSize:9.5, fontWeight:700, color:C.chl, letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:6, display:"flex", alignItems:"center", gap:7 }}>
+          <span style={{ fontSize:13, color:C.gd }}>✦</span> Command Bar · פקודה מהירה
+        </div>
+        <CommandBar
+          onSearch={handleCommandSearch}
+          onCalculate={(calcSugg) => onNavigateToCalc?.(calcSugg)}
+          onCertificate={() => onNavigateToCert?.()}
+          onClearFilters={() => setFilters({ ...EMPTY_FILTERS })}
+          onNavigate={(t) => { if (t === "calc") onNavigateToCalc?.(); else if (t === "cert") onNavigateToCert?.(); }}
+          allItems={allItems}
+        />
+      </div>
 
       {/* Demo notice */}
       {isShowingDemo && (

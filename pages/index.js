@@ -1,6 +1,14 @@
 /**
- * pages/index.js  —  LESHEM.S OS  v5.4.1
+ * pages/index.js  —  LESHEM.S OS  v5.5
  *
+ * v5.5 — Work Tray multi-item → calculator:
+ *   handleSendBatchToCalculator(items, useAs) loads every selected tray item
+ *   with one shared role. "center" appends each as a separate center stone;
+ *   "side" fills the two available side rows; "part" navigates for manual
+ *   entry. Wired to InventoryStudio via onSendBatchToCalculator. The existing
+ *   single-item two-step flow (CalcLoadDialog → UseAsDialog) is unchanged.
+ *
+ * Prior (v5.4.1) behaviour retained below:
  * Changes from v5.4:
  *
  * Task 5 — "Start New Product / Add to Current Product" dialog:
@@ -328,6 +336,90 @@ export default function LeshemOS() {
     setCfg(prev => ({ ...prev, centerStones: (prev.centerStones||[]).filter((_,i) => i !== index) }));
   }, []);
 
+  // ── v5.5: Multi-item batch from Work Tray ──────────────────────────────────
+  /**
+   * Loads an array of inventory items into the calculator with a single shared
+   * role. Starts a NEW product (clears prior data), then loads every item:
+   *   • useAs "center" → each item appended as a separate center stone
+   *     (true multiple-center-stone support; never collapsed into quantity).
+   *   • useAs "side"   → items fill side row 1 (ss1) then side row 2 (ss2).
+   *     The calculator engine currently exposes two side rows; if more than
+   *     two side items are sent, only the two available rows are filled and the
+   *     banner states how many were loaded. No silent fabrication of fields.
+   *   • useAs "part"   → navigates to the calculator for manual component entry.
+   */
+  const handleSendBatchToCalculator = useCallback((items, useAs) => {
+    if (!items || items.length === 0 || !useAs) return;
+
+    setCfg(() => {
+      const base = { ...DCFG, centerStones: [] };
+
+      if (useAs === "center") {
+        items.forEach((item) => {
+          const totalCt = parseFloat(item.caratWeight) || 0;
+          const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
+          const ctPer   = totalCt > 0 ? totalCt / count : 0;
+          const entry = {
+            source:            "inventory",
+            inventoryId:       item.id,
+            stoneType:         item.stoneType || "",
+            shape:             item.cutForm   || "",
+            carat:             ctPer > 0 ? `${ctPer.toFixed(2)} ct` : "",
+            color:             item.color     || "",
+            clarity:           item.clarity   || "",
+            cost:              item.costUsd   || 0,
+            certificateLab:    item.certLab   || "",
+            certificateNumber: item.certNumber || item.laserInscription || "",
+          };
+          if (!base.centerStones.some(s => s.inventoryId === item.id)) {
+            base.centerStones = [...base.centerStones, entry];
+          }
+        });
+        // Mirror the first center stone into the editable center fields so the
+        // panel shows a populated primary stone (engine source of truth).
+        const first = items[0];
+        const ft = parseFloat(first.caratWeight) || 0;
+        const fc = Math.max(1, parseInt(first.stoneCount, 10) || 1);
+        const fper = ft > 0 ? ft / fc : 0;
+        if (first.stoneType) base.centerType = first.stoneType;
+        if (fper > 0)        base.centerCt   = fper.toFixed(2);
+        base.centerCount = String(fc);
+        if (first.color   && first.stoneType === "Diamond") base.centerColor   = first.color;
+        if (first.clarity && first.stoneType === "Diamond") base.centerClarity = first.clarity;
+
+      } else if (useAs === "side") {
+        const rows = ["ss1", "ss2"];
+        items.slice(0, rows.length).forEach((item, idx) => {
+          const prefix  = rows[idx];
+          const totalCt = parseFloat(item.caratWeight) || 0;
+          const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
+          const ctPer   = totalCt > 0 ? totalCt / count : 0;
+          if (item.stoneType) base[`${prefix}Type`]  = item.stoneType;
+          if (ctPer > 0)      base[`${prefix}Ct`]    = ctPer.toFixed(3);
+          base[`${prefix}Count`]     = String(count);
+          base[`${prefix}Manual`]    = "";
+          base[`${prefix}PriceMode`] = "total";
+          if (item.cutForm) base[`${prefix}Shape`] = item.cutForm;
+        });
+      }
+      // "part": no engine fields to fill — just navigate for manual entry.
+      return base;
+    });
+
+    const loadedNote =
+      useAs === "center" ? `${items.length} אבני מרכז`
+      : useAs === "side" ? `${Math.min(items.length, 2)} אבני צד${items.length > 2 ? ` (מתוך ${items.length} — שתי שורות זמינות)` : ""}`
+      : `${items.length} רכיבים`;
+
+    setCalcSrcBanner({
+      name:  `${items.length} פריטים מהמגש → ${loadedNote}`,
+      useAs,
+      mode:  "new",
+    });
+
+    handleTabChange("calc");
+  }, [handleTabChange]);
+
   // ── v5.4.1 Task 3: correct certificate creation ───────────────────────────
   const handleCertFromItem = useCallback((item) => {
     const mapping = mapProductTypeToCertificate(item.productType);
@@ -589,6 +681,7 @@ export default function LeshemOS() {
                 pendingCalcItem={calcUseAsItem}
                 onUseInCalculatorFinal={prefillCalcFromItem}
                 onClearPendingCalcItem={() => setCalcUseAsItem(null)}
+                onSendBatchToCalculator={handleSendBatchToCalculator}
               />
             )}
 

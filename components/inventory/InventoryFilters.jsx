@@ -1,23 +1,26 @@
 /**
- * components/inventory/InventoryFilters.jsx  —  v5.4
+ * components/inventory/InventoryFilters.jsx  —  v5.5
  *
- * Changes from M5.3:
- *   + "Reset Filters" button always visible when any filter is active
- *   + Filter groups collapsed by default on mobile (viewport < 640px)
- *   + Status filter group added
- *   + Filter panel uses a 2-column layout on desktop, 1-column on mobile
- *   + Pill buttons wrap cleanly without overflow
- *   + Filter count badge on toggle button
+ * Substantive upgrade over v5.4:
+ *
+ *  • Stronger search: prominent search field; the matched fields now also
+ *    include memo number, physical location, growth method and report number.
+ *  • Active-filter chips row: each active filter shows as a removable chip
+ *    directly under the search bar, so the current filter state is always
+ *    visible without opening the panel.
+ *  • Reset: a single "× איפוס" clears search + all filters.
+ *  • Mobile: the filter panel renders as a bottom sheet (slide-up) on narrow
+ *    viewports with large touch targets; on desktop it's an inline panel.
+ *    A backdrop closes the mobile sheet. No cramped controls, no overflow.
+ *  • Roomier pills and inputs (height 30–34, generous padding).
  *
  * Props:
- *   searchText   {string}
- *   setSearchText {function}
- *   filters      {object}
- *   setFilters   {function}
- *   items        {array}  — all unfiltered items
+ *   searchText {string}  setSearchText {fn}
+ *   filters {object}     setFilters {fn}
+ *   items {array}        — all unfiltered items (for option derivation)
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { C } from "../../lib/constants";
 import { PRODUCT_TYPE_LABELS } from "./InventoryCard";
 
@@ -31,12 +34,20 @@ export const EMPTY_FILTERS = {
 const HEB = C.heb;
 const DAT = C.dat;
 
+// Human labels for active-filter chips
+const FILTER_LABELS = {
+  productType: "סוג מוצר", inventoryLayer: "שכבת מלאי", status: "סטטוס",
+  intendedUse: "שימוש", stoneType: "סוג אבן", shape: "צורה",
+  certLab: "מעבדה", caratMin: "קראט מ-", caratMax: "קראט עד",
+  priceMin: "מחיר מ-$", priceMax: "מחיר עד $",
+};
+
 // ─── Pill ─────────────────────────────────────────────────────────────────────
 function Pill({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      style={{ height:28, padding:"0 12px", borderRadius:14, border:`1.5px solid ${active?C.gd:"rgba(54,69,79,0.18)"}`, background:active?C.gd:"transparent", color:active?"#fff":C.chm, fontFamily:DAT, fontSize:11, fontWeight:active?700:400, cursor:"pointer", whiteSpace:"nowrap", transition:"all 0.14s" }}
+      style={{ height:30, padding:"0 13px", borderRadius:15, border:`1.5px solid ${active?C.gd:"rgba(54,69,79,0.18)"}`, background:active?C.gd:"transparent", color:active?"#fff":C.chm, fontFamily:DAT, fontSize:11.5, fontWeight:active?700:400, cursor:"pointer", whiteSpace:"nowrap", transition:"all 0.14s" }}
     >
       {label}
     </button>
@@ -46,15 +57,15 @@ function Pill({ label, active, onClick }) {
 // ─── Range pair ───────────────────────────────────────────────────────────────
 function RangePair({ fieldMin, fieldMax, labelMin, labelMax, filters, setFilter }) {
   const INP = {
-    flex:1, height:32, border:"1px solid rgba(54,69,79,0.18)", borderRadius:6,
-    background:"#fff", padding:"0 10px", fontFamily:DAT, fontSize:12,
+    flex:1, minWidth:0, height:34, border:"1px solid rgba(54,69,79,0.18)", borderRadius:7,
+    background:"#fff", padding:"0 11px", fontFamily:DAT, fontSize:12.5,
     color:C.ch, outline:"none", boxSizing:"border-box",
   };
   return (
-    <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-      <input type="number" value={filters[fieldMin]} onChange={(e) => setFilter(fieldMin, e.target.value)} placeholder={labelMin} style={INP} />
-      <span style={{ fontFamily:DAT, fontSize:11, color:C.chl }}>–</span>
-      <input type="number" value={filters[fieldMax]} onChange={(e) => setFilter(fieldMax, e.target.value)} placeholder={labelMax} style={INP} />
+    <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+      <input type="number" inputMode="decimal" value={filters[fieldMin]} onChange={(e) => setFilter(fieldMin, e.target.value)} placeholder={labelMin} style={INP} />
+      <span style={{ fontFamily:DAT, fontSize:12, color:C.chl }}>–</span>
+      <input type="number" inputMode="decimal" value={filters[fieldMax]} onChange={(e) => setFilter(fieldMax, e.target.value)} placeholder={labelMax} style={INP} />
     </div>
   );
 }
@@ -63,8 +74,8 @@ function RangePair({ fieldMin, fieldMax, labelMin, labelMax, filters, setFilter 
 function FilterGroup({ label, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ marginBottom:14 }}>
-      <button onClick={() => setOpen(!open)} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, width:"100%", padding:"0 0 6px 0" }}>
+    <div style={{ marginBottom:16, breakInside:"avoid" }}>
+      <button onClick={() => setOpen(!open)} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, width:"100%", padding:"0 0 7px 0" }}>
         <span style={{ fontFamily:DAT, fontSize:9.5, fontWeight:700, color:C.chl, letterSpacing:"0.14em", textTransform:"uppercase", flex:1, textAlign:"left" }}>{label}</span>
         <span style={{ fontFamily:DAT, fontSize:11, color:C.chx }}>{open ? "▾" : "▸"}</span>
       </button>
@@ -73,14 +84,29 @@ function FilterGroup({ label, children, defaultOpen = true }) {
   );
 }
 
+// ─── useIsMobile ──────────────────────────────────────────────────────────────
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = () => setMobile(typeof window !== "undefined" && window.innerWidth < 640);
+    mq();
+    window.addEventListener("resize", mq);
+    return () => window.removeEventListener("resize", mq);
+  }, []);
+  return mobile;
+}
+
 // ─── InventoryFilters ─────────────────────────────────────────────────────────
 export function InventoryFilters({ searchText, setSearchText, filters, setFilters, items }) {
   const [panelOpen, setPanelOpen] = useState(false);
+  const isMobile = useIsMobile();
 
-  const activeCount = useMemo(() => Object.values(filters).filter(v => v !== "").length, [filters]);
+  const activeEntries = useMemo(() => Object.entries(filters).filter(([, v]) => v !== ""), [filters]);
+  const activeCount   = activeEntries.length;
   const setFilter   = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
   const toggle      = (key, value) => setFilter(key, filters[key] === value ? "" : value);
-  const clearAll    = () => setFilters({ ...EMPTY_FILTERS });
+  const clearAll    = () => { setFilters({ ...EMPTY_FILTERS }); setSearchText(""); };
+  const clearOne    = (key) => setFilter(key, "");
 
   const opts = useMemo(() => {
     const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort();
@@ -95,29 +121,94 @@ export function InventoryFilters({ searchText, setSearchText, filters, setFilter
     };
   }, [items]);
 
+  // chip display value (use product-type label where relevant)
+  const chipValue = (key, val) => key === "productType" ? (PRODUCT_TYPE_LABELS[val] || val) : val;
+
+  const PanelBody = (
+    <div style={{ columns: isMobile ? "1" : "220px 2", columnGap:24 }}>
+      {opts.productTypes.length > 0 && (
+        <FilterGroup label="Product Type">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.productTypes.map(pt => (
+              <Pill key={pt} label={PRODUCT_TYPE_LABELS[pt] || pt} active={filters.productType === pt} onClick={() => toggle("productType", pt)} />
+            ))}
+          </div>
+        </FilterGroup>
+      )}
+      {opts.layers.length > 0 && (
+        <FilterGroup label="Inventory Layer">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.layers.map(l => <Pill key={l} label={l} active={filters.inventoryLayer === l} onClick={() => toggle("inventoryLayer", l)} />)}
+          </div>
+        </FilterGroup>
+      )}
+      {opts.statuses.length > 0 && (
+        <FilterGroup label="Status">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.statuses.map(s => <Pill key={s} label={s} active={filters.status === s} onClick={() => toggle("status", s)} />)}
+          </div>
+        </FilterGroup>
+      )}
+      {opts.stoneTypes.length > 0 && (
+        <FilterGroup label="Stone Type">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.stoneTypes.map(st => <Pill key={st} label={st} active={filters.stoneType === st} onClick={() => toggle("stoneType", st)} />)}
+          </div>
+        </FilterGroup>
+      )}
+      {opts.shapes.length > 0 && (
+        <FilterGroup label="Shape / Cut">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.shapes.map(sh => <Pill key={sh} label={sh} active={filters.shape === sh} onClick={() => toggle("shape", sh)} />)}
+          </div>
+        </FilterGroup>
+      )}
+      {opts.certLabs.length > 0 && (
+        <FilterGroup label="Certificate Lab">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.certLabs.map(cl => <Pill key={cl} label={cl} active={filters.certLab === cl} onClick={() => toggle("certLab", cl)} />)}
+          </div>
+        </FilterGroup>
+      )}
+      {opts.intendedUses.length > 0 && (
+        <FilterGroup label="Intended Use">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {opts.intendedUses.map(u => <Pill key={u} label={u} active={filters.intendedUse === u} onClick={() => toggle("intendedUse", u)} />)}
+          </div>
+        </FilterGroup>
+      )}
+      <FilterGroup label="Carat Range">
+        <RangePair fieldMin="caratMin" fieldMax="caratMax" labelMin="Min ct" labelMax="Max ct" filters={filters} setFilter={setFilter} />
+      </FilterGroup>
+      <FilterGroup label="Price Range (USD)">
+        <RangePair fieldMin="priceMin" fieldMax="priceMax" labelMin="Min $" labelMax="Max $" filters={filters} setFilter={setFilter} />
+      </FilterGroup>
+    </div>
+  );
+
   return (
     <div>
-
       {/* ── Search bar + controls ── */}
-      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", marginBottom: panelOpen ? 14 : 0 }}>
-        {/* Search */}
-        <div style={{ flex:"1 1 220px", position:"relative" }}>
-          <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", fontSize:14, pointerEvents:"none", color:C.chl }}>🔍</span>
+      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+        <div style={{ flex:"1 1 220px", position:"relative", minWidth:0 }}>
+          <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:15, pointerEvents:"none", color:C.chl }}>🔍</span>
           <input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="SKU, description, stone type, cert, supplier…"
-            style={{ width:"100%", height:40, border:"1px solid rgba(54,69,79,0.18)", borderRadius:8, background:"#fff", paddingLeft:34, paddingRight:12, fontFamily:DAT, fontSize:13, color:C.ch, outline:"none", boxSizing:"border-box" }}
+            placeholder="חיפוש: מק״ט, תיאור, סוג אבן, צבע, ניקיון, מעבדה, מספר תעודה, ספק…"
+            dir="rtl"
+            style={{ width:"100%", height:44, border:"1px solid rgba(54,69,79,0.2)", borderRadius:9, background:"#fff", paddingRight:14, paddingLeft:38, fontFamily:HEB, fontSize:13.5, color:C.ch, outline:"none", boxSizing:"border-box", transition:"border-color 0.14s, box-shadow 0.14s" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor=C.gd; e.currentTarget.style.boxShadow="0 0 0 3px rgba(197,179,88,0.13)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor="rgba(54,69,79,0.2)"; e.currentTarget.style.boxShadow="none"; }}
           />
           {searchText && (
-            <button onClick={() => setSearchText("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:C.chl, fontSize:16, lineHeight:1 }}>✕</button>
+            <button onClick={() => setSearchText("")} style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:C.chl, fontSize:16, lineHeight:1 }}>✕</button>
           )}
         </div>
 
-        {/* Filter toggle */}
         <button
           onClick={() => setPanelOpen(!panelOpen)}
-          style={{ height:40, padding:"0 16px", border:`1.5px solid ${panelOpen || activeCount>0 ? C.gd : "rgba(54,69,79,0.2)"}`, borderRadius:8, background:panelOpen?"rgba(197,179,88,0.08)":"transparent", color:panelOpen || activeCount>0 ?"#7a6a1a":C.chm, fontFamily:DAT, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}
+          style={{ height:44, padding:"0 16px", border:`1.5px solid ${panelOpen || activeCount>0 ? C.gd : "rgba(54,69,79,0.2)"}`, borderRadius:9, background:panelOpen?"rgba(197,179,88,0.08)":"transparent", color:panelOpen || activeCount>0 ?"#7a6a1a":C.chm, fontFamily:DAT, fontSize:12.5, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:7, whiteSpace:"nowrap" }}
         >
           <span>⊞ מסננים</span>
           {activeCount > 0 && (
@@ -125,89 +216,52 @@ export function InventoryFilters({ searchText, setSearchText, filters, setFilter
           )}
         </button>
 
-        {/* Reset filters — always visible when active */}
-        {activeCount > 0 && (
+        {(activeCount > 0 || searchText) && (
           <button
             onClick={clearAll}
-            style={{ height:40, padding:"0 14px", border:"1px solid rgba(176,64,64,0.3)", borderRadius:8, background:"rgba(176,64,64,0.06)", color:"#b04040", fontFamily:HEB, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:5 }}
+            style={{ height:44, padding:"0 14px", border:"1px solid rgba(176,64,64,0.3)", borderRadius:9, background:"rgba(176,64,64,0.06)", color:"#b04040", fontFamily:HEB, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" }}
           >
-            × איפוס מסננים
+            × איפוס
           </button>
         )}
       </div>
 
+      {/* ── Active filter chips ── */}
+      {activeCount > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:10 }}>
+          {activeEntries.map(([key, val]) => (
+            <span key={key} style={{ display:"inline-flex", alignItems:"center", gap:6, height:26, padding:"0 6px 0 10px", borderRadius:13, background:"rgba(197,179,88,0.12)", border:"1px solid rgba(197,179,88,0.4)", fontFamily:DAT, fontSize:11, color:"#6a5a10", whiteSpace:"nowrap" }}>
+              {FILTER_LABELS[key] || key}: <strong style={{ fontWeight:700 }}>{chipValue(key, val)}</strong>
+              <button onClick={() => clearOne(key)} style={{ background:"none", border:"none", cursor:"pointer", color:"#6a5a10", fontSize:13, lineHeight:1, padding:0 }}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* ── Filter panel ── */}
-      {panelOpen && (
-        <div style={{ background:"#fff", border:"1px solid rgba(54,69,79,0.12)", borderRadius:10, padding:"16px 18px", marginBottom:14 }}>
-          {/* Two-column grid on desktop */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:"0 24px" }}>
+      {panelOpen && !isMobile && (
+        <div style={{ background:"#fff", border:"1px solid rgba(54,69,79,0.12)", borderRadius:11, padding:"18px 20px", marginTop:14 }}>
+          {PanelBody}
+        </div>
+      )}
 
-            {opts.productTypes.length > 0 && (
-              <FilterGroup label="Product Type">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.productTypes.map(pt => (
-                    <Pill key={pt} label={PRODUCT_TYPE_LABELS[pt] || pt} active={filters.productType === pt} onClick={() => toggle("productType", pt)} />
-                  ))}
-                </div>
-              </FilterGroup>
-            )}
-
-            {opts.layers.length > 0 && (
-              <FilterGroup label="Inventory Layer">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.layers.map(l => <Pill key={l} label={l} active={filters.inventoryLayer === l} onClick={() => toggle("inventoryLayer", l)} />)}
-                </div>
-              </FilterGroup>
-            )}
-
-            {opts.statuses.length > 0 && (
-              <FilterGroup label="Status">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.statuses.map(s => <Pill key={s} label={s} active={filters.status === s} onClick={() => toggle("status", s)} />)}
-                </div>
-              </FilterGroup>
-            )}
-
-            {opts.stoneTypes.length > 0 && (
-              <FilterGroup label="Stone Type">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.stoneTypes.map(st => <Pill key={st} label={st} active={filters.stoneType === st} onClick={() => toggle("stoneType", st)} />)}
-                </div>
-              </FilterGroup>
-            )}
-
-            {opts.shapes.length > 0 && (
-              <FilterGroup label="Shape / Cut">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.shapes.map(sh => <Pill key={sh} label={sh} active={filters.shape === sh} onClick={() => toggle("shape", sh)} />)}
-                </div>
-              </FilterGroup>
-            )}
-
-            {opts.certLabs.length > 0 && (
-              <FilterGroup label="Certificate Lab">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.certLabs.map(cl => <Pill key={cl} label={cl} active={filters.certLab === cl} onClick={() => toggle("certLab", cl)} />)}
-                </div>
-              </FilterGroup>
-            )}
-
-            {opts.intendedUses.length > 0 && (
-              <FilterGroup label="Intended Use">
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                  {opts.intendedUses.map(u => <Pill key={u} label={u} active={filters.intendedUse === u} onClick={() => toggle("intendedUse", u)} />)}
-                </div>
-              </FilterGroup>
-            )}
-
-            <FilterGroup label="Carat Range">
-              <RangePair fieldMin="caratMin" fieldMax="caratMax" labelMin="Min ct" labelMax="Max ct" filters={filters} setFilter={setFilter} />
-            </FilterGroup>
-
-            <FilterGroup label="Price Range (USD)">
-              <RangePair fieldMin="priceMin" fieldMax="priceMax" labelMin="Min $" labelMax="Max $" filters={filters} setFilter={setFilter} />
-            </FilterGroup>
-
+      {/* ── Mobile bottom sheet ── */}
+      {panelOpen && isMobile && (
+        <div style={{ position:"fixed", inset:0, zIndex:1500, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+          <div onClick={() => setPanelOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(54,69,79,0.5)" }} />
+          <div style={{ position:"relative", background:C.iv, borderTopLeftRadius:16, borderTopRightRadius:16, maxHeight:"82vh", overflowY:"auto", boxShadow:"0 -8px 30px rgba(54,69,79,0.3)" }}>
+            <div style={{ position:"sticky", top:0, background:C.iv, padding:"14px 18px 10px", borderBottom:"1px solid rgba(54,69,79,0.1)", display:"flex", alignItems:"center", justifyContent:"space-between", zIndex:1 }}>
+              <span style={{ fontFamily:HEB, fontSize:15, fontWeight:700, color:C.ch }}>מסננים</span>
+              <div style={{ display:"flex", gap:8 }}>
+                {(activeCount > 0 || searchText) && (
+                  <button onClick={clearAll} style={{ height:34, padding:"0 12px", border:"1px solid rgba(176,64,64,0.3)", borderRadius:7, background:"rgba(176,64,64,0.06)", color:"#b04040", fontFamily:HEB, fontSize:12, cursor:"pointer" }}>איפוס</button>
+                )}
+                <button onClick={() => setPanelOpen(false)} style={{ height:34, padding:"0 16px", border:"none", borderRadius:7, background:C.ch, color:C.iv, fontFamily:HEB, fontSize:12.5, fontWeight:700, cursor:"pointer" }}>סגור</button>
+              </div>
+            </div>
+            <div style={{ padding:"16px 18px 28px" }}>
+              {PanelBody}
+            </div>
           </div>
         </div>
       )}
@@ -219,14 +273,15 @@ export function InventoryFilters({ searchText, setSearchText, filters, setFilter
 export function applyFilters(items, searchText, filters) {
   let result = items;
 
-  if (searchText.trim()) {
+  if (searchText && searchText.trim()) {
     const q = searchText.toLowerCase();
     result = result.filter(item =>
       [item.sku, item.name, item.stoneType, item.productType,
        item.color, item.clarity, item.certLab, item.certNumber,
-       item.supplierName, item.ownerClient, item.cutForm,
+       item.supplierName, item.ownerClient, item.cutForm, item.stoneShape,
        item.fancyColorIntensity, item.fancyColorHue,
-       item.inventoryLayer, item.intendedUse, item.laserInscription]
+       item.inventoryLayer, item.intendedUse, item.laserInscription,
+       item.memoNumber, item.physicalLocation, item.growthMethod]
         .some(f => f && String(f).toLowerCase().includes(q))
     );
   }
