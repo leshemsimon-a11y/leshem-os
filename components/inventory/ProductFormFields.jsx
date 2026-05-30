@@ -292,10 +292,10 @@ function StoneForm({ productType, formData, onChange }) {
                  type="number" placeholder="1" />
           </Grid2>
           <Grid2>
-            <Sel label="Shape / Cut Form" field="cutForm" formData={formData} onChange={onChange}
-                 options={cutFormOptions} placeholder="Round Brilliant…" />
-            <Sel label="Stone Shape" field="stoneShape" formData={formData} onChange={onChange}
-                 options={stoneShapes} placeholder="Round…" />
+            <Sel label="צורה / ליטוש" field="stoneShape" formData={formData} onChange={onChange}
+                 options={stoneShapes} placeholder="Round, Oval, Cushion…" />
+            <Sel label="Cut / Form" field="cutForm" formData={formData} onChange={onChange}
+                 options={cutFormOptions} placeholder="Faceted, Cabochon…" />
           </Grid2>
         </>
       )}

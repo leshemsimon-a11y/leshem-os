@@ -32,7 +32,7 @@
  * All other features (views, demo items, loading, errors) unchanged.
  */
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { C } from "../../lib/constants";
 import { InventoryCard, PRODUCT_TYPE_LABELS, PRODUCT_TYPE_GRADIENTS, PRODUCT_TYPE_ICONS } from "./InventoryCard";
 import { InventoryFilters, EMPTY_FILTERS, applyFilters }                                   from "./InventoryFilters";
@@ -140,16 +140,14 @@ export function InventoryStudio({
   error   = null,
   onRetry,
   onAddNew,
-  onUseInCalculator,      // v5.3.1: triggers CalcLoadDialog in index.js
+  onUseInCalculator,      // legacy fallback (item, useAs)
   onCreateCertificate,
   onNavigateToCalc,
   onNavigateToCert,
-  // v5.4.1: after CalcLoadDialog resolves, index.js sets pendingCalcItem
-  // to signal InventoryStudio to open UseAsDialog for that item
-  pendingCalcItem     = null,
-  onUseInCalculatorFinal = null,   // called with (item, useAs) after UseAsDialog
-  onClearPendingCalcItem = null,   // called when UseAsDialog closes without selection
-  onSendBatchToCalculator = null,  // v5.5: called with (items, useAs) for multi-item tray send
+  // v5.5.1: ROLE-first flow. Studio asks role (UseAsDialog), then hands
+  // (item, role) to the parent which shows the New/Add dialog and prefills.
+  onRoleChosenForCalc = null,      // called with (item, useAs) after role chosen
+  onSendBatchToCalculator = null,  // called with (items, useAs) for multi-item tray send
 }) {
   const [viewMode,    setViewMode]    = useState("card");
   const [searchText,  setSearchText]  = useState("");
@@ -157,14 +155,6 @@ export function InventoryStudio({
   const [drawerItem,  setDrawerItem]  = useState(null);
   const [trayItems,   setTrayItems]   = useState([]);
   const [useAsItem,   setUseAsItem]   = useState(null);
-
-  // v5.4.1: when pendingCalcItem changes (set by index.js after CalcLoadDialog),
-  // open UseAsDialog for that item
-  useEffect(() => {
-    if (pendingCalcItem) {
-      setUseAsItem(pendingCalcItem);
-    }
-  }, [pendingCalcItem]);
 
   const isShowingDemo = !loading && stones.length === 0;
   const allItems      = useMemo(() => (isShowingDemo ? DEMO_ITEMS : stones), [stones, isShowingDemo]);
@@ -182,30 +172,26 @@ export function InventoryStudio({
   const removeFromTray = useCallback((id) => setTrayItems(prev => prev.filter(i => i.id !== id)), []);
   const clearTray      = useCallback(() => setTrayItems([]), []);
 
-  // UseAsDialog flow
+  // ── Use-in-Calculator flow (v5.5.1: ROLE first, then New/Add) ─────────────
+  // Step 1: open UseAsDialog (role: center / side / part) right here.
+  // Step 2: on role chosen, hand (item, role) to the parent, which then shows
+  //         CalcLoadDialog (New / Add) and finally runs the prefill.
   const handleUseInCalcRequest = useCallback((item) => {
-    // v5.4.1: Instead of directly prefilling, we ask index.js to show
-    // CalcLoadDialog first. The item goes to onUseInCalculator (index.js).
-    // If there's already a pending item via pendingCalcItem, open UseAsDialog directly.
-    if (onUseInCalculatorFinal) {
-      // We are in the second step (CalcLoadDialog already resolved)
-      setUseAsItem(item);
-    } else {
-      onUseInCalculator?.(item);
-    }
-  }, [onUseInCalculator, onUseInCalculatorFinal]);
+    setUseAsItem(item);
+  }, []);
 
   const handleUseAsSelected = useCallback((useAs) => {
     const item = useAsItem;
     setUseAsItem(null);
     setDrawerItem(null);
-    if (onUseInCalculatorFinal) {
-      // Second step: final prefill
-      onUseInCalculatorFinal(item, useAs);
+    // Parent owns the New/Add dialog + prefill. Pass the chosen role through.
+    if (onRoleChosenForCalc) {
+      onRoleChosenForCalc(item, useAs);
     } else {
+      // Backward-compatible fallback (older parent wiring).
       onUseInCalculator?.(item, useAs);
     }
-  }, [useAsItem, onUseInCalculator, onUseInCalculatorFinal]);
+  }, [useAsItem, onRoleChosenForCalc, onUseInCalculator]);
 
   // Cert request
   const handleCertRequest = useCallback((item) => {
@@ -258,7 +244,7 @@ export function InventoryStudio({
   return (
     <div style={{ maxWidth:1360, margin:"0 auto", paddingBottom: trayItems.length > 0 ? 64 : 0 }}>
 
-      {useAsItem && <UseAsDialog item={useAsItem} onSelect={handleUseAsSelected} onCancel={() => { setUseAsItem(null); onClearPendingCalcItem?.(); }} />}
+      {useAsItem && <UseAsDialog item={useAsItem} onSelect={handleUseAsSelected} onCancel={() => setUseAsItem(null)} />}
 
       {/* Header */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:12 }}>

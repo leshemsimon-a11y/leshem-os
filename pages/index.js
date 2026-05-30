@@ -181,9 +181,9 @@ export default function LeshemOS() {
 
   // v5.4.1 Task 5: CalcLoadDialog state
   // Stores { item } — shown before UseAsDialog so user picks new/add
-  const [calcLoadItem,  setCalcLoadItem]  = useState(null);  // shows CalcLoadDialog
-  const [calcLoadMode,  setCalcLoadMode]  = useState(null);  // "new" or "add"
-  const [calcUseAsItem, setCalcUseAsItem] = useState(null);  // passes to InventoryStudio
+  const [calcLoadItem,  setCalcLoadItem]  = useState(null);  // item awaiting New/Add choice
+  const [calcRole,      setCalcRole]      = useState(null);  // chosen role: center/side/part
+  const [calcBatch,     setCalcBatch]     = useState(null);  // { items, useAs } awaiting New/Add
 
   // v5.4.1: jewelry_part cert confirmation
   const [certPartConfirm, setCertPartConfirm] = useState(null); // item
@@ -251,33 +251,43 @@ export default function LeshemOS() {
     }
   }, []);
 
-  // ── v5.4.1 Task 5: "Use in Calculator" two-step flow ─────────────────────
+  // ── v5.5.1: "Use in Calculator" — ROLE first, then New/Add ───────────────
   /**
-   * Step 1: Show CalcLoadDialog (New vs Add to Current).
-   * Step 2: CalcLoadDialog resolves → set calcLoadMode, trigger UseAsDialog
-   *         in InventoryStudio via calcUseAsItem.
+   * Order (single item):
+   *   1. InventoryStudio shows UseAsDialog (role: center / side / part).
+   *   2. onRoleChosenForCalc(item, role) stores both and opens CalcLoadDialog.
+   *   3. CalcLoadDialog resolves (new / add) → prefillCalcFromItem runs.
    *
-   * When InventoryStudio's UseAsDialog resolves it calls
-   * handleUseInCalculatorFinal(item, useAs) which runs the actual prefill.
+   * calcRole holds the chosen role between step 2 and step 3.
    */
-  const handleUseInCalculatorRequest = useCallback((item) => {
-    setCalcLoadItem(item);
+  const handleRoleChosenForCalc = useCallback((item, role) => {
+    setCalcRole(role);
+    setCalcLoadItem(item);   // opens CalcLoadDialog (New / Add)
   }, []);
 
   const handleCalcLoadSelected = useCallback((mode) => {
+    // Batch path takes priority when a tray batch is awaiting New/Add.
+    if (calcBatch) {
+      const { items, useAs } = calcBatch;
+      setCalcBatch(null);
+      applyBatchToCfg(items, useAs, mode);
+      return;
+    }
     const item = calcLoadItem;
+    const role = calcRole;
     setCalcLoadItem(null);
-    setCalcLoadMode(mode);
-    // Signal InventoryStudio to open UseAsDialog for this item
-    setCalcUseAsItem(item);
-  }, [calcLoadItem]);
+    setCalcRole(null);
+    if (item) prefillCalcFromItem(item, role || "center", mode);
+  }, [calcBatch, calcLoadItem, calcRole]);
 
   /**
-   * Called by InventoryStudio after UseAsDialog resolves.
-   * At this point calcLoadMode is already set.
+   * Runs the actual prefill. mode ∈ { "new", "add" }, default "new".
+   * Start New clears all prior calculator data (metal, stones, manual values)
+   * via DCFG; Add appends to the current cfg. Multiple center stones are kept
+   * as separate items. Manual override remains possible afterwards.
    */
-  const prefillCalcFromItem = useCallback((item, useAs) => {
-    const isNew = calcLoadMode !== "add";  // default to "new"
+  const prefillCalcFromItem = useCallback((item, useAs, mode) => {
+    const isNew = mode !== "add";  // default to "new"
 
     const totalCt = parseFloat(item.caratWeight) || 0;
     const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
@@ -286,6 +296,7 @@ export default function LeshemOS() {
     setCfg((prev) => {
       // Start New: reset to DCFG, then overlay
       const base = isNew ? { ...DCFG, centerStones: [] } : { ...prev };
+      if (!Array.isArray(base.centerStones)) base.centerStones = [];
 
       if (useAs === "center") {
         if (item.stoneType)  base.centerType    = item.stoneType;
@@ -300,7 +311,7 @@ export default function LeshemOS() {
           source:            "inventory",
           inventoryId:       item.id,
           stoneType:         item.stoneType || "",
-          shape:             item.cutForm   || "",
+          shape:             item.cutForm   || item.stoneShape || "",
           carat:             ctPer > 0 ? `${ctPer.toFixed(2)} ct` : "",
           color:             item.color     || "",
           clarity:           item.clarity   || "",
@@ -309,7 +320,7 @@ export default function LeshemOS() {
           certificateNumber: item.certNumber || item.laserInscription || "",
         };
         const already = base.centerStones.some(s => s.inventoryId === item.id);
-        if (!already) base.centerStones = [...(base.centerStones || []), stoneEntry];
+        if (!already) base.centerStones = [...base.centerStones, stoneEntry];
 
       } else if (useAs === "side") {
         if (item.stoneType)  base.ss1Type      = item.stoneType;
@@ -317,7 +328,9 @@ export default function LeshemOS() {
         base.ss1Count        = String(count);
         base.ss1Manual       = "";
         base.ss1PriceMode    = "total";
+        if (item.cutForm || item.stoneShape) base.ss1Shape = item.cutForm || item.stoneShape;
       }
+      // "part": navigate for manual component entry; no engine fields forced.
       return base;
     });
 
@@ -327,10 +340,8 @@ export default function LeshemOS() {
       mode:  isNew ? "new" : "add",
     });
 
-    setCalcLoadMode(null);
-    setCalcUseAsItem(null);
     handleTabChange("calc");
-  }, [calcLoadMode, handleTabChange]);
+  }, [handleTabChange]);
 
   const handleRemoveCenterStone = useCallback((index) => {
     setCfg(prev => ({ ...prev, centerStones: (prev.centerStones||[]).filter((_,i) => i !== index) }));
@@ -350,9 +361,27 @@ export default function LeshemOS() {
    */
   const handleSendBatchToCalculator = useCallback((items, useAs) => {
     if (!items || items.length === 0 || !useAs) return;
+    // v5.5.1: role already chosen in WorkTray; now ask New/Add before loading.
+    setCalcBatch({ items, useAs });
+    setCalcLoadItem({
+      name: `${items.length} פריטים מהמגש`,
+      caratWeight: items.reduce((s, i) => s + (parseFloat(i.caratWeight) || 0), 0) || null,
+      __batch: true,
+    });
+  }, []);
 
-    setCfg(() => {
-      const base = { ...DCFG, centerStones: [] };
+  /**
+   * Applies a tray batch to the calculator with a shared role + load mode.
+   * mode ∈ { "new", "add" } (default "new"). Start New clears prior data;
+   * Add appends to current cfg. Center stones stay separate; side fills the
+   * two engine rows; part navigates for manual entry. Manual override remains.
+   */
+  const applyBatchToCfg = useCallback((items, useAs, mode) => {
+    const isNew = mode !== "add";
+
+    setCfg((prev) => {
+      const base = isNew ? { ...DCFG, centerStones: [] } : { ...prev };
+      if (!Array.isArray(base.centerStones)) base.centerStones = [];
 
       if (useAs === "center") {
         items.forEach((item) => {
@@ -363,7 +392,7 @@ export default function LeshemOS() {
             source:            "inventory",
             inventoryId:       item.id,
             stoneType:         item.stoneType || "",
-            shape:             item.cutForm   || "",
+            shape:             item.cutForm   || item.stoneShape || "",
             carat:             ctPer > 0 ? `${ctPer.toFixed(2)} ct` : "",
             color:             item.color     || "",
             clarity:           item.clarity   || "",
@@ -375,8 +404,7 @@ export default function LeshemOS() {
             base.centerStones = [...base.centerStones, entry];
           }
         });
-        // Mirror the first center stone into the editable center fields so the
-        // panel shows a populated primary stone (engine source of truth).
+        // Mirror first stone into editable center fields (engine source of truth).
         const first = items[0];
         const ft = parseFloat(first.caratWeight) || 0;
         const fc = Math.max(1, parseInt(first.stoneCount, 10) || 1);
@@ -399,10 +427,10 @@ export default function LeshemOS() {
           base[`${prefix}Count`]     = String(count);
           base[`${prefix}Manual`]    = "";
           base[`${prefix}PriceMode`] = "total";
-          if (item.cutForm) base[`${prefix}Shape`] = item.cutForm;
+          if (item.cutForm || item.stoneShape) base[`${prefix}Shape`] = item.cutForm || item.stoneShape;
         });
       }
-      // "part": no engine fields to fill — just navigate for manual entry.
+      // "part": no engine fields forced — navigate for manual entry.
       return base;
     });
 
@@ -414,7 +442,7 @@ export default function LeshemOS() {
     setCalcSrcBanner({
       name:  `${items.length} פריטים מהמגש → ${loadedNote}`,
       useAs,
-      mode:  "new",
+      mode:  isNew ? "new" : "add",
     });
 
     handleTabChange("calc");
@@ -553,12 +581,12 @@ export default function LeshemOS() {
         />
       )}
 
-      {/* v5.4.1 Task 5: CalcLoadDialog — "Start New / Add to Current" */}
+      {/* v5.5.1: CalcLoadDialog — "Start New / Add to Current" (shown after role) */}
       {calcLoadItem && (
         <CalcLoadDialog
           item={calcLoadItem}
           onSelect={handleCalcLoadSelected}
-          onCancel={() => setCalcLoadItem(null)}
+          onCancel={() => { setCalcLoadItem(null); setCalcRole(null); }}
         />
       )}
 
@@ -671,16 +699,13 @@ export default function LeshemOS() {
                 loading={invLoading}
                 error={invError}
                 onAddNew={() => handleTabChange("intake")}
-                onUseInCalculator={handleUseInCalculatorRequest}
+                onUseInCalculator={handleRoleChosenForCalc}
                 onCreateCertificate={handleCertFromItem}
                 onNavigateToCalc={() => handleTabChange("calc")}
                 onNavigateToCert={() => handleTabChange("cert")}
-                // v5.4.1: after CalcLoadDialog, we re-trigger UseAsDialog
-                // by passing the pending item. InventoryStudio opens UseAsDialog
-                // when this prop is set, then calls onUseInCalculatorFinal.
-                pendingCalcItem={calcUseAsItem}
-                onUseInCalculatorFinal={prefillCalcFromItem}
-                onClearPendingCalcItem={() => setCalcUseAsItem(null)}
+                // v5.5.1: ROLE-first. Studio asks role then calls
+                // onRoleChosenForCalc(item, role); index then shows New/Add.
+                onRoleChosenForCalc={handleRoleChosenForCalc}
                 onSendBatchToCalculator={handleSendBatchToCalculator}
               />
             )}

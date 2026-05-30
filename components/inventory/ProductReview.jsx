@@ -53,7 +53,7 @@ const FIELD_LABELS = {
   title:                "Title / Description",
   inventoryStatus:      "סטטוס מלאי",
   stoneType:            "Stone Type",
-  shape:                "Shape",
+  stoneShape:           "צורה / ליטוש",
   cutForm:              "Cut / Form",
   caratWeight:          "Carat Weight",
   stoneCount:           "Stone Count",

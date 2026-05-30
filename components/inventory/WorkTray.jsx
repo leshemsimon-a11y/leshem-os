@@ -45,9 +45,9 @@ const USE_AS_LABELS = {
 // ─── TrayUseDialog — how to use ALL selected items ────────────────────────────
 function TrayUseDialog({ count, onSelect, onCancel }) {
   const OPTIONS = [
-    { key:"center", icon:"💎", label:"כולן כאבני מרכז", sub:`Use all ${count} items as separate center stones` },
-    { key:"side",   icon:"✨", label:"כולן כאבני צד",   sub:`Use the items as side stones (fills side rows)` },
-    { key:"part",   icon:"🔗", label:"כולן כרכיבים",     sub:`Treat all ${count} items as components` },
+    { key:"center", icon:"💎", label:"אבנים מרכזיות", sub:`כל ${count} הפריטים כאבני מרכז נפרדות` },
+    { key:"side",   icon:"✨", label:"אבני צד",        sub:`הפריטים כאבני צד (ממלא שורות צד)` },
+    { key:"part",   icon:"🔗", label:"רכיבים / חלקי תכשיט", sub:`כל ${count} הפריטים כרכיבים` },
   ];
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(54,69,79,0.6)", zIndex:1500, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={(e)=>{ if(e.target===e.currentTarget) onCancel(); }}>

@@ -270,20 +270,88 @@ export function InventoryFilters({ searchText, setSearchText, filters, setFilter
 }
 
 // ─── applyFilters ─────────────────────────────────────────────────────────────
+// ─── buildSearchString ────────────────────────────────────────────────────────
+/**
+ * v5.5.1: Builds one robust, lower-cased searchable string per item so search
+ * works on normalized + formatted values — not only what is visible on a card.
+ *
+ * Includes, when present:
+ *   • identity / text fields (sku, name, types, color, clarity, lab, supplier,
+ *     owner, shape, cut form, notes, memo, location, growth method, etc.)
+ *   • carat in several forms so "0.5" and "0.50" both match a 0.50 ct stone:
+ *       raw caratWeight, fixed(2), fixed(1), stripped-trailing-zero
+ *   • total carat (caratWeight, already the total) and average stone weight
+ *     (caratWeight / stoneCount) in the same numeric variants
+ *   • cost as plain number and with separators
+ *
+ * Numbers are matched on substrings, so "0.5" matches "0.50" and "1" matches
+ * "1.02". A normalized variant set avoids missing "0.5" vs "0.50".
+ */
+function caratVariants(value) {
+  const n = parseFloat(value);
+  if (!isFinite(n) || n <= 0) return [];
+  const out = new Set();
+  out.add(String(value));                 // raw, e.g. "0.50"
+  out.add(String(n));                      // numeric, e.g. "0.5"
+  out.add(n.toFixed(2));                   // "0.50"
+  out.add(n.toFixed(1));                   // "0.5"
+  out.add(n.toFixed(3));                   // "0.500"
+  out.add(n.toFixed(2).replace(/\.?0+$/, "")); // trimmed "0.5" / "1"
+  return [...out];
+}
+
+export function buildSearchString(item) {
+  if (!item) return "";
+  const parts = [];
+
+  // Flatten all primitive string/number fields present on the item.
+  for (const key of Object.keys(item)) {
+    const v = item[key];
+    if (v == null) continue;
+    if (typeof v === "string" || typeof v === "number") {
+      // skip pure media/URL noise from search to keep matches meaningful
+      if (/^https?:\/\//i.test(String(v))) continue;
+      parts.push(String(v));
+    }
+  }
+
+  // Carat: total (caratWeight is the total) + average per stone.
+  const total = parseFloat(item.caratWeight);
+  const count = parseInt(item.stoneCount, 10) || 1;
+  if (isFinite(total) && total > 0) {
+    parts.push(...caratVariants(total));
+    parts.push("ct", "carat", "קראט");
+    if (count > 1) {
+      const avg = total / count;
+      parts.push(...caratVariants(avg));
+    }
+  }
+
+  // Cost: plain and grouped.
+  const cost = Number(item.costUsd);
+  if (isFinite(cost) && cost > 0) {
+    parts.push(String(cost));
+    parts.push(cost.toLocaleString("en-US"));
+  }
+
+  // Cert number aliases.
+  if (item.certNumber)       parts.push(String(item.certNumber));
+  if (item.laserInscription) parts.push(String(item.laserInscription));
+
+  return parts.join(" ").toLowerCase();
+}
+
+// ─── applyFilters ─────────────────────────────────────────────────────────────
 export function applyFilters(items, searchText, filters) {
   let result = items;
 
   if (searchText && searchText.trim()) {
-    const q = searchText.toLowerCase();
-    result = result.filter(item =>
-      [item.sku, item.name, item.stoneType, item.productType,
-       item.color, item.clarity, item.certLab, item.certNumber,
-       item.supplierName, item.ownerClient, item.cutForm, item.stoneShape,
-       item.fancyColorIntensity, item.fancyColorHue,
-       item.inventoryLayer, item.intendedUse, item.laserInscription,
-       item.memoNumber, item.physicalLocation, item.growthMethod]
-        .some(f => f && String(f).toLowerCase().includes(q))
-    );
+    // Support multi-token search: every whitespace-separated token must match.
+    const tokens = searchText.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    result = result.filter(item => {
+      const hay = buildSearchString(item);
+      return tokens.every(t => hay.includes(t));
+    });
   }
 
   if (filters.productType)    result = result.filter(i => i.productType === filters.productType);
