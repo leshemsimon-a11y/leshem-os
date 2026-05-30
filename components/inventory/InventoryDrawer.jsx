@@ -36,6 +36,7 @@
 import { useState, useEffect } from "react";
 import { C } from "../../lib/constants";
 import { PRODUCT_TYPE_LABELS, PRODUCT_TYPE_ICONS, PRODUCT_TYPE_GRADIENTS } from "./InventoryCard";
+import { toAppHe, toCanonical, LABEL_MAP } from "../../lib/labels/productLabels";
 
 const HEB  = C.heb;
 const DAT  = C.dat;
@@ -200,7 +201,13 @@ export function InventoryDrawer({
 
   if (!item) return null;
 
-  const ptLabel  = PRODUCT_TYPE_LABELS[item.productType] || item.stoneType || "Item";
+  const ptLabel  = (() => {
+    // v5.4.2: Use Hebrew app label from canonical mapping.
+    // Falls back to PRODUCT_TYPE_LABELS (English) then item.stoneType then "Item".
+    const canonical = toCanonical(item.productType) ?? item.productType;
+    if (canonical && LABEL_MAP[canonical]) return LABEL_MAP[canonical].appLabelHe;
+    return PRODUCT_TYPE_LABELS[item.productType] || item.stoneType || "Item";
+  })();
   const gradient = PRODUCT_TYPE_GRADIENTS[item.productType] || "linear-gradient(140deg,#f0ede8,#d8d0c0)";
   const icon     = PRODUCT_TYPE_ICONS[item.productType]  || "💎";
   const isDemo   = Boolean(item.isDemo);
@@ -352,26 +359,26 @@ export function InventoryDrawer({
               </div>
 
               {/* Gemological details */}
-              <SectionHead label="Gemological Details" />
-              <FieldRow label="Stone Type"   value={item.stoneType} />
-              <FieldRow label="Product Type" value={PRODUCT_TYPE_LABELS[item.productType] || item.productType} />
-              <FieldRow label="Colour"       value={item.color} />
-              <FieldRow label="Clarity"      value={item.clarity} />
+              <SectionHead label="נתונים גמולוגיים" />
+              <FieldRow label="סוג אבן"      value={toAppHe(item.stoneType)} />
+              <FieldRow label="סוג מוצר"     value={(() => { const c = toCanonical(item.productType); return c && LABEL_MAP[c] ? LABEL_MAP[c].appLabelHe : (PRODUCT_TYPE_LABELS[item.productType] || item.productType); })()} />
+              <FieldRow label="צבע"          value={item.color} />
+              <FieldRow label="ניקיון"        value={item.clarity} />
               <FieldRow label="Cut Grade"    value={item.cutGrade} />
-              <FieldRow label="Cut / Shape"  value={[item.cutForm, item.stoneShape].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(" · ") || null} />
-              <FieldRow label="Polish"       value={item.polish} />
-              <FieldRow label="Symmetry"     value={item.symmetry} />
-              <FieldRow label="Fluorescence" value={[item.fluorescenceIntensity, item.fluorescenceColor].filter(Boolean).join(" · ") || null} />
-              <FieldRow label="Growth Method" value={item.growthMethod} />
-              {item.fancyColorIntensity && <FieldRow label="Fancy Colour" value={`${item.fancyColorIntensity} ${item.fancyColorHue||""}`.trim()} />}
+              <FieldRow label="צורה / חיתוך" value={[toAppHe(item.cutForm), item.stoneShape].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(" · ") || null} />
+              <FieldRow label="ליטוש"         value={item.polish} />
+              <FieldRow label="סימטריה"       value={item.symmetry} />
+              <FieldRow label="פלורסנציה"     value={[item.fluorescenceIntensity, item.fluorescenceColor].filter(Boolean).join(" · ") || null} />
+              <FieldRow label="שיטת גידול"   value={item.growthMethod} />
+              {item.fancyColorIntensity && <FieldRow label="צבע פאנסי" value={`${item.fancyColorIntensity} ${item.fancyColorHue||""}`.trim()} />}
 
               {(item.caratWeight || item.stoneCount || item.measLength) && (
                 <>
-                  <SectionHead label="Measurements" />
-                  {item.caratWeight && <FieldRow label="Carat Weight"  value={`${parseFloat(item.caratWeight).toFixed(2)} ct`} />}
-                  {item.stoneCount  && <FieldRow label="Stone Count"   value={item.stoneCount} />}
+                  <SectionHead label="מידות" />
+                  {item.caratWeight && <FieldRow label="משקל קראט"  value={`${parseFloat(item.caratWeight).toFixed(2)} ct`} />}
+                  {item.stoneCount  && <FieldRow label="כמות אבנות"   value={item.stoneCount} />}
                   {(item.measLength || item.measWidth || item.measHeight) && (
-                    <FieldRow label="Dimensions"
+                    <FieldRow label="מידות (מ״מ)"
                       value={[item.measLength, item.measWidth, item.measHeight].filter(Boolean).map(v=>parseFloat(v).toFixed(2)).join(" × ") + " mm"}
                     />
                   )}
@@ -380,10 +387,10 @@ export function InventoryDrawer({
 
               {(item.certLab || item.certNumber || item.laserInscription || item.certImageUrl || item.certPdfUrl) && (
                 <>
-                  <SectionHead label="Certificate & Verification" />
-                  <FieldRow label="Lab"           value={item.certLab} />
-                  <FieldRow label="Report Number" value={item.certNumber || item.laserInscription} mono />
-                  <FieldRow label="Verify URL"    value={item.verificationUrl} link />
+                  <SectionHead label="תעודה ואימות" />
+                  <FieldRow label="מעבדה"             value={item.certLab} />
+                  <FieldRow label="מספר תעודה"        value={item.certNumber || item.laserInscription} mono />
+                  <FieldRow label="קישור אימות"       value={item.verificationUrl} link />
                   {item.certImageUrl && (
                     <div style={{ marginTop:8 }}>
                       <img src={item.certImageUrl} alt="Certificate" style={{ maxWidth:130, borderRadius:5, border:"1px solid rgba(54,69,79,0.12)", opacity:0.9 }} />
@@ -395,13 +402,13 @@ export function InventoryDrawer({
 
               {(item.supplierName || item.ownerClient || item.intendedUse) && (
                 <>
-                  <SectionHead label="Sourcing & Ownership" />
-                  <FieldRow label="Supplier"      value={item.supplierName} />
-                  <FieldRow label="Owner/Client"  value={item.ownerClient} />
-                  <FieldRow label="Intended Use"  value={item.intendedUse} />
-                  <FieldRow label="Inventory Layer" value={item.inventoryLayer} />
-                  <FieldRow label="Location"      value={item.physicalLocation} />
-                  <FieldRow label="Memo / Consignment" value={item.memoNumber} mono />
+                  <SectionHead label="מקור ובעלות" />
+                  <FieldRow label="ספק"              value={item.supplierName} />
+                  <FieldRow label="בעלים / לקוח"    value={item.ownerClient} />
+                  <FieldRow label="מיועד לשימוש"    value={toAppHe(item.intendedUse)} />
+                  <FieldRow label="שכבת מלאי"       value={toAppHe(item.inventoryLayer)} />
+                  <FieldRow label="מיקום"            value={item.physicalLocation} />
+                  <FieldRow label="מזכר / קונסיגנציה" value={item.memoNumber} mono />
                 </>
               )}
 

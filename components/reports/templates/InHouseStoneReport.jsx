@@ -1,33 +1,29 @@
 /**
- * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.1
+ * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.2
  *
- * Changes from v4.3.2:
+ * Changes from v5.4.1:
  *
- * Task 4 — Product category hierarchy section:
- *   A new ClassificationSection renders above the field-specific blocks.
- *   It shows available fields from d.classification (built by
- *   buildStoneClassification in reportDefaults.js):
+ * Language normalization (Milestone 5.4.2):
+ *   Every stone data value that reaches a rendered cell is passed through
+ *   sanitizeForReport() — a final guard that calls toReportEn() to ensure
+ *   no Hebrew ever appears inside the certificate.
  *
- *     Product Category  — "Diamond", "Coloured Gemstone", "Stone Parcel / Melee"
- *     Stone Category    — "Natural Diamond", "Lab-Grown Diamond", "Matched Pair / Set"
- *     Stone Type        — e.g. "Sapphire", "Ruby"
- *     Form Factor       — "Single Stone", "Matched Pair", "Parcel / Melee"
- *     Quantity          — stone count when > 1
- *     Intended Use      — from inventory data
- *     Inventory Layer   — "Physical Stock" / "Virtual Supplier Stock"
+ *   Stone type:
+ *     "יהלום" or "יהלום טבעי" → "Diamond"
+ *     "ספיר"                   → "Sapphire"
+ *     Already "Diamond"        → "Diamond" (unchanged)
  *
- *   Only rows that have actual values are rendered.
+ *   This guard runs at RENDER time, not only at build time, so it catches
+ *   values from any path (inventory bridge, manual report editor, demo items).
  *
- * Task 3 — stone_parcel and stone_pair_set handling:
- *   When productType is "stone_parcel" the header subtitle reads
- *   "Stone Parcel · In-House Report" not "Matched Pair".
- *   When productType is "stone_pair_set" it reads "Matched Pair / Set".
- *   A fallback NaturalDiamondFields is used for unknown types (not parcel/pair).
- *   stone_parcel and stone_pair_set both render via NaturalDiamondFields
- *   with appropriate subtitle context.
+ *   ClassificationSection now applies toReportEn() to every value before
+ *   rendering, giving a double layer of protection.
  *
- * All field groups (NaturalDiamond, LabDiamond, FancyColor, ColoredGemstone),
- * SignatureBlock, ReferencePanel, layout — unchanged from v4.3.2.
+ *   getProductSubtitle() now derives the subtitle from toReportEn() with
+ *   a canonical switch, ensuring "Stone Parcel · Melee" never says
+ *   "Matched Pair" even for unknown productType strings.
+ *
+ * All field groups, layout, ReferencePanel, SignatureBlock — unchanged.
  */
 
 import {
@@ -38,6 +34,7 @@ import {
 } from "../../../lib/reports/reportUtils";
 
 import { PRODUCT_TYPE_LABELS } from "../../../lib/gemology/taxonomy";
+import { toReportEn, toCanonical, isHebrew } from "../../../lib/labels/productLabels";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const SERIF = "'Merriweather','Times New Roman',Georgia,serif";
@@ -50,6 +47,22 @@ const IV    = "#FAF9F6";
 const IV2   = "#F0EDE8";
 const SG    = "#8aab8e";
 const SGD   = "#5d8a62";
+
+// ─── sanitizeForReport ────────────────────────────────────────────────────────
+/**
+ * v5.4.2: Final English guard for any value that reaches a certificate cell.
+ *
+ * - Calls toReportEn() to map Hebrew/canonical values to English.
+ * - If a value is already English (no Hebrew chars) and not in the map,
+ *   it passes through unchanged.
+ * - Hebrew values with no mapping return "" so the cell is skipped.
+ *
+ * Use on every string field from d.stone before rendering in a GradeRow.
+ */
+function sanitizeForReport(value) {
+  if (!value) return value;
+  return toReportEn(String(value));
+}
 
 // ─── GradeRow ─────────────────────────────────────────────────────────────────
 function GradeRow({ label, value, highlight, noBorder }) {
@@ -129,24 +142,32 @@ function GradingBlock({ children }) {
   );
 }
 
-// ─── ClassificationSection (v5.4.1 Task 4) ───────────────────────────────────
+// ─── ClassificationSection (v5.4.2) ──────────────────────────────────────────
 /**
  * Shows the product/stone hierarchy for the report.
  * Only renders rows that have actual values.
- * Uses a horizontally-striped 2-column look different from grading tables.
+ * v5.4.2: Each value is passed through toReportEn() so no Hebrew appears.
  */
 function ClassificationSection({ classification, productType }) {
   const cl = classification || {};
-  const rows = [
+
+  // Apply toReportEn to every value before building rows
+  const rawRows = [
     { label: "Product Category",  value: cl.productCategory  },
-    { label: "Stone Category",    value: cl.stoneCategory    },
+    // stoneCategory is omitted from the rendered row list — it duplicates
+    // productCategory for diamond types. See buildStoneClassification().
     { label: "Stone Type",        value: cl.stoneType        },
     { label: "Form",              value: cl.formFactor       },
     { label: "Quantity",          value: cl.quantity         },
     { label: "Growth Method",     value: cl.growthMethod     },
     { label: "Intended Use",      value: cl.intendedUse      },
     { label: "Inventory Layer",   value: cl.inventoryLayer   },
-  ].filter(r => hasValue(r.value));
+  ];
+
+  // Filter to rows with values, applying English guard on each
+  const rows = rawRows
+    .map(r => ({ ...r, value: r.value ? toReportEn(String(r.value)) || r.value : null }))
+    .filter(r => hasValue(r.value) && !isHebrew(r.value));
 
   if (rows.length === 0) return null;
 
@@ -507,9 +528,11 @@ function ColoredGemstoneFields({ st }) {
   );
 }
 
-// ─── Subtitle helper (v5.4.1) ─────────────────────────────────────────────────
+// ─── Subtitle helper (v5.4.2) ─────────────────────────────────────────────────
 function getProductSubtitle(pt) {
-  switch (pt) {
+  // Resolve the canonical key so Hebrew productType values also work
+  const canonical = toCanonical(pt) ?? pt;
+  switch (canonical) {
     case "natural_diamond":     return "Natural Diamond";
     case "lab_grown_diamond":   return "Laboratory-Grown Diamond";
     case "fancy_color_diamond": return "Fancy Colour Diamond";
@@ -526,10 +549,50 @@ function getProductSubtitle(pt) {
 export function InHouseStoneReport({ data }) {
   if (!data) return null;
   const d  = data;
-  const st = d.stone || {};
 
-  const pt           = d.productType  || "natural_diamond";
-  const ptSubtitle   = getProductSubtitle(pt);   // v5.4.1: uses correct mapping
+  // v5.4.2: sanitize every stone string field through toReportEn() so no Hebrew
+  // can appear in the certificate, regardless of how the data was built.
+  const rawSt = d.stone || {};
+  const st = {
+    // Pass numeric fields and arrays through unchanged
+    measLength:  rawSt.measLength,
+    measWidth:   rawSt.measWidth,
+    measDepth:   rawSt.measDepth,
+    measurements: rawSt.measurements,
+    carat:       rawSt.carat,
+    // All string display fields → sanitize to English
+    type:                sanitizeForReport(rawSt.type),
+    naturalOrLab:        sanitizeForReport(rawSt.naturalOrLab),
+    species:             sanitizeForReport(rawSt.species),
+    variety:             sanitizeForReport(rawSt.variety),
+    shape:               sanitizeForReport(rawSt.shape),
+    cutForm:             sanitizeForReport(rawSt.cutForm),
+    color:               rawSt.color,          // diamond colour grades are already English letters (D, G, etc.)
+    clarity:             rawSt.clarity,        // clarity grades (VS1, SI2) are already English
+    cut:                 sanitizeForReport(rawSt.cut),
+    polish:              sanitizeForReport(rawSt.polish),
+    symmetry:            sanitizeForReport(rawSt.symmetry),
+    fluorescenceIntensity: sanitizeForReport(rawSt.fluorescenceIntensity),
+    fluorescenceColor:     sanitizeForReport(rawSt.fluorescenceColor),
+    fluorescence:          sanitizeForReport(rawSt.fluorescence),
+    fancyColorHue:         sanitizeForReport(rawSt.fancyColorHue),
+    fancyColorIntensity:   sanitizeForReport(rawSt.fancyColorIntensity),
+    fancyColorOrigin:      sanitizeForReport(rawSt.fancyColorOrigin),
+    growthMethod:          sanitizeForReport(rawSt.growthMethod),
+    colorDescription:      sanitizeForReport(rawSt.colorDescription),
+    transparency:          sanitizeForReport(rawSt.transparency),
+    treatment:             sanitizeForReport(rawSt.treatment),
+    countryOfOrigin:       sanitizeForReport(rawSt.countryOfOrigin),
+    certLab:               rawSt.certLab,      // lab name (GIA, IGI) — always English, keep as-is
+    certNumber:            rawSt.certNumber,   // report number — alphanumeric, keep as-is
+    // Colored gemstone fields
+    certSpecies:           sanitizeForReport(rawSt.species),
+  };
+
+  // v5.4.2: resolve productType to canonical key so Hebrew values route correctly
+  const rawPt        = d.productType || "natural_diamond";
+  const pt           = toCanonical(rawPt) ?? rawPt;
+  const ptSubtitle   = getProductSubtitle(pt);
   const showRefPanel = d.displaySettings?.showReferencePanel !== false;
 
   const images        = Array.isArray(d.images) ? d.images.filter(Boolean) : (d.images ? [d.images] : []);
