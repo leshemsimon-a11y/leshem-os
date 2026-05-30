@@ -1,7 +1,7 @@
 /**
- * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.3
+ * components/reports/templates/InHouseStoneReport.jsx  —  v5.4.4
  *
- * Milestone 5.4.3 — Certificate Field Cleanup
+ * Milestone 5.4.4 — Context-Aware Stone Certificate Wording
  *
  * Changes from v5.4.2:
  *
@@ -18,8 +18,9 @@
  *      • Form: "Single Stone" / "Matched Pair" / "Parcel / Melee" / "Set of N"
  *        Only shown when it adds information (not for single stones of a
  *        well-known type).
- *      • Intended use: ONLY when cert-appropriate ("Center Stone", "Side Stones",
- *        "Pair", "Earrings"). Never commercial values ("Sale", "Assembly").
+ *      • Intended use: only when the report data explicitly comes from a
+ *        jewelry/calculator context. Inventory-created certificates identify
+ *        stones as loose items, not as Center Stone / Side Stones.
  *    Does NOT show:
  *      • Inventory Layer (Physical Stock / Virtual Supplier Stock)
  *      • Product Category label/heading
@@ -197,6 +198,7 @@ function StoneIdentityBlock({ cl, pt }) {
 
   // Intended use — only cert-safe values
   const showUse =
+    cl.reportContext !== "inventory_standalone" &&
     hasValue(cl.intendedUse) &&
     !isHebrew(cl.intendedUse);
 
@@ -652,7 +654,7 @@ function getProductSubtitle(pt) {
     case "fancy_color_diamond": return "Fancy Colour Diamond";
     case "colored_gemstone":    return "Coloured Gemstone";
     case "stone_pair_set":      return "Matched Pair / Set";
-    case "stone_parcel":        return "Stone Parcel · Melee Parcel"; // ← NEVER "Matched Pair"
+    case "stone_parcel":        return "Loose Diamond Parcel · Melee Parcel"; // ← NEVER "Matched Pair"
     case "jewelry_part":        return "Jewelry Component";
     case "finished_jewelry":    return "Finished Jewelry";
     default:                    return PRODUCT_TYPE_LABELS[pt] || "Stone Report";
