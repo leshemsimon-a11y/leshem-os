@@ -1,4 +1,4 @@
-/* LESHEM.S OS — v2 Asset Drawer styles — v2.1.1 light theme */
+/* LESHEM.S OS — v2 Asset Drawer — v2.2 with Inspect Mode */
 
 /* ─── Drawer shell ── */
 .drawer {
@@ -28,7 +28,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--v2-border, #e2dcd2);
   flex-shrink: 0;
   background: var(--v2-surface-2, #faf8f4);
@@ -42,18 +42,28 @@
   font-family: 'Arial', sans-serif;
 }
 
+/* Inspect mode header — slightly warmer */
+.drawerTitleInspect {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--v2-gold, #b8912e);
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
+}
+
 .closeBtn {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--v2-surface, #ffffff);
   border: 1px solid var(--v2-border, #e2dcd2);
-  border-radius: 6px;
+  border-radius: 5px;
   color: var(--v2-text-muted, #a09080);
   cursor: pointer;
   font-size: 16px;
+  line-height: 1;
   transition: all 150ms ease;
 }
 
@@ -78,54 +88,110 @@
   border-radius: 2px;
 }
 
-/* ─── Image section ── */
+/* ─── Standard image section ── */
 .imageSection {
   aspect-ratio: 16 / 10;
-  background: var(--v2-surface-3, #f2ede5);
+  background: radial-gradient(ellipse at 50% 40%, #fdfaf4 0%, #ede8dc 70%, #e4ddd0 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
+}
+
+.imageSection::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 1px 10px rgba(0,0,0,0.06);
+  pointer-events: none;
+}
+
+/* ─── Inspect mode image section — larger, with loupe ring ── */
+.imageSectionInspect {
+  aspect-ratio: 1 / 1;
+  background: radial-gradient(ellipse at 50% 40%, #fdfaf4 0%, #ede8dc 60%, #e0d8c8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.imageSectionInspect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 2px 12px rgba(0,0,0,0.07);
+  pointer-events: none;
+}
+
+/* Loupe ring — decorative circular frame, CSS only */
+.loupeRing {
+  position: absolute;
+  width: 68%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 1px solid rgba(184, 145, 46, 0.22);
+  box-shadow:
+    inset 0 0 24px rgba(184,145,46,0.06),
+    0 0 0 1px rgba(184,145,46,0.08);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .drawerImage {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  padding: 12px;
 }
 
 .imagePlaceholder {
   font-size: 52px;
-  opacity: 0.12;
-  user-select: none;
   color: var(--v2-gold, #b8912e);
+  opacity: 0.14;
+  user-select: none;
+  line-height: 1;
+}
+
+/* Inspect mode placeholder — slightly larger */
+.imagePlaceholderInspect {
+  font-size: 72px;
+  color: var(--v2-gold, #b8912e);
+  opacity: 0.14;
+  user-select: none;
+  line-height: 1;
+}
+
+/* Gold rule under image in inspect mode */
+.inspectDivider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(184,145,46,0.25) 30%, rgba(184,145,46,0.25) 70%, transparent 100%);
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* ─── Asset title area ── */
 .assetTitleSection {
-  padding: 22px 20px 4px;
+  padding: 20px 20px 2px;
 }
 
 .assetMainTitle {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 300;
   color: var(--v2-text-primary, #1e1a16);
   font-family: 'Georgia', serif;
   margin: 0 0 10px;
   line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
-.assetSubtitle {
-  font-size: 12px;
-  color: var(--v2-text-muted, #a09080);
-  font-family: 'Arial', sans-serif;
-  letter-spacing: 0.04em;
-}
-
-/* ─── Section blocks ── */
+/* ─── Sections ── */
 .section {
-  padding: 18px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--v2-border-subtle, #ece8e1);
 }
 
@@ -139,12 +205,11 @@
   justify-content: space-between;
   cursor: pointer;
   user-select: none;
-  margin-bottom: 0;
 }
 
 .sectionTitle {
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: 9px;
+  letter-spacing: 0.16em;
   color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
@@ -154,38 +219,34 @@
   font-size: 12px;
   color: var(--v2-text-muted, #a09080);
   line-height: 1;
+  width: 16px;
+  text-align: center;
 }
 
 .sectionContent {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .sectionContentCollapsed {
   display: none;
 }
 
-/* ─── Field grid ── */
+/* ─── Fields ── */
 .fieldGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.fieldGridSingle {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 14px 12px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .fieldLabel {
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: 9px;
+  letter-spacing: 0.12em;
   color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
@@ -210,19 +271,7 @@
   font-family: 'Arial', sans-serif;
 }
 
-/* ─── Notes field ── */
-.notesText {
-  font-size: 12px;
-  color: var(--v2-text-secondary, #6b6055);
-  font-family: 'Arial', sans-serif;
-  line-height: 1.65;
-  background: var(--v2-surface-2, #faf8f4);
-  border-radius: 6px;
-  padding: 12px 14px;
-  border: 1px solid var(--v2-border, #e2dcd2);
-}
-
-/* ─── Internal badge ── */
+/* ─── Notes ── */
 .internalBadge {
   display: inline-block;
   font-size: 9px;
@@ -232,27 +281,53 @@
   border-radius: 10px;
   color: #8a6018;
   font-family: 'Arial', sans-serif;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   margin-bottom: 10px;
 }
 
-/* ─── Actions footer ── */
+.notesText {
+  font-size: 12px;
+  color: var(--v2-text-secondary, #6b6055);
+  font-family: 'Arial', sans-serif;
+  line-height: 1.65;
+  background: var(--v2-surface-2, #faf8f4);
+  border-radius: 6px;
+  padding: 11px 13px;
+  border: 1px solid var(--v2-border, #e2dcd2);
+}
+
+/* ─── Status badge ── */
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: 'Arial', sans-serif;
+  border: 1px solid transparent;
+}
+
+.badgeAvailable { background: #eef5f0; color: #2e7d52; border-color: #a8d4b8; }
+.badgeReserved  { background: #fdf3e8; color: #b06020; border-color: #e8c090; }
+.badgeInUse     { background: #eef2f8; color: #2a5f90; border-color: #a0bcdc; }
+.badgeSold      { background: #f4f2ef; color: #706050; border-color: #c8c0b0; }
+
+/* ─── Footer ── */
 .drawerFooter {
   flex-shrink: 0;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--v2-border, #e2dcd2);
   background: var(--v2-surface-2, #faf8f4);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .primaryAction {
   width: 100%;
-  padding: 12px;
+  padding: 11px;
   background: var(--v2-gold-muted, rgba(184,145,46,0.10));
-  border: 1px solid rgba(184, 145, 46, 0.35);
-  border-radius: 8px;
+  border: 1px solid rgba(184,145,46,0.32);
+  border-radius: 7px;
   color: var(--v2-gold, #b8912e);
   font-size: 13px;
   font-family: 'Arial', sans-serif;
@@ -262,8 +337,8 @@
 }
 
 .primaryAction:hover {
-  background: rgba(184, 145, 46, 0.18);
-  border-color: rgba(184, 145, 46, 0.55);
+  background: rgba(184,145,46,0.17);
+  border-color: rgba(184,145,46,0.52);
 }
 
 .primaryActionInTray {
@@ -273,22 +348,21 @@
 }
 
 .primaryActionInTray:hover {
-  background: var(--v2-surface-3, #f2ede5);
   border-color: var(--v2-text-muted, #a09080);
   color: var(--v2-text-primary, #1e1a16);
 }
 
 .secondaryActions {
   display: flex;
-  gap: 8px;
+  gap: 7px;
 }
 
 .secondaryAction {
   flex: 1;
-  padding: 10px;
+  padding: 9px 8px;
   background: var(--v2-surface, #ffffff);
   border: 1px solid var(--v2-border, #e2dcd2);
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--v2-text-secondary, #6b6055);
   font-size: 11px;
   font-family: 'Arial', sans-serif;
@@ -308,42 +382,14 @@
   background: var(--v2-surface-3, #f2ede5);
 }
 
-.secondaryActionDisabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.secondaryActionDisabled:hover {
-  border-color: var(--v2-border, #e2dcd2);
-  color: var(--v2-text-secondary, #6b6055);
-  background: var(--v2-surface, #ffffff);
-}
-
 .futureLabel {
   font-size: 9px;
-  opacity: 0.7;
+  opacity: 0.6;
   display: block;
   margin-top: 2px;
-  font-weight: 400;
 }
 
-/* ─── Status Badge inline ── */
-.badge {
-  display: inline-block;
-  font-size: 10px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-family: 'Arial', sans-serif;
-  border: 1px solid transparent;
-  font-weight: 500;
-}
-
-.badgeAvailable { background: #eef5f0; color: #2e7d52; border-color: #a8d4b8; }
-.badgeReserved  { background: #fdf3e8; color: #b06020; border-color: #e8c090; }
-.badgeInUse     { background: #eef2f8; color: #2a5f90; border-color: #a0bcdc; }
-.badgeSold      { background: #f4f2ef; color: #706050; border-color: #c8c0b0; }
-
-/* ─── Mobile: full-screen bottom sheet ── */
+/* ─── Mobile: bottom sheet ── */
 @media (max-width: 768px) {
   .drawer {
     top: auto;
@@ -354,9 +400,9 @@
     height: 92vh;
     border-right: none;
     border-top: 1px solid var(--v2-border, #e2dcd2);
-    border-radius: 18px 18px 0 0;
+    border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
-    animation: slideUp 250ms ease;
+    animation: slideUp 240ms ease;
   }
 
   @keyframes slideUp {

@@ -1,4 +1,4 @@
-/* LESHEM.S OS — v2 Work Tray styles — v2.1.1 light theme */
+/* LESHEM.S OS — v2 Work Tray — v2.2 Studio Tray */
 
 .tray {
   position: fixed;
@@ -13,7 +13,7 @@
   flex-direction: column;
   direction: rtl;
   animation: slideInLeft 220ms ease;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.08);
+  box-shadow: 4px 0 20px rgba(0,0,0,0.07);
 }
 
 @keyframes slideInLeft {
@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--v2-border, #e2dcd2);
   flex-shrink: 0;
   background: var(--v2-surface-2, #faf8f4);
@@ -35,65 +35,58 @@
 .trayTitleGroup {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .trayTitle {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--v2-text-primary, #1e1a16);
   font-family: 'Georgia', serif;
 }
 
 .traySummary {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
 }
 
-.trayHeaderActions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
 .closeBtn {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--v2-surface, #ffffff);
   border: 1px solid var(--v2-border, #e2dcd2);
-  border-radius: 6px;
+  border-radius: 5px;
   color: var(--v2-text-muted, #a09080);
   cursor: pointer;
   font-size: 16px;
+  line-height: 1;
   transition: all 150ms ease;
 }
 
 .closeBtn:hover {
   border-color: var(--v2-text-muted, #a09080);
   color: var(--v2-text-primary, #1e1a16);
-  background: var(--v2-surface-3, #f2ede5);
 }
 
 /* ─── Stats row ── */
 .statsRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0;
   border-bottom: 1px solid var(--v2-border, #e2dcd2);
   flex-shrink: 0;
 }
 
 .statCell {
   background: var(--v2-surface-3, #f2ede5);
-  padding: 14px 20px;
+  padding: 12px 20px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   border-left: 1px solid var(--v2-border, #e2dcd2);
 }
 
@@ -132,10 +125,7 @@
 }
 
 .itemList::-webkit-scrollbar { width: 4px; }
-.itemList::-webkit-scrollbar-thumb {
-  background: var(--v2-border, #e2dcd2);
-  border-radius: 2px;
-}
+.itemList::-webkit-scrollbar-thumb { background: var(--v2-border, #e2dcd2); border-radius: 2px; }
 
 .emptyTray {
   display: flex;
@@ -143,53 +133,58 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 12px;
+  gap: 10px;
   color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   padding: 40px;
 }
 
 .emptyIcon {
-  font-size: 40px;
-  opacity: 0.2;
+  font-size: 36px;
+  opacity: 0.18;
   color: var(--v2-gold, #b8912e);
 }
 
+/* Tray item row */
 .trayItem {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 13px 20px;
+  gap: 12px;
+  padding: 11px 20px;
   border-bottom: 1px solid var(--v2-border-subtle, #ece8e1);
-  transition: background 150ms ease;
+  transition: background 140ms ease;
+}
+
+.trayItem:last-child {
+  border-bottom: none;
 }
 
 .trayItem:hover {
   background: var(--v2-surface-2, #faf8f4);
 }
 
+/* Stone chip in tray: oval, tray-surface texture, gold border */
 .trayThumb {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  background: var(--v2-surface-3, #f2ede5);
-  border: 1px solid var(--v2-border, #e2dcd2);
+  width: 36px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 40% 35%, #fdfaf4, #ede8dc);
+  border: 1px solid rgba(184, 145, 46, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 13px;
   color: var(--v2-gold, #b8912e);
-  opacity: 0.6;
   overflow: hidden;
   flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .trayThumbImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 7px;
 }
 
 .trayItemInfo {
@@ -198,7 +193,7 @@
 }
 
 .trayItemTitle {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--v2-text-primary, #1e1a16);
   font-family: 'Arial', sans-serif;
   white-space: nowrap;
@@ -211,23 +206,24 @@
   font-size: 11px;
   color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .removeItemBtn {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--v2-text-muted, #a09080);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  color: var(--v2-text-muted, #a09080);
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 150ms ease;
   flex-shrink: 0;
+  transition: all 140ms ease;
 }
 
 .removeItemBtn:hover {
@@ -239,12 +235,12 @@
 /* ─── Footer ── */
 .trayFooter {
   flex-shrink: 0;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--v2-border, #e2dcd2);
   background: var(--v2-surface-2, #faf8f4);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .clearBtn {
@@ -256,7 +252,7 @@
   font-family: 'Arial', sans-serif;
   padding: 7px;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 140ms ease;
   width: 100%;
 }
 
@@ -266,35 +262,14 @@
   background: #fef4f2;
 }
 
-.calcBtn {
-  width: 100%;
-  padding: 11px;
-  background: var(--v2-surface, #ffffff);
-  border: 1px solid var(--v2-border, #e2dcd2);
-  border-radius: 8px;
-  color: var(--v2-text-secondary, #6b6055);
-  font-size: 12px;
-  font-family: 'Arial', sans-serif;
-  cursor: pointer;
-  text-decoration: none;
-  text-align: center;
-  transition: all 180ms ease;
-  display: block;
-  line-height: 1.4;
-}
-
-.calcBtn:hover {
-  border-color: var(--v2-gold-dim, #d4b870);
-  color: var(--v2-text-primary, #1e1a16);
-  background: var(--v2-surface-3, #f2ede5);
-}
-
+/* Future-labelled action buttons — honest about v2.2 status */
+.calcBtn,
 .certBtn {
   width: 100%;
-  padding: 11px;
+  padding: 10px;
   background: var(--v2-surface, #ffffff);
   border: 1px solid var(--v2-border, #e2dcd2);
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--v2-text-secondary, #6b6055);
   font-size: 12px;
   font-family: 'Arial', sans-serif;
@@ -306,6 +281,7 @@
   line-height: 1.4;
 }
 
+.calcBtn:hover,
 .certBtn:hover {
   border-color: var(--v2-gold-dim, #d4b870);
   color: var(--v2-text-primary, #1e1a16);
@@ -315,17 +291,16 @@
 .futureNote {
   font-size: 9px;
   display: block;
-  opacity: 0.6;
+  opacity: 0.55;
   margin-top: 2px;
-  font-weight: 400;
 }
 
 /* ─── Confirm bar ── */
 .confirmBar {
   background: #fef8f6;
   border: 1px solid #e8c0b0;
-  border-radius: 8px;
-  padding: 12px 14px;
+  border-radius: 7px;
+  padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -336,12 +311,12 @@
 }
 
 .confirmBar button {
-  padding: 5px 14px;
-  border-radius: 6px;
+  padding: 4px 12px;
+  border-radius: 5px;
   font-size: 11px;
   font-family: 'Arial', sans-serif;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 140ms ease;
 }
 
 .confirmYes {
@@ -350,9 +325,7 @@
   color: #904030;
 }
 
-.confirmYes:hover {
-  background: #fde8e0;
-}
+.confirmYes:hover { background: #fde8e0; }
 
 .confirmNo {
   background: var(--v2-surface, #ffffff);
@@ -360,11 +333,9 @@
   color: var(--v2-text-secondary, #6b6055);
 }
 
-.confirmNo:hover {
-  background: var(--v2-surface-3, #f2ede5);
-}
+.confirmNo:hover { background: var(--v2-surface-3, #f2ede5); }
 
-/* ─── Mobile ── */
+/* ─── Mobile: full bottom sheet ── */
 @media (max-width: 768px) {
   .tray {
     top: auto;
@@ -375,9 +346,9 @@
     height: 88vh;
     border-right: none;
     border-top: 1px solid var(--v2-border, #e2dcd2);
-    border-radius: 18px 18px 0 0;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
-    animation: slideUp 250ms ease;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.09);
+    animation: slideUp 240ms ease;
   }
 
   @keyframes slideUp {

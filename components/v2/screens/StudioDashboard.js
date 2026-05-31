@@ -26,7 +26,7 @@ export default function StudioDashboard({ onNavigate, onOpenTray }) {
         // Handle both { records: [...] } and direct array responses
         const rawRecords = Array.isArray(data)
           ? data
-          : data.stones || data.records || data.items || data.inventory || [];
+          : data.records || data.items || data.stones || data.inventory || [];
 
         const normalized = rawRecords.map(normalizeAsset).filter(Boolean);
         setTotalAssets(normalized.length);
@@ -108,7 +108,7 @@ export default function StudioDashboard({ onNavigate, onOpenTray }) {
             href="/"
           >
             <span>⊞</span>
-            <span>מחשבון</span>
+            <span>מחשבון (MVP)</span>
           </a>
 
           <a
@@ -116,7 +116,7 @@ export default function StudioDashboard({ onNavigate, onOpenTray }) {
             href="/"
           >
             <span>◻</span>
-            <span>תעודות</span>
+            <span>תעודות (MVP)</span>
           </a>
         </div>
       </div>

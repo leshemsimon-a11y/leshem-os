@@ -1,6 +1,6 @@
 /*
  * LESHEM.S OS — v2 Shell CSS Module
- * v2.1.1 — Visual Theme Correction
+ * v2.2 — Studio Experience Layer
  * Premium jewelry studio: warm ivory ground, charcoal text, soft gold accents.
  * Scoped to .shell root only. Does NOT touch globals.css or MVP.
  */
@@ -46,12 +46,13 @@
   --v2-layer-client:      #7a5830;
 
   /* Layout */
-  --v2-sidebar-width:    220px;
-  --v2-header-height:    60px;
-  --v2-drawer-width:     420px;
-  --v2-radius:           8px;
-  --v2-radius-lg:        14px;
-  --v2-transition:       180ms ease;
+  --v2-sidebar-width:       220px;
+  --v2-header-height:       60px;
+  --v2-drawer-width:        420px;
+  --v2-tray-column-width:   280px;
+  --v2-radius:              8px;
+  --v2-radius-lg:           14px;
+  --v2-transition:          180ms ease;
 
   /* Shadow */
   --v2-shadow-card:      0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);

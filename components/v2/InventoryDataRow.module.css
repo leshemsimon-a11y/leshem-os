@@ -1,0 +1,196 @@
+/* LESHEM.S OS — v2 Inventory Data Row — v2.2 Data Mode */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--v2-border-subtle, #ece8e1);
+  background: var(--v2-surface, #ffffff);
+  transition: background 140ms ease;
+  cursor: pointer;
+  min-height: 48px;
+  direction: rtl;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row:hover {
+  background: var(--v2-surface-2, #faf8f4);
+}
+
+.rowInTray {
+  background: rgba(184, 145, 46, 0.05);
+  border-right: 2px solid var(--v2-gold, #b8912e);
+}
+
+.rowInTray:hover {
+  background: rgba(184, 145, 46, 0.08);
+}
+
+/* Thumbnail — small, tight */
+.thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: radial-gradient(ellipse at 50% 40%, #fdfaf4 0%, #ede8dc 100%);
+  border: 1px solid var(--v2-border, #e2dcd2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--v2-gold, #b8912e);
+  opacity: 0.7;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+/* Identity — fills remaining space */
+.identity {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.identityTitle {
+  font-size: 12px;
+  color: var(--v2-text-primary, #1e1a16);
+  font-family: 'Arial', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+}
+
+/* Data cells — fixed widths, compact */
+.cell {
+  font-size: 11px;
+  color: var(--v2-text-secondary, #6b6055);
+  font-family: 'Arial', sans-serif;
+  padding: 0 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cellCarat {
+  width: 64px;
+  text-align: left;
+  color: var(--v2-gold, #b8912e);
+  font-family: 'Georgia', serif;
+  font-size: 12px;
+}
+
+.cellColor  { width: 40px; }
+.cellClarity{ width: 48px; }
+.cellLab    { width: 50px; color: var(--v2-text-muted, #a09080); font-size: 10px; letter-spacing: 0.04em; }
+
+/* Status badge — inline, compact */
+.statusBadge {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-family: 'Arial', sans-serif;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.badgeAvailable { background: #eef5f0; color: #2e7d52; border-color: #a8d4b8; }
+.badgeReserved  { background: #fdf3e8; color: #b06020; border-color: #e8c090; }
+.badgeInUse     { background: #eef2f8; color: #2a5f90; border-color: #a0bcdc; }
+.badgeSold      { background: #f4f2ef; color: #706050; border-color: #c8c0b0; }
+
+/* Layer badge */
+.layerBadge {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-family: 'Arial', sans-serif;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.badgePhysical    { background: #eef5f1; color: #2e6e50; border-color: #a8d4bc; }
+.badgeVirtual     { background: #eef2f8; color: #2a5070; border-color: #a0bcd8; }
+.badgeClientOwned { background: #f6f0e8; color: #7a5830; border-color: #d4b888; }
+
+/* Actions cell */
+.actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.trayBtn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: 'Arial', sans-serif;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+  background: var(--v2-gold-muted, rgba(184,145,46,0.09));
+  border: 1px solid rgba(184,145,46,0.28);
+  color: var(--v2-gold, #b8912e);
+  font-weight: 500;
+}
+
+.trayBtn:hover {
+  background: rgba(184,145,46,0.16);
+}
+
+.trayBtnInTray {
+  background: #f4f2ef;
+  border-color: var(--v2-border, #e2dcd2);
+  color: var(--v2-text-secondary, #6b6055);
+  cursor: default;
+}
+
+.trayBtnInTray:hover {
+  background: #f4f2ef;
+}
+
+.loupeBtn {
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: transparent;
+  border: 1px solid var(--v2-border, #e2dcd2);
+  color: var(--v2-text-muted, #a09080);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.loupeBtn:hover {
+  border-color: var(--v2-gold-dim, #d4b870);
+  color: var(--v2-gold, #b8912e);
+  background: var(--v2-gold-muted, rgba(184,145,46,0.08));
+}
+
+/* Mobile: hide less important columns */
+@media (max-width: 768px) {
+  .cellColor, .cellClarity, .cellLab, .layerBadge {
+    display: none;
+  }
+
+  .cell {
+    padding: 0 4px;
+  }
+}

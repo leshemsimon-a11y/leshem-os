@@ -1,15 +1,15 @@
 /**
- * LESHEM.S OS — v2 Inventory Card
+ * LESHEM.S OS — v2 Inventory Card — v2.2
  *
- * Displays a single asset with taxonomy labels.
- * NEVER shows: Airtable Record ID, Internal Notes, cost prices, demo notes.
- * Shape is customer-facing. Cut/Form is NOT shown on cards.
+ * Display-case style card. Loupe/inspect button added.
+ * Selected state = "lifted" card (elevation + gold border). No checkbox.
+ * NEVER shows: Airtable Record ID, Internal Notes, cost prices.
+ * Shape is customer-facing. Cut/Form is NOT shown.
  */
 
 import styles from './InventoryCard.module.css';
 import {
   getStoneCategoryLabel,
-  getOriginGrowthLabel,
   getShapeLabel,
   getInventoryLayerLabel,
   getStatusLabel,
@@ -26,8 +26,8 @@ function getCategoryBadgeClass(stoneCategory, s) {
 
 function getLayerBadgeClass(layer, s) {
   if (layer === 'physical_stock') return s.badgePhysical;
-  if (layer === 'virtual_supplier_stock') return s.badgeVirtual;
-  if (layer === 'client_owned_item') return s.badgeClientOwned;
+  if (layer === 'virtual_supplier') return s.badgeVirtual;
+  if (layer === 'client_owned') return s.badgeClientOwned;
   return '';
 }
 
@@ -39,23 +39,35 @@ function getStatusBadgeClass(status, s) {
   return '';
 }
 
-// Category placeholder icons (no cart / shopping iconography)
-const CATEGORY_ICONS = {
-  white_diamond: '◇',
+const PLACEHOLDER_ICONS = {
+  white_diamond:       '◇',
   fancy_color_diamond: '◈',
-  colored_gemstone: '○',
-  parcel: '⊡',
-  part: '⊟',
-  finished_jewelry: '◎',
+  colored_gemstone:    '○',
+  parcel:              '⊡',
+  part:                '⊟',
+  finished_jewelry:    '◎',
 };
 
 function getPlaceholderIcon(asset) {
-  if (asset.assetType === 'parcel') return CATEGORY_ICONS.parcel;
-  if (asset.assetType === 'part' || asset.assetType === 'jewelry_part') return CATEGORY_ICONS.part;
-  if (asset.assetType === 'finished_jewelry') return CATEGORY_ICONS.finished_jewelry;
-  return CATEGORY_ICONS[asset.stoneCategory] || '◇';
+  if (asset.assetType === 'parcel') return PLACEHOLDER_ICONS.parcel;
+  if (asset.assetType === 'part' || asset.assetType === 'jewelry_part') return PLACEHOLDER_ICONS.part;
+  if (asset.assetType === 'finished_jewelry') return PLACEHOLDER_ICONS.finished_jewelry;
+  return PLACEHOLDER_ICONS[asset.stoneCategory] || '◇';
 }
 
+function resolveImageSrc(imageUrl) {
+  if (!imageUrl) return null;
+  if (Array.isArray(imageUrl) && imageUrl[0]) {
+    return imageUrl[0].url || imageUrl[0].thumbnails?.large?.url || null;
+  }
+  if (typeof imageUrl === 'string') return imageUrl;
+  return null;
+}
+
+/**
+ * onViewDetail(asset, { mode: 'detail' | 'inspect' })
+ * mode='inspect' opens the drawer in gemological inspection layout.
+ */
 export default function InventoryCard({ asset, onViewDetail }) {
   const { addItem, removeItem, items } = useWorkTray();
 
@@ -65,33 +77,25 @@ export default function InventoryCard({ asset, onViewDetail }) {
     (i) => i._airtableId && i._airtableId === asset._airtableId
   );
 
-  const title = getAssetDisplayTitle(asset);
-  const categoryLabel = getStoneCategoryLabel(asset.stoneCategory, 'he');
+  const title      = getAssetDisplayTitle(asset);
   const shapeLabel = getShapeLabel(asset.shape, 'he');
-  const layerLabel = getInventoryLayerLabel(asset.inventoryLayer, 'he');
-  const statusLabel = getStatusLabel(asset.status, 'he');
 
-  // Build spec string: color · clarity · carat
-  const specs = [
-    asset.color,
-    asset.clarity,
-    asset.caratWeight ? `${asset.caratWeight} קרט` : null,
-  ].filter(Boolean);
+  // Carat weight — primary jeweler metric, displayed separately
+  const caratDisplay = asset.caratWeight
+    ? `${asset.caratWeight} קרט`
+    : asset.totalCaratWeight
+    ? `${asset.totalCaratWeight} קרט`
+    : null;
 
-  // Lab + report number
+  // Gemological spec line: color · clarity (not carat — shown separately above)
+  const specs = [asset.color, asset.clarity].filter(Boolean);
+
+  // Lab
   const labInfo = asset.labName
     ? `${asset.labName}${asset.reportNumber ? ' ' + asset.reportNumber : ''}`
     : null;
 
-  // Image src — Airtable attachments can be arrays
-  let imageSrc = null;
-  if (asset.imageUrl) {
-    if (Array.isArray(asset.imageUrl) && asset.imageUrl[0]) {
-      imageSrc = asset.imageUrl[0].url || asset.imageUrl[0].thumbnails?.large?.url;
-    } else if (typeof asset.imageUrl === 'string') {
-      imageSrc = asset.imageUrl;
-    }
-  }
+  const imageSrc = resolveImageSrc(asset.imageUrl);
 
   function handleAddToTray(e) {
     e.stopPropagation();
@@ -103,8 +107,18 @@ export default function InventoryCard({ asset, onViewDetail }) {
     removeItem(asset._airtableId);
   }
 
+  function handleDetailClick(e) {
+    e.stopPropagation();
+    if (onViewDetail) onViewDetail(asset, { mode: 'detail' });
+  }
+
+  function handleLoupeClick(e) {
+    e.stopPropagation();
+    if (onViewDetail) onViewDetail(asset, { mode: 'inspect' });
+  }
+
   function handleCardClick() {
-    if (onViewDetail) onViewDetail(asset);
+    if (onViewDetail) onViewDetail(asset, { mode: 'detail' });
   }
 
   return (
@@ -114,32 +128,33 @@ export default function InventoryCard({ asset, onViewDetail }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && handleCardClick()}
+      aria-label={title}
     >
-      {/* Image / Placeholder */}
+      {/* ── Display tray / media area ── */}
       <div className={styles.imageWrap}>
         {imageSrc ? (
-          <img
-            src={imageSrc}
-            alt={title}
-            className={styles.image}
-            loading="lazy"
-          />
+          <img src={imageSrc} alt={title} className={styles.image} loading="lazy" />
         ) : (
           <div className={styles.imagePlaceholder} aria-hidden="true">
             {getPlaceholderIcon(asset)}
           </div>
         )}
         {isInTray && (
-          <div className={styles.inTrayBadge}>במגש</div>
+          <div className={styles.inTrayBadge} aria-label="פריט במגש">במגש</div>
         )}
       </div>
 
-      {/* Body */}
+      {/* ── Card body ── */}
       <div className={styles.body}>
-        {/* Title */}
+        {/* Stone identity */}
         <div className={styles.title}>{title}</div>
 
-        {/* Spec row: color · clarity · carat */}
+        {/* Carat weight — primary metric, styled separately */}
+        {caratDisplay && (
+          <div className={styles.caratLine}>{caratDisplay}</div>
+        )}
+
+        {/* Gemological spec: color · clarity */}
         {specs.length > 0 && (
           <div className={styles.specRow} dir="rtl">
             {specs.map((spec, i) => (
@@ -151,27 +166,21 @@ export default function InventoryCard({ asset, onViewDetail }) {
           </div>
         )}
 
-        {/* Badge row */}
+        {/* Badges: category, layer, status, lab */}
         <div className={styles.badgeRow}>
           {asset.stoneCategory && (
-            <span
-              className={`${styles.badge} ${getCategoryBadgeClass(asset.stoneCategory, styles)}`}
-            >
-              {categoryLabel}
+            <span className={`${styles.badge} ${getCategoryBadgeClass(asset.stoneCategory, styles)}`}>
+              {getStoneCategoryLabel(asset.stoneCategory, 'he')}
             </span>
           )}
           {asset.inventoryLayer && (
-            <span
-              className={`${styles.badge} ${getLayerBadgeClass(asset.inventoryLayer, styles)}`}
-            >
-              {layerLabel}
+            <span className={`${styles.badge} ${getLayerBadgeClass(asset.inventoryLayer, styles)}`}>
+              {getInventoryLayerLabel(asset.inventoryLayer, 'he')}
             </span>
           )}
           {asset.status && (
-            <span
-              className={`${styles.badge} ${getStatusBadgeClass(asset.status, styles)}`}
-            >
-              {statusLabel}
+            <span className={`${styles.badge} ${getStatusBadgeClass(asset.status, styles)}`}>
+              {getStatusLabel(asset.status, 'he')}
             </span>
           )}
           {labInfo && (
@@ -180,12 +189,13 @@ export default function InventoryCard({ asset, onViewDetail }) {
         </div>
       </div>
 
-      {/* Actions */}
+      {/* ── Action bar ── */}
       <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
         {isInTray ? (
           <button
             className={`${styles.addToTrayBtn} ${styles.addToTrayBtnInTray}`}
             onClick={handleRemoveFromTray}
+            aria-label="הסר מהמגש"
           >
             ✓ במגש — הסר
           </button>
@@ -193,16 +203,26 @@ export default function InventoryCard({ asset, onViewDetail }) {
           <button
             className={styles.addToTrayBtn}
             onClick={handleAddToTray}
+            aria-label="הוסף למגש עבודה"
           >
             הוסף למגש
           </button>
         )}
+
+        {/* Loupe / Inspect — opens inspection-focused drawer */}
+        <button
+          className={styles.loupeBtn}
+          onClick={handleLoupeClick}
+          title="בדיקה"
+          aria-label="פתח בדיקה"
+        >
+          ◎
+        </button>
+
         <button
           className={styles.viewBtn}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleCardClick();
-          }}
+          onClick={handleDetailClick}
+          aria-label="פרטי פריט"
         >
           פרטים
         </button>

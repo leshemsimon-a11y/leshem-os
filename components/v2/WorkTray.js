@@ -1,10 +1,9 @@
 /**
- * LESHEM.S OS — v2 Work Tray Panel
+ * LESHEM.S OS — v2 Work Tray — v2.2
  *
- * Session-level staging area. Not a shopping cart.
- * No basket / checkout / cart / purchase language.
- * Calculator and Certificate actions are clearly marked as
- * "חיבור מלא — בשלב הבא" in v2.1 (not broken, not misleading).
+ * Studio tray feel. Stone chip item display.
+ * Studio tray language only. No commerce language.
+ * Calculator and Certificate: clearly marked as future/not-yet-connected.
  */
 
 import { useState } from 'react';
@@ -13,45 +12,36 @@ import { useWorkTray } from '../../lib/v2/workTrayContext';
 import { getAssetDisplayTitle } from '../../lib/v2/taxonomyHelpers';
 
 const PLACEHOLDER_ICONS = {
-  white_diamond: '◇',
+  white_diamond:       '◇',
   fancy_color_diamond: '◈',
-  colored_gemstone: '○',
-  parcel: '⊡',
-  part: '⊟',
-  finished_jewelry: '◎',
+  colored_gemstone:    '○',
+  parcel:              '⊡',
+  part:                '⊟',
+  finished_jewelry:    '◎',
 };
 
 function TrayItemThumb({ asset }) {
   let imageSrc = null;
   if (asset.imageUrl) {
     if (Array.isArray(asset.imageUrl) && asset.imageUrl[0]) {
-      imageSrc =
-        asset.imageUrl[0].thumbnails?.small?.url ||
-        asset.imageUrl[0].url;
+      imageSrc = asset.imageUrl[0].thumbnails?.small?.url || asset.imageUrl[0].url;
     } else if (typeof asset.imageUrl === 'string') {
       imageSrc = asset.imageUrl;
     }
   }
-
-  const icon =
-    PLACEHOLDER_ICONS[asset.stoneCategory] ||
-    PLACEHOLDER_ICONS[asset.assetType] ||
-    '◇';
-
+  const icon = PLACEHOLDER_ICONS[asset.stoneCategory] || PLACEHOLDER_ICONS[asset.assetType] || '◇';
   return (
     <div className={styles.trayThumb}>
-      {imageSrc ? (
-        <img src={imageSrc} alt="" className={styles.trayThumbImg} />
-      ) : (
-        <span>{icon}</span>
-      )}
+      {imageSrc
+        ? <img src={imageSrc} alt="" className={styles.trayThumbImg} />
+        : <span aria-hidden="true">{icon}</span>
+      }
     </div>
   );
 }
 
 export default function WorkTray({ onClose }) {
-  const { items, itemCount, totalCaratWeight, removeItem, clearTray } =
-    useWorkTray();
+  const { items, itemCount, totalCaratWeight, removeItem, clearTray } = useWorkTray();
   const [confirmingClear, setConfirmingClear] = useState(false);
 
   function handleClearConfirmed() {
@@ -71,20 +61,12 @@ export default function WorkTray({ onClose }) {
         <div className={styles.trayTitleGroup}>
           <div className={styles.trayTitle}>מגש עבודה</div>
           <div className={styles.traySummary}>
-            {itemCount === 0
-              ? 'ריק'
-              : `${itemCount} פריטים · ${totalCaratWeight} קרט`}
+            {itemCount === 0 ? 'ריק' : `${itemCount} פריטים · ${totalCaratWeight} קרט`}
           </div>
         </div>
-        <div className={styles.trayHeaderActions}>
-          <button
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label="סגור מגש"
-          >
-            ×
-          </button>
-        </div>
+        <button className={styles.closeBtn} onClick={onClose} aria-label="סגור מגש">
+          ×
+        </button>
       </div>
 
       {/* Stats */}
@@ -110,29 +92,19 @@ export default function WorkTray({ onClose }) {
           <div className={styles.emptyTray}>
             <div className={styles.emptyIcon}>◇</div>
             <div>המגש ריק</div>
-            <div style={{ fontSize: 11, opacity: 0.5 }}>
-              הוסף פריטים מהמלאי
-            </div>
+            <div style={{ fontSize: 11, opacity: 0.5 }}>הוסף פריטים מהמלאי</div>
           </div>
         ) : (
           items.map((asset, idx) => {
             const title = getAssetDisplayTitle(asset);
-            const carat =
-              asset.caratWeight || asset.totalCaratWeight;
+            const carat = asset.caratWeight || asset.totalCaratWeight;
             return (
-              <div
-                key={asset._airtableId || idx}
-                className={styles.trayItem}
-              >
+              <div key={asset._airtableId || idx} className={styles.trayItem}>
                 <TrayItemThumb asset={asset} />
                 <div className={styles.trayItemInfo}>
                   <div className={styles.trayItemTitle}>{title}</div>
                   <div className={styles.trayItemMeta}>
-                    {[
-                      asset.color,
-                      asset.clarity,
-                      carat ? `${carat} קרט` : null,
-                    ]
+                    {[asset.color, asset.clarity, carat ? `${carat} קרט` : null]
                       .filter(Boolean)
                       .join(' · ')}
                   </div>
@@ -150,57 +122,36 @@ export default function WorkTray({ onClose }) {
         )}
       </div>
 
-      {/* Footer actions */}
+      {/* Footer */}
       <div className={styles.trayFooter}>
-        {/* Clear confirmation */}
         {confirmingClear ? (
           <div className={styles.confirmBar}>
             <span>לנקות את המגש?</span>
-            <button className={styles.confirmYes} onClick={handleClearConfirmed}>
-              נקה
-            </button>
-            <button
-              className={styles.confirmNo}
-              onClick={() => setConfirmingClear(false)}
-            >
-              ביטול
-            </button>
+            <button className={styles.confirmYes} onClick={handleClearConfirmed}>נקה</button>
+            <button className={styles.confirmNo} onClick={() => setConfirmingClear(false)}>ביטול</button>
           </div>
         ) : (
           itemCount > 0 && (
-            <button
-              className={styles.clearBtn}
-              onClick={() => setConfirmingClear(true)}
-            >
+            <button className={styles.clearBtn} onClick={() => setConfirmingClear(true)}>
               נקה מגש
             </button>
           )
         )}
 
-        {/*
-          Calculator — v2.1: navigates to existing calculator.
-          Item data handoff is NOT implemented yet. Clearly labelled.
-        */}
+        {/* Calculator handoff is intentionally disabled until full v2 data handoff is built. */}
         {itemCount > 0 && (
-          <a className={styles.calcBtn} href="/">
+          <button className={styles.calcBtn} type="button" disabled>
             פתח במחשבון
-            <span className={styles.futureNote}>
-              חיבור מלא לפריטים — בשלב הבא
-            </span>
-          </a>
+            <span className={styles.futureNote}>חיבור מלא לפריטים — בשלב הבא</span>
+          </button>
         )}
 
-        {/*
-          Certificate — v2.1: navigates to existing certificate page.
-          Only shown for single eligible item. Clearly labelled.
-        */}
+        {/* Certificate handoff is intentionally disabled until full v2 data handoff is built. */}
         {singleEligibleItem && (
-          <a className={styles.certBtn} href="/">
+          <button className={styles.certBtn} type="button" disabled>
             צור תעודה
-            <span className={styles.futureNote}>
-              חיבור מלא לפריט — בשלב הבא
-            </span>
-          </a>
+            <span className={styles.futureNote}>חיבור מלא לפריט — בשלב הבא</span>
+          </button>
         )}
       </div>
     </div>

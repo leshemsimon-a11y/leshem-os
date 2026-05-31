@@ -1,33 +1,41 @@
-/* LESHEM.S OS — v2 Inventory Card styles — v2.1.1 light theme */
+/* LESHEM.S OS — v2 Inventory Card — v2.2 Display Case */
 
+/* ─── Card shell ── */
 .card {
   background: var(--v2-surface, #ffffff);
   border: 1px solid var(--v2-border, #e2dcd2);
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: var(--v2-shadow-card, 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05));
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .card:hover {
   border-color: var(--v2-gold-dim, #d4b870);
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.09);
 }
 
+/* Selected = "lifted" — gold outline, elevated shadow, no checkbox */
 .cardSelected {
-  border-color: var(--v2-gold, #b8912e);
-  box-shadow: 0 0 0 2px rgba(184, 145, 46, 0.18), 0 4px 16px rgba(0,0,0,0.07);
+  border: 2px solid var(--v2-gold, #b8912e);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(184,145,46,0.14), 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* ─── Image area ── */
+.cardSelected:hover {
+  transform: translateY(-3px);
+}
+
+/* ─── Display tray / media area ── */
 .imageWrap {
   aspect-ratio: 4 / 3;
-  background: var(--v2-surface-3, #f2ede5);
+  /* Linen-like display surface — CSS only, no image files */
+  background: radial-gradient(ellipse at 50% 38%, #fdfaf4 0%, #ede8dc 70%, #e4ddd0 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,20 +43,51 @@
   position: relative;
 }
 
+/* Subtle inner shadow to give tray depth */
+.imageWrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 1px 8px rgba(0,0,0,0.07);
+  pointer-events: none;
+  border-radius: 0;
+}
+
+/* Gold line separator between tray and info */
+.imageWrap::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: rgba(184, 145, 46, 0.20);
+  z-index: 1;
+}
+
 .image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 8px;
 }
 
+/* Placeholder: stone silhouette on tray */
 .imagePlaceholder {
-  font-size: 36px;
-  opacity: 0.18;
-  user-select: none;
+  font-size: 38px;
   color: var(--v2-gold, #b8912e);
+  opacity: 0.22;
+  user-select: none;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
-/* ─── In-tray indicator ── */
+/* Selected tray: faint gold wash over image area */
+.cardSelected .imageWrap {
+  background: radial-gradient(ellipse at 50% 38%, #fefbf0 0%, #f0e8d4 70%, #e8dfc8 100%);
+}
+
+/* In-tray indicator — top right corner */
 .inTrayBadge {
   position: absolute;
   top: 8px;
@@ -60,141 +99,121 @@
   padding: 3px 9px;
   border-radius: 10px;
   font-family: 'Arial', sans-serif;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
+  z-index: 2;
 }
 
-/* ─── Card Body ── */
+/* ─── Card body ── */
 .body {
-  padding: 14px 16px 10px;
+  padding: 13px 15px 10px;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
+/* Primary identity line — tracked serif, jeweler-style */
 .title {
   font-size: 13px;
   font-weight: 400;
   color: var(--v2-text-primary, #1e1a16);
   font-family: 'Georgia', serif;
-  line-height: 1.45;
+  line-height: 1.4;
   direction: rtl;
+  letter-spacing: 0.01em;
 }
 
-/* ─── Spec row ── */
+/* Carat weight — secondary emphasis, slightly larger */
+.caratLine {
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--v2-gold, #b8912e);
+  font-family: 'Georgia', serif;
+  line-height: 1;
+  direction: rtl;
+  letter-spacing: 0.02em;
+}
+
+/* Gemological spec row: color · clarity */
 .specRow {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   direction: rtl;
 }
 
 .specItem {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--v2-text-secondary, #6b6055);
   font-family: 'Arial', sans-serif;
+  letter-spacing: 0.02em;
 }
 
 .specDot {
   color: var(--v2-text-muted, #a09080);
 }
 
-/* ─── Badge row ── */
+/* Badge row */
 .badgeRow {
   display: flex;
-  gap: 5px;
+  gap: 4px;
   flex-wrap: wrap;
-  margin-top: 2px;
+  margin-top: 1px;
   direction: rtl;
 }
 
 .badge {
   font-size: 10px;
-  padding: 3px 9px;
+  padding: 2px 8px;
   border-radius: 20px;
   font-family: 'Arial', sans-serif;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   border: 1px solid transparent;
-  font-weight: 500;
 }
 
-/* Category badges — warm, readable on light bg */
-.badgeWhiteDiamond {
-  background: #eef2f8;
-  color: #3a5580;
-  border-color: #c8d4e8;
+/* Category */
+.badgeWhiteDiamond   { background: #eef2f8; color: #3a5580; border-color: #c8d4e8; }
+.badgeFancyDiamond   { background: #fdf4e3; color: #8a6018; border-color: #e8d090; }
+.badgeColoredGemstone{ background: #eef6f0; color: #2e6640; border-color: #b0d8b8; }
+
+/* Layer */
+.badgePhysical   { background: #eef5f1; color: #2e6e50; border-color: #a8d4bc; }
+.badgeVirtual    { background: #eef2f8; color: #2a5070; border-color: #a0bcd8; }
+.badgeClientOwned{ background: #f6f0e8; color: #7a5830; border-color: #d4b888; }
+
+/* Status */
+.badgeAvailable { background: #eef5f0; color: #2e7d52; border-color: #a8d4b8; }
+.badgeReserved  { background: #fdf3e8; color: #b06020; border-color: #e8c090; }
+.badgeInUse     { background: #eef2f8; color: #2a5f90; border-color: #a0bcdc; }
+.badgeSold      { background: #f4f2ef; color: #706050; border-color: #c8c0b0; }
+
+/* Lab chip */
+.labChip {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #f8f6f2;
+  border: 1px solid var(--v2-border, #e2dcd2);
+  color: var(--v2-text-muted, #a09080);
+  font-family: 'Arial', sans-serif;
+  letter-spacing: 0.05em;
 }
 
-.badgeFancyDiamond {
-  background: #fdf4e3;
-  color: #8a6018;
-  border-color: #e8d090;
-}
-
-.badgeColoredGemstone {
-  background: #eef6f0;
-  color: #2e6640;
-  border-color: #b0d8b8;
-}
-
-/* Layer badges */
-.badgePhysical {
-  background: #eef5f1;
-  color: #2e6e50;
-  border-color: #a8d4bc;
-}
-
-.badgeVirtual {
-  background: #eef2f8;
-  color: #2a5070;
-  border-color: #a0bcd8;
-}
-
-.badgeClientOwned {
-  background: #f6f0e8;
-  color: #7a5830;
-  border-color: #d4b888;
-}
-
-/* Status badges */
-.badgeAvailable {
-  background: #eef5f0;
-  color: #2e7d52;
-  border-color: #a8d4b8;
-}
-
-.badgeReserved {
-  background: #fdf3e8;
-  color: #b06020;
-  border-color: #e8c090;
-}
-
-.badgeInUse {
-  background: #eef2f8;
-  color: #2a5f90;
-  border-color: #a0bcdc;
-}
-
-.badgeSold {
-  background: #f4f2ef;
-  color: #706050;
-  border-color: #c8c0b0;
-}
-
-/* ─── Actions ── */
+/* ─── Action bar ── */
 .cardActions {
-  padding: 10px 16px 14px;
+  padding: 9px 14px 12px;
   border-top: 1px solid var(--v2-border-subtle, #ece8e1);
   display: flex;
-  gap: 8px;
+  gap: 6px;
   direction: rtl;
 }
 
+/* Primary: add / remove from tray */
 .addToTrayBtn {
   flex: 1;
-  padding: 8px 12px;
-  background: var(--v2-gold-muted, rgba(184,145,46,0.10));
-  border: 1px solid rgba(184, 145, 46, 0.30);
+  padding: 7px 10px;
+  background: var(--v2-gold-muted, rgba(184,145,46,0.09));
+  border: 1px solid rgba(184,145,46,0.28);
   border-radius: 6px;
   color: var(--v2-gold, #b8912e);
   font-size: 12px;
@@ -202,11 +221,12 @@
   cursor: pointer;
   transition: all 180ms ease;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .addToTrayBtn:hover {
-  background: rgba(184, 145, 46, 0.16);
-  border-color: rgba(184, 145, 46, 0.50);
+  background: rgba(184,145,46,0.15);
+  border-color: rgba(184,145,46,0.48);
 }
 
 .addToTrayBtnInTray {
@@ -221,8 +241,9 @@
   border-color: var(--v2-border, #e2dcd2);
 }
 
+/* Secondary: detail view */
 .viewBtn {
-  padding: 8px 12px;
+  padding: 7px 10px;
   background: transparent;
   border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 6px;
@@ -231,6 +252,7 @@
   font-family: 'Arial', sans-serif;
   cursor: pointer;
   transition: all 180ms ease;
+  white-space: nowrap;
 }
 
 .viewBtn:hover {
@@ -239,14 +261,36 @@
   background: var(--v2-surface-3, #f2ede5);
 }
 
-/* ─── Lab badge ── */
-.labChip {
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: #f4f2ef;
+/* Loupe / Inspect button */
+.loupeBtn {
+  padding: 7px 9px;
+  background: transparent;
   border: 1px solid var(--v2-border, #e2dcd2);
+  border-radius: 6px;
   color: var(--v2-text-muted, #a09080);
+  font-size: 13px;
   font-family: 'Arial', sans-serif;
-  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 180ms ease;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loupeBtn:hover {
+  border-color: var(--v2-gold-dim, #d4b870);
+  color: var(--v2-gold, #b8912e);
+  background: var(--v2-gold-muted, rgba(184,145,46,0.08));
+}
+
+/* ─── Responsive ── */
+@media (max-width: 768px) {
+  .body {
+    padding: 11px 13px 8px;
+  }
+
+  .caratLine {
+    font-size: 14px;
+  }
 }

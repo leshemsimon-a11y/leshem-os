@@ -14,8 +14,8 @@ import {
 
 const CATEGORIES = ['white_diamond', 'fancy_color_diamond', 'colored_gemstone'];
 const SHAPES = ['round', 'oval', 'cushion', 'emerald', 'pear', 'radiant', 'marquise', 'princess', 'heart', 'other'];
-const STATUSES = ['available', 'reserved', 'in_use', 'sold', 'archived'];
-const LAYERS = ['physical_stock', 'virtual_supplier_stock', 'client_owned_item'];
+const STATUSES = ['available', 'reserved', 'in_use', 'sold'];
+const LAYERS = ['physical_stock', 'virtual_supplier', 'client_owned'];
 
 function FilterGroup({ title, options, selected, onToggle, labelFn }) {
   return (
