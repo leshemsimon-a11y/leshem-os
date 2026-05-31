@@ -1,0 +1,212 @@
+/* LESHEM.S OS — v2 Studio Dashboard styles */
+
+.dashboard {
+  max-width: 1100px;
+}
+
+.pageHeader {
+  margin-bottom: 32px;
+}
+
+.pageTitle {
+  font-size: 26px;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-primary, #f0ead8);
+  margin: 0 0 6px 0;
+  font-family: 'Georgia', serif;
+}
+
+.pageSubtitle {
+  font-size: 13px;
+  color: var(--v2-text-muted, #5c5446);
+  font-family: 'Arial', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Metrics Row ── */
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metricCard {
+  background: var(--v2-surface-2, #1e1b17);
+  border: 1px solid var(--v2-border, #2e2a22);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+
+.metricLabel {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-muted, #5c5446);
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
+  margin-bottom: 8px;
+}
+
+.metricValue {
+  font-size: 32px;
+  font-weight: 300;
+  color: var(--v2-gold, #c9a84c);
+  font-family: 'Georgia', serif;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.metricDesc {
+  font-size: 11px;
+  color: var(--v2-text-secondary, #9e9580);
+  font-family: 'Arial', sans-serif;
+}
+
+/* ─── Quick Actions ── */
+.quickActionsSection {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--v2-text-muted, #5c5446);
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
+  margin-bottom: 14px;
+}
+
+.quickActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.quickActionBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'Arial', sans-serif;
+  cursor: pointer;
+  transition: all 200ms ease;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.quickActionPrimary {
+  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
+  border-color: rgba(201, 168, 76, 0.3);
+  color: var(--v2-gold-light, #e0c06a);
+}
+
+.quickActionPrimary:hover {
+  background: rgba(201, 168, 76, 0.2);
+  border-color: rgba(201, 168, 76, 0.5);
+}
+
+.quickActionSecondary {
+  background: var(--v2-surface-2, #1e1b17);
+  border-color: var(--v2-border, #2e2a22);
+  color: var(--v2-text-secondary, #9e9580);
+}
+
+.quickActionSecondary:hover {
+  border-color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-primary, #f0ead8);
+}
+
+/* ─── Recent ── */
+.recentSection {
+  background: var(--v2-surface-2, #1e1b17);
+  border: 1px solid var(--v2-border, #2e2a22);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.recentHeader {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--v2-border, #2e2a22);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-muted, #5c5446);
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
+}
+
+.recentItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--v2-border-subtle, #1e1b17);
+  transition: background 200ms ease;
+}
+
+.recentItem:last-child {
+  border-bottom: none;
+}
+
+.recentItem:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+.recentDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--v2-gold-dim, #8a6e2e);
+  flex-shrink: 0;
+}
+
+.recentName {
+  font-size: 13px;
+  color: var(--v2-text-primary, #f0ead8);
+  font-family: 'Arial', sans-serif;
+  flex: 1;
+}
+
+.recentMeta {
+  font-size: 11px;
+  color: var(--v2-text-muted, #5c5446);
+  font-family: 'Arial', sans-serif;
+}
+
+.loadingState {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--v2-text-muted, #5c5446);
+  font-family: 'Arial', sans-serif;
+  font-size: 13px;
+}
+
+.goldDivider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--v2-gold-dim, #8a6e2e), transparent);
+  margin: 32px 0;
+  opacity: 0.4;
+}
+
+/* ─── Responsive ── */
+@media (max-width: 768px) {
+  .metricsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metricsRow > *:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .metricsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .metricsRow > *:last-child {
+    grid-column: auto;
+  }
+}

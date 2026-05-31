@@ -1,0 +1,139 @@
+/* LESHEM.S OS — v2 Filter Panel styles */
+
+.panel {
+  background: var(--v2-surface-2, #1e1b17);
+  border: 1px solid var(--v2-border, #2e2a22);
+  border-radius: 12px;
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: calc(var(--v2-header-height, 60px) + 20px);
+  direction: rtl;
+  min-width: 0;
+}
+
+.panelTitle {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--v2-text-muted, #5c5446);
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
+  margin-bottom: 18px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-muted, #5c5446);
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
+  margin-bottom: 8px;
+}
+
+.filterOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 150ms ease;
+  border: none;
+  background: transparent;
+  color: var(--v2-text-secondary, #9e9580);
+  font-size: 12px;
+  font-family: 'Arial', sans-serif;
+  width: 100%;
+  text-align: right;
+}
+
+.filterOption:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.filterOptionActive {
+  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
+  color: var(--v2-gold-light, #e0c06a);
+}
+
+.filterOptionActive:hover {
+  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
+}
+
+.filterDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  flex-shrink: 0;
+}
+
+.filterDotActive {
+  background: currentColor;
+}
+
+.clearBtn {
+  width: 100%;
+  margin-top: 16px;
+  padding: 7px;
+  background: transparent;
+  border: 1px solid var(--v2-border, #2e2a22);
+  border-radius: 6px;
+  color: var(--v2-text-muted, #5c5446);
+  font-size: 11px;
+  font-family: 'Arial', sans-serif;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.clearBtn:hover {
+  border-color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-secondary, #9e9580);
+}
+
+.divider {
+  height: 1px;
+  background: var(--v2-border, #2e2a22);
+  margin: 16px 0;
+}
+
+/* Mobile: horizontal scroll row */
+@media (max-width: 768px) {
+  .panel {
+    position: static;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .filterOptions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .filterOption {
+    width: auto;
+    flex: 0 0 auto;
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--v2-border, #2e2a22);
+    border-radius: 20px;
+  }
+
+  .filterOptionActive {
+    border-color: rgba(201, 168, 76, 0.4);
+  }
+}
