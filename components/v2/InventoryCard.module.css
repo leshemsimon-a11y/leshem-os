@@ -1,32 +1,33 @@
-/* LESHEM.S OS — v2 Inventory Card styles */
+/* LESHEM.S OS — v2 Inventory Card styles — v2.1.1 light theme */
 
 .card {
-  background: var(--v2-surface-2, #1e1b17);
-  border: 1px solid var(--v2-border, #2e2a22);
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
   display: flex;
   flex-direction: column;
   position: relative;
+  box-shadow: var(--v2-shadow-card, 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05));
 }
 
 .card:hover {
-  border-color: var(--v2-gold-dim, #8a6e2e);
+  border-color: var(--v2-gold-dim, #d4b870);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10);
 }
 
 .cardSelected {
-  border-color: var(--v2-gold, #c9a84c);
-  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.3);
+  border-color: var(--v2-gold, #b8912e);
+  box-shadow: 0 0 0 2px rgba(184, 145, 46, 0.18), 0 4px 16px rgba(0,0,0,0.07);
 }
 
 /* ─── Image area ── */
 .imageWrap {
   aspect-ratio: 4 / 3;
-  background: var(--v2-surface-3, #252118);
+  background: var(--v2-surface-3, #f2ede5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -41,9 +42,10 @@
 }
 
 .imagePlaceholder {
-  font-size: 32px;
-  opacity: 0.25;
+  font-size: 36px;
+  opacity: 0.18;
   user-select: none;
+  color: var(--v2-gold, #b8912e);
 }
 
 /* ─── In-tray indicator ── */
@@ -51,11 +53,11 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  background: var(--v2-gold, #c9a84c);
-  color: #0e0d0b;
+  background: var(--v2-gold, #b8912e);
+  color: #ffffff;
   font-size: 9px;
-  font-weight: 700;
-  padding: 3px 8px;
+  font-weight: 600;
+  padding: 3px 9px;
   border-radius: 10px;
   font-family: 'Arial', sans-serif;
   letter-spacing: 0.06em;
@@ -63,44 +65,44 @@
 
 /* ─── Card Body ── */
 .body {
-  padding: 14px 16px;
+  padding: 14px 16px 10px;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .title {
   font-size: 13px;
   font-weight: 400;
-  color: var(--v2-text-primary, #f0ead8);
+  color: var(--v2-text-primary, #1e1a16);
   font-family: 'Georgia', serif;
-  line-height: 1.4;
+  line-height: 1.45;
   direction: rtl;
 }
 
 /* ─── Spec row ── */
 .specRow {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   direction: rtl;
 }
 
 .specItem {
-  font-size: 11px;
-  color: var(--v2-text-secondary, #9e9580);
+  font-size: 12px;
+  color: var(--v2-text-secondary, #6b6055);
   font-family: 'Arial', sans-serif;
 }
 
 .specDot {
-  color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-muted, #a09080);
 }
 
 /* ─── Badge row ── */
 .badgeRow {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
   margin-top: 2px;
   direction: rtl;
@@ -108,80 +110,81 @@
 
 .badge {
   font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 3px 9px;
+  border-radius: 20px;
   font-family: 'Arial', sans-serif;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   border: 1px solid transparent;
+  font-weight: 500;
 }
 
-/* Category badges */
+/* Category badges — warm, readable on light bg */
 .badgeWhiteDiamond {
-  background: rgba(200, 220, 255, 0.08);
-  color: #a0b8d8;
-  border-color: rgba(160, 184, 216, 0.2);
+  background: #eef2f8;
+  color: #3a5580;
+  border-color: #c8d4e8;
 }
 
 .badgeFancyDiamond {
-  background: rgba(255, 200, 100, 0.08);
-  color: #c9a84c;
-  border-color: rgba(201, 168, 76, 0.2);
+  background: #fdf4e3;
+  color: #8a6018;
+  border-color: #e8d090;
 }
 
 .badgeColoredGemstone {
-  background: rgba(100, 200, 150, 0.08);
-  color: #6bbf94;
-  border-color: rgba(107, 191, 148, 0.2);
+  background: #eef6f0;
+  color: #2e6640;
+  border-color: #b0d8b8;
 }
 
 /* Layer badges */
 .badgePhysical {
-  background: rgba(74, 140, 111, 0.1);
-  color: #4a8c6f;
-  border-color: rgba(74, 140, 111, 0.2);
+  background: #eef5f1;
+  color: #2e6e50;
+  border-color: #a8d4bc;
 }
 
 .badgeVirtual {
-  background: rgba(74, 108, 140, 0.1);
-  color: #4a6c8c;
-  border-color: rgba(74, 108, 140, 0.2);
+  background: #eef2f8;
+  color: #2a5070;
+  border-color: #a0bcd8;
 }
 
 .badgeClientOwned {
-  background: rgba(140, 111, 74, 0.1);
-  color: #8c6f4a;
-  border-color: rgba(140, 111, 74, 0.2);
+  background: #f6f0e8;
+  color: #7a5830;
+  border-color: #d4b888;
 }
 
 /* Status badges */
 .badgeAvailable {
-  background: rgba(76, 175, 125, 0.1);
-  color: #4caf7d;
-  border-color: rgba(76, 175, 125, 0.2);
+  background: #eef5f0;
+  color: #2e7d52;
+  border-color: #a8d4b8;
 }
 
 .badgeReserved {
-  background: rgba(224, 154, 58, 0.1);
-  color: #e09a3a;
-  border-color: rgba(224, 154, 58, 0.2);
+  background: #fdf3e8;
+  color: #b06020;
+  border-color: #e8c090;
 }
 
 .badgeInUse {
-  background: rgba(107, 159, 207, 0.1);
-  color: #6b9fcf;
-  border-color: rgba(107, 159, 207, 0.2);
+  background: #eef2f8;
+  color: #2a5f90;
+  border-color: #a0bcdc;
 }
 
 .badgeSold {
-  background: rgba(122, 106, 90, 0.1);
-  color: #7a6a5a;
-  border-color: rgba(122, 106, 90, 0.2);
+  background: #f4f2ef;
+  color: #706050;
+  border-color: #c8c0b0;
 }
 
 /* ─── Actions ── */
 .cardActions {
   padding: 10px 16px 14px;
-  border-top: 1px solid var(--v2-border-subtle, #1e1b17);
+  border-top: 1px solid var(--v2-border-subtle, #ece8e1);
   display: flex;
   gap: 8px;
   direction: rtl;
@@ -189,59 +192,61 @@
 
 .addToTrayBtn {
   flex: 1;
-  padding: 7px 12px;
-  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
-  border: 1px solid rgba(201, 168, 76, 0.25);
+  padding: 8px 12px;
+  background: var(--v2-gold-muted, rgba(184,145,46,0.10));
+  border: 1px solid rgba(184, 145, 46, 0.30);
   border-radius: 6px;
-  color: var(--v2-gold-light, #e0c06a);
+  color: var(--v2-gold, #b8912e);
   font-size: 12px;
   font-family: 'Arial', sans-serif;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: all 180ms ease;
+  font-weight: 500;
 }
 
 .addToTrayBtn:hover {
-  background: rgba(201, 168, 76, 0.2);
-  border-color: rgba(201, 168, 76, 0.45);
+  background: rgba(184, 145, 46, 0.16);
+  border-color: rgba(184, 145, 46, 0.50);
 }
 
 .addToTrayBtnInTray {
-  background: transparent;
-  border-color: var(--v2-border, #2e2a22);
-  color: var(--v2-text-muted, #5c5446);
+  background: #f4f2ef;
+  border-color: var(--v2-border, #e2dcd2);
+  color: var(--v2-text-secondary, #6b6055);
   cursor: default;
 }
 
 .addToTrayBtnInTray:hover {
-  background: transparent;
-  border-color: var(--v2-border, #2e2a22);
+  background: #f4f2ef;
+  border-color: var(--v2-border, #e2dcd2);
 }
 
 .viewBtn {
-  padding: 7px 12px;
+  padding: 8px 12px;
   background: transparent;
-  border: 1px solid var(--v2-border, #2e2a22);
+  border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 6px;
-  color: var(--v2-text-secondary, #9e9580);
+  color: var(--v2-text-secondary, #6b6055);
   font-size: 12px;
   font-family: 'Arial', sans-serif;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: all 180ms ease;
 }
 
 .viewBtn:hover {
-  border-color: var(--v2-text-muted, #5c5446);
-  color: var(--v2-text-primary, #f0ead8);
+  border-color: var(--v2-text-muted, #a09080);
+  color: var(--v2-text-primary, #1e1a16);
+  background: var(--v2-surface-3, #f2ede5);
 }
 
 /* ─── Lab badge ── */
 .labChip {
   font-size: 10px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--v2-border, #2e2a22);
-  color: var(--v2-text-muted, #5c5446);
+  background: #f4f2ef;
+  border: 1px solid var(--v2-border, #e2dcd2);
+  color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
   letter-spacing: 0.06em;
 }

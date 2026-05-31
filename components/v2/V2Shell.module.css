@@ -1,43 +1,61 @@
 /*
  * LESHEM.S OS — v2 Shell CSS Module
- * Scoped to v2 components only. Does NOT modify globals.css.
- * Luxury jewelry workspace aesthetic: warm blacks, gold accents, refined typography.
+ * v2.1.1 — Visual Theme Correction
+ * Premium jewelry studio: warm ivory ground, charcoal text, soft gold accents.
+ * Scoped to .shell root only. Does NOT touch globals.css or MVP.
  */
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 .shell {
-  --v2-bg:              #0e0d0b;
-  --v2-surface:         #161410;
-  --v2-surface-2:       #1e1b17;
-  --v2-surface-3:       #252118;
-  --v2-border:          #2e2a22;
-  --v2-border-subtle:   #1e1b17;
+  /* Backgrounds — warm ivory ground */
+  --v2-bg:              #f7f4ef;
+  --v2-surface:         #ffffff;
+  --v2-surface-2:       #faf8f4;
+  --v2-surface-3:       #f2ede5;
+  --v2-surface-sidebar: #2c2925;   /* sidebar stays charcoal — elegant contrast */
 
-  --v2-gold:            #c9a84c;
-  --v2-gold-light:      #e0c06a;
-  --v2-gold-dim:        #8a6e2e;
-  --v2-gold-muted:      rgba(201, 168, 76, 0.12);
+  /* Borders */
+  --v2-border:          #e2dcd2;
+  --v2-border-subtle:   #ece8e1;
+  --v2-border-sidebar:  #3a3530;
 
-  --v2-text-primary:    #f0ead8;
-  --v2-text-secondary:  #9e9580;
-  --v2-text-muted:      #5c5446;
+  /* Gold — softer, warmer */
+  --v2-gold:            #b8912e;
+  --v2-gold-light:      #c9a84c;
+  --v2-gold-dim:        #d4b870;
+  --v2-gold-muted:      rgba(184, 145, 46, 0.10);
+  --v2-gold-sidebar:    #d4b870;
 
-  --v2-status-available:  #4caf7d;
-  --v2-status-reserved:   #e09a3a;
-  --v2-status-in-use:     #6b9fcf;
-  --v2-status-sold:       #7a6a5a;
-  --v2-status-returned:   #a06b9f;
+  /* Text — charcoal hierarchy */
+  --v2-text-primary:    #1e1a16;
+  --v2-text-secondary:  #6b6055;
+  --v2-text-muted:      #a09080;
+  --v2-text-sidebar:    #c8bfb0;
+  --v2-text-sidebar-active: #f0e8d8;
 
-  --v2-layer-physical:    #4a8c6f;
-  --v2-layer-virtual:     #4a6c8c;
-  --v2-layer-client:      #8c6f4a;
+  /* Status colours — slightly muted to suit light bg */
+  --v2-status-available:  #2e7d52;
+  --v2-status-reserved:   #b06020;
+  --v2-status-in-use:     #2a5f90;
+  --v2-status-sold:       #888070;
+  --v2-status-returned:   #7a5090;
 
+  /* Layer colours */
+  --v2-layer-physical:    #2e6e50;
+  --v2-layer-virtual:     #2a5070;
+  --v2-layer-client:      #7a5830;
+
+  /* Layout */
   --v2-sidebar-width:    220px;
   --v2-header-height:    60px;
   --v2-drawer-width:     420px;
   --v2-radius:           8px;
   --v2-radius-lg:        14px;
-  --v2-transition:       200ms ease;
+  --v2-transition:       180ms ease;
+
+  /* Shadow */
+  --v2-shadow-card:      0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
+  --v2-shadow-panel:     0 2px 12px rgba(0,0,0,0.08);
 
   font-family: 'Georgia', 'Times New Roman', serif;
   background: var(--v2-bg);
@@ -64,8 +82,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 24px;
   z-index: 100;
+  box-shadow: 0 1px 0 var(--v2-border);
 }
 
 .headerLogo {
@@ -75,19 +94,21 @@
 }
 
 .logoText {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
-  letter-spacing: 0.18em;
-  color: var(--v2-gold);
+  letter-spacing: 0.22em;
+  color: var(--v2-text-primary);
   text-transform: uppercase;
+  font-family: 'Georgia', serif;
 }
 
 .logoSub {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  letter-spacing: 0.14em;
   color: var(--v2-text-muted);
   text-transform: uppercase;
-  margin-top: 1px;
+  margin-top: 2px;
+  font-family: 'Arial', sans-serif;
 }
 
 .headerActions {
@@ -103,38 +124,39 @@
   right: 0;
   width: var(--v2-sidebar-width);
   height: calc(100vh - var(--v2-header-height));
-  background: var(--v2-surface);
-  border-left: 1px solid var(--v2-border);
+  background: var(--v2-surface-sidebar);
+  border-left: 1px solid var(--v2-border-sidebar);
   display: flex;
   flex-direction: column;
-  padding: 16px 0;
+  padding: 20px 0;
   z-index: 90;
   overflow-y: auto;
 }
 
 .navSection {
-  padding: 0 8px;
-  margin-bottom: 24px;
+  padding: 0 10px;
+  margin-bottom: 28px;
 }
 
 .navSectionLabel {
   font-size: 9px;
-  letter-spacing: 0.16em;
-  color: var(--v2-text-muted);
+  letter-spacing: 0.18em;
+  color: rgba(200, 191, 176, 0.45);
   text-transform: uppercase;
-  padding: 0 12px;
+  padding: 0 10px;
   margin-bottom: 6px;
+  font-family: 'Arial', sans-serif;
 }
 
 .navItem {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px 10px;
   border-radius: var(--v2-radius);
   cursor: pointer;
   transition: background var(--v2-transition), color var(--v2-transition);
-  color: var(--v2-text-secondary);
+  color: var(--v2-text-sidebar);
   font-size: 13px;
   font-family: 'Arial', sans-serif;
   border: none;
@@ -142,29 +164,31 @@
   width: 100%;
   text-align: right;
   text-decoration: none;
+  line-height: 1.2;
 }
 
 .navItem:hover {
-  background: var(--v2-surface-2);
-  color: var(--v2-text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--v2-text-sidebar-active);
 }
 
 .navItemActive {
-  background: var(--v2-gold-muted);
-  color: var(--v2-gold-light);
-  border: 1px solid rgba(201, 168, 76, 0.18);
+  background: rgba(212, 184, 112, 0.14);
+  color: var(--v2-gold-sidebar);
+  border: 1px solid rgba(212, 184, 112, 0.2);
 }
 
 .navItemActive:hover {
-  background: var(--v2-gold-muted);
-  color: var(--v2-gold-light);
+  background: rgba(212, 184, 112, 0.18);
+  color: var(--v2-gold-sidebar);
 }
 
 .navIcon {
-  font-size: 15px;
+  font-size: 14px;
   width: 20px;
   text-align: center;
   flex-shrink: 0;
+  opacity: 0.7;
 }
 
 /* ─── Main Content ───────────────────────────────────────────────────────── */
@@ -173,8 +197,9 @@
   margin-right: var(--v2-sidebar-width);
   flex: 1;
   min-height: calc(100vh - var(--v2-header-height));
-  padding: 28px;
+  padding: 32px 36px;
   overflow-x: hidden;
+  background: var(--v2-bg);
 }
 
 /* ─── Tray Button ────────────────────────────────────────────────────────── */
@@ -183,7 +208,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 14px;
+  padding: 7px 16px;
   background: var(--v2-surface-2);
   border: 1px solid var(--v2-border);
   border-radius: 30px;
@@ -198,11 +223,12 @@
 .trayButton:hover {
   border-color: var(--v2-gold-dim);
   color: var(--v2-text-primary);
+  background: var(--v2-surface-3);
 }
 
 .trayButtonActive {
   border-color: var(--v2-gold);
-  color: var(--v2-gold-light);
+  color: var(--v2-gold);
   background: var(--v2-gold-muted);
 }
 
@@ -211,7 +237,7 @@
   top: -6px;
   left: -6px;
   background: var(--v2-gold);
-  color: #0e0d0b;
+  color: #ffffff;
   font-size: 10px;
   font-weight: 700;
   width: 18px;
@@ -235,6 +261,7 @@
   border-top: 1px solid var(--v2-border);
   z-index: 100;
   direction: ltr;
+  box-shadow: 0 -1px 8px rgba(0,0,0,0.06);
 }
 
 .tabBarInner {
@@ -277,23 +304,25 @@
   bottom: 64px;
   left: 0;
   right: 0;
-  background: var(--v2-surface-2);
-  border-top: 1px solid var(--v2-gold-dim);
+  background: #fffdf9;
+  border-top: 1px solid var(--v2-border);
+  border-bottom: 1px solid var(--v2-border);
   padding: 10px 20px;
   z-index: 99;
   align-items: center;
   justify-content: space-between;
   font-family: 'Arial', sans-serif;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
 }
 
 .trayMobileInfo {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--v2-text-secondary);
   direction: rtl;
 }
 
 .trayMobileInfoStrong {
-  color: var(--v2-gold-light);
+  color: var(--v2-gold);
   font-weight: 600;
 }
 
@@ -301,11 +330,17 @@
   background: var(--v2-gold-muted);
   border: 1px solid var(--v2-gold-dim);
   border-radius: 20px;
-  color: var(--v2-gold-light);
+  color: var(--v2-gold);
   font-size: 12px;
-  padding: 6px 16px;
+  padding: 7px 18px;
   cursor: pointer;
   font-family: 'Arial', sans-serif;
+  font-weight: 500;
+  transition: all var(--v2-transition);
+}
+
+.trayMobileOpenBtn:hover {
+  background: rgba(184, 145, 46, 0.16);
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
@@ -316,8 +351,8 @@
 
   .main {
     margin-right: 0;
-    padding: 16px;
-    padding-bottom: 140px;
+    padding: 20px 16px;
+    padding-bottom: 150px;
   }
 
   .tabBar {
@@ -329,7 +364,7 @@
   }
 
   .trayMobileBarHidden {
-    display: none;
+    display: none !important;
   }
 
   .header {
@@ -341,7 +376,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(30, 26, 22, 0.40);
   z-index: 200;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
 }

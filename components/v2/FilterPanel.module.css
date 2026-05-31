@@ -1,8 +1,8 @@
-/* LESHEM.S OS — v2 Filter Panel styles */
+/* LESHEM.S OS — v2 Filter Panel styles — v2.1.1 light theme */
 
 .panel {
-  background: var(--v2-surface-2, #1e1b17);
-  border: 1px solid var(--v2-border, #2e2a22);
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 12px;
   padding: 20px;
   height: fit-content;
@@ -10,12 +10,13 @@
   top: calc(var(--v2-header-height, 60px) + 20px);
   direction: rtl;
   min-width: 0;
+  box-shadow: var(--v2-shadow-card, 0 1px 4px rgba(0,0,0,0.07));
 }
 
 .panelTitle {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--v2-text-muted, #5c5446);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
   margin-bottom: 18px;
@@ -30,9 +31,9 @@
 }
 
 .sectionLabel {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--v2-text-muted, #5c5446);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
   margin-bottom: 8px;
@@ -41,20 +42,20 @@
 .filterOptions {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .filterOption {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 7px 9px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 150ms ease;
-  border: none;
+  transition: background 150ms ease, color 150ms ease;
+  border: 1px solid transparent;
   background: transparent;
-  color: var(--v2-text-secondary, #9e9580);
+  color: var(--v2-text-secondary, #6b6055);
   font-size: 12px;
   font-family: 'Arial', sans-serif;
   width: 100%;
@@ -62,38 +63,43 @@
 }
 
 .filterOption:hover {
-  background: rgba(255,255,255,0.03);
+  background: var(--v2-surface-2, #faf8f4);
+  color: var(--v2-text-primary, #1e1a16);
 }
 
 .filterOptionActive {
-  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
-  color: var(--v2-gold-light, #e0c06a);
+  background: var(--v2-gold-muted, rgba(184,145,46,0.10));
+  border-color: rgba(184, 145, 46, 0.25);
+  color: var(--v2-gold, #b8912e);
 }
 
 .filterOptionActive:hover {
-  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
+  background: rgba(184, 145, 46, 0.14);
+  color: var(--v2-gold, #b8912e);
 }
 
 .filterDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  border: 1px solid currentColor;
+  border: 1.5px solid currentColor;
   flex-shrink: 0;
+  opacity: 0.5;
 }
 
 .filterDotActive {
   background: currentColor;
+  opacity: 1;
 }
 
 .clearBtn {
   width: 100%;
   margin-top: 16px;
-  padding: 7px;
+  padding: 8px;
   background: transparent;
-  border: 1px solid var(--v2-border, #2e2a22);
+  border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 6px;
-  color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-muted, #a09080);
   font-size: 11px;
   font-family: 'Arial', sans-serif;
   cursor: pointer;
@@ -101,17 +107,18 @@
 }
 
 .clearBtn:hover {
-  border-color: var(--v2-text-muted, #5c5446);
-  color: var(--v2-text-secondary, #9e9580);
+  border-color: var(--v2-text-muted, #a09080);
+  color: var(--v2-text-secondary, #6b6055);
+  background: var(--v2-surface-3, #f2ede5);
 }
 
 .divider {
   height: 1px;
-  background: var(--v2-border, #2e2a22);
+  background: var(--v2-border-subtle, #ece8e1);
   margin: 16px 0;
 }
 
-/* Mobile: horizontal scroll row */
+/* Mobile: horizontal pill row */
 @media (max-width: 768px) {
   .panel {
     position: static;
@@ -122,18 +129,21 @@
   .filterOptions {
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 6px;
   }
 
   .filterOption {
     width: auto;
     flex: 0 0 auto;
     font-size: 11px;
-    padding: 4px 10px;
-    border: 1px solid var(--v2-border, #2e2a22);
+    padding: 5px 12px;
+    border: 1px solid var(--v2-border, #e2dcd2);
     border-radius: 20px;
+    background: var(--v2-surface, #ffffff);
   }
 
   .filterOptionActive {
-    border-color: rgba(201, 168, 76, 0.4);
+    border-color: rgba(184, 145, 46, 0.40);
+    background: var(--v2-gold-muted, rgba(184,145,46,0.10));
   }
 }

@@ -1,27 +1,29 @@
-/* LESHEM.S OS — v2 Studio Dashboard styles */
+/* LESHEM.S OS — v2 Studio Dashboard styles — v2.1.1 light theme */
 
 .dashboard {
   max-width: 1100px;
 }
 
 .pageHeader {
-  margin-bottom: 32px;
+  margin-bottom: 36px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--v2-border, #e2dcd2);
 }
 
 .pageTitle {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 300;
-  letter-spacing: 0.1em;
-  color: var(--v2-text-primary, #f0ead8);
+  letter-spacing: 0.06em;
+  color: var(--v2-text-primary, #1e1a16);
   margin: 0 0 6px 0;
   font-family: 'Georgia', serif;
 }
 
 .pageSubtitle {
   font-size: 13px;
-  color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 /* ─── Metrics Row ── */
@@ -29,49 +31,55 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 
 .metricCard {
-  background: var(--v2-surface-2, #1e1b17);
-  border: 1px solid var(--v2-border, #2e2a22);
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 12px;
-  padding: 20px 22px;
+  padding: 22px 24px;
+  box-shadow: var(--v2-shadow-card, 0 1px 4px rgba(0,0,0,0.07));
+  transition: box-shadow 180ms ease;
+}
+
+.metricCard:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.09);
 }
 
 .metricLabel {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--v2-text-muted, #5c5446);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .metricValue {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 300;
-  color: var(--v2-gold, #c9a84c);
+  color: var(--v2-gold, #b8912e);
   font-family: 'Georgia', serif;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .metricDesc {
-  font-size: 11px;
-  color: var(--v2-text-secondary, #9e9580);
+  font-size: 12px;
+  color: var(--v2-text-secondary, #6b6055);
   font-family: 'Arial', sans-serif;
 }
 
 /* ─── Quick Actions ── */
 .quickActionsSection {
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 
 .sectionTitle {
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.14em;
-  color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
   margin-bottom: 14px;
@@ -79,7 +87,7 @@
 
 .quickActions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -87,63 +95,68 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   border-radius: 8px;
   font-size: 13px;
   font-family: 'Arial', sans-serif;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: all 180ms ease;
   text-decoration: none;
   border: 1px solid transparent;
+  font-weight: 500;
 }
 
 .quickActionPrimary {
-  background: var(--v2-gold-muted, rgba(201,168,76,0.12));
-  border-color: rgba(201, 168, 76, 0.3);
-  color: var(--v2-gold-light, #e0c06a);
+  background: var(--v2-gold-muted, rgba(184,145,46,0.10));
+  border-color: rgba(184, 145, 46, 0.30);
+  color: var(--v2-gold, #b8912e);
 }
 
 .quickActionPrimary:hover {
-  background: rgba(201, 168, 76, 0.2);
-  border-color: rgba(201, 168, 76, 0.5);
+  background: rgba(184, 145, 46, 0.16);
+  border-color: rgba(184, 145, 46, 0.50);
 }
 
 .quickActionSecondary {
-  background: var(--v2-surface-2, #1e1b17);
-  border-color: var(--v2-border, #2e2a22);
-  color: var(--v2-text-secondary, #9e9580);
+  background: var(--v2-surface, #ffffff);
+  border-color: var(--v2-border, #e2dcd2);
+  color: var(--v2-text-secondary, #6b6055);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .quickActionSecondary:hover {
-  border-color: var(--v2-text-muted, #5c5446);
-  color: var(--v2-text-primary, #f0ead8);
+  border-color: var(--v2-gold-dim, #d4b870);
+  color: var(--v2-text-primary, #1e1a16);
+  background: var(--v2-surface-3, #f2ede5);
 }
 
-/* ─── Recent ── */
+/* ─── Recent Section ── */
 .recentSection {
-  background: var(--v2-surface-2, #1e1b17);
-  border: 1px solid var(--v2-border, #2e2a22);
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-border, #e2dcd2);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: var(--v2-shadow-card, 0 1px 4px rgba(0,0,0,0.07));
 }
 
 .recentHeader {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--v2-border, #2e2a22);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--v2-text-muted, #5c5446);
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--v2-border, #e2dcd2);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--v2-text-muted, #a09080);
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
+  background: var(--v2-surface-2, #faf8f4);
 }
 
 .recentItem {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--v2-border-subtle, #1e1b17);
-  transition: background 200ms ease;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--v2-border-subtle, #ece8e1);
+  transition: background 150ms ease;
 }
 
 .recentItem:last-child {
@@ -151,43 +164,42 @@
 }
 
 .recentItem:hover {
-  background: rgba(255,255,255,0.02);
+  background: var(--v2-surface-2, #faf8f4);
 }
 
 .recentDot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--v2-gold-dim, #8a6e2e);
+  background: var(--v2-gold-dim, #d4b870);
   flex-shrink: 0;
 }
 
 .recentName {
   font-size: 13px;
-  color: var(--v2-text-primary, #f0ead8);
+  color: var(--v2-text-primary, #1e1a16);
   font-family: 'Arial', sans-serif;
   flex: 1;
 }
 
 .recentMeta {
   font-size: 11px;
-  color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
 }
 
 .loadingState {
-  padding: 40px 20px;
+  padding: 48px 22px;
   text-align: center;
-  color: var(--v2-text-muted, #5c5446);
+  color: var(--v2-text-muted, #a09080);
   font-family: 'Arial', sans-serif;
   font-size: 13px;
 }
 
 .goldDivider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--v2-gold-dim, #8a6e2e), transparent);
+  background: var(--v2-border, #e2dcd2);
   margin: 32px 0;
-  opacity: 0.4;
 }
 
 /* ─── Responsive ── */
@@ -198,6 +210,10 @@
 
   .metricsRow > *:last-child {
     grid-column: 1 / -1;
+  }
+
+  .pageTitle {
+    font-size: 22px;
   }
 }
 
