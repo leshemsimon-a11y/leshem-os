@@ -1,21 +1,22 @@
 /**
- * LESHEM.S OS — v2 Work Tray — v2.3
+ * LESHEM.S OS — v2 Work Tray — v2.4
  *
- * Changes from v2.2:
+ * v2.4 addition — Jewelry Builder entry:
+ *   "התחל בניית תכשיט" appears whenever the tray has ≥1 item. It opens the
+ *   RoleAssignmentModal; on confirm it builds a single JewelryBuildDraft
+ *   (createDraft) into the WorkTray context and navigates to the Builder
+ *   screen via the onOpenBuilder callback. The tray is NOT cleared.
  *
- * Single-item actions (v2.3):
- *   When exactly ONE item is in the tray and it has a valid _airtableId:
+ * v2.3 single-item actions (unchanged):
+ *   When exactly ONE item is in the tray with a valid _airtableId:
  *     • "פתח במחשבון" opens a role-selection modal then navigates to MVP.
  *     • "צור תעודה" navigates directly to MVP cert flow.
  *
- * Multi-item actions:
- *   When MORE THAN ONE item is in the tray:
- *     • Calculator button is disabled with honest label:
- *       "שליחת מספר פריטים למחשבון — בשלב הבא"
- *     • Certificate button is disabled (multiple certs = future milestone).
- *   No silent first-item-only fallback. No misleading behavior.
+ * Multi-item single-action behavior (unchanged from v2.3):
+ *   The MVP single-item calculator / certificate shortcuts stay disabled for
+ *   multiple items with honest future labels. No silent first-item fallback.
  *
- * Add/remove/clear: unchanged from v2.2.
+ * Add/remove/clear: unchanged.
  * Studio tray language only. No commerce language.
  */
 
@@ -25,6 +26,8 @@ import { useWorkTray } from '../../lib/v2/workTrayContext';
 import { getAssetDisplayTitle } from '../../lib/v2/taxonomyHelpers';
 import { buildCalcBridgeUrl, ROLE_OPTIONS } from '../../lib/v2/calculatorBridge';
 import { buildCertBridgeUrl }               from '../../lib/v2/certificateBridge';
+import { createDraft }                      from '../../lib/v2/jewelryBuildDraft';
+import RoleAssignmentModal                  from './RoleAssignmentModal';
 
 const PLACEHOLDER_ICONS = {
   white_diamond:       '◇',
@@ -105,10 +108,11 @@ function TrayRoleModal({ asset, onSelect, onCancel }) {
 }
 
 // ─── Main WorkTray ─────────────────────────────────────────────────────────────
-export default function WorkTray({ onClose }) {
-  const { items, itemCount, totalCaratWeight, removeItem, clearTray } = useWorkTray();
+export default function WorkTray({ onClose, onOpenBuilder }) {
+  const { items, itemCount, totalCaratWeight, removeItem, clearTray, setDraft } = useWorkTray();
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [roleModalOpen,   setRoleModalOpen]   = useState(false);
+  const [roleModalOpen,   setRoleModalOpen]   = useState(false);   // single-item calc role modal
+  const [buildModalOpen,  setBuildModalOpen]  = useState(false);   // multi-item build assignment
 
   // Single eligible item: exactly 1 item with a valid Airtable ID
   const singleItem =
@@ -142,6 +146,20 @@ export default function WorkTray({ onClose }) {
     window.location.href = buildCertBridgeUrl(singleItem._airtableId);
   }
 
+  // ── v2.4: Jewelry build flow ──
+  function handleStartBuild() {
+    if (itemCount === 0) return;
+    setBuildModalOpen(true);
+  }
+
+  function handleBuildConfirmed(assignments) {
+    setBuildModalOpen(false);
+    const draft = createDraft(assignments);   // pure — tray is NOT cleared
+    setDraft(draft);
+    if (onClose) onClose();
+    if (onOpenBuilder) onOpenBuilder();
+  }
+
   return (
     <>
       {roleModalOpen && singleItem && (
@@ -149,6 +167,14 @@ export default function WorkTray({ onClose }) {
           asset={singleItem}
           onSelect={handleRoleSelect}
           onCancel={() => setRoleModalOpen(false)}
+        />
+      )}
+
+      {buildModalOpen && (
+        <RoleAssignmentModal
+          items={items}
+          onConfirm={handleBuildConfirmed}
+          onCancel={() => setBuildModalOpen(false)}
         />
       )}
 
@@ -234,6 +260,20 @@ export default function WorkTray({ onClose }) {
                 נקה מגש
               </button>
             )
+          )}
+
+          {/* ── v2.4: Start jewelry build — primary action, any item count ── */}
+          {itemCount > 0 && (
+            <button
+              className={styles.buildBtn}
+              onClick={handleStartBuild}
+              type="button"
+            >
+              התחל בניית תכשיט
+              <span className={styles.buildBtnSub}>
+                {itemCount === 1 ? 'פריט אחד' : `${itemCount} פריטים`} → טיוטת תכשיט
+              </span>
+            </button>
           )}
 
           {/* ── Calculator action ── */}

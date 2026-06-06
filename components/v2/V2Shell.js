@@ -1,7 +1,12 @@
 /**
- * LESHEM.S OS — v2 Shell
+ * LESHEM.S OS — v2 Shell — v2.4
  * Outer layout, navigation, screen routing via React state.
  * No Next.js routing changes. Isolated from MVP.
+ *
+ * v2.4: registers the 'builder' screen (JewelryBuilder). The Work Tray's
+ * "התחל בניית תכשיט" flow creates a draft in WorkTray context and calls
+ * onOpenBuilder to switch to it. The Builder nav entry appears only while a
+ * draft is active, keeping navigation uncluttered when there is nothing to build.
  */
 
 import { useState } from 'react';
@@ -9,19 +14,23 @@ import styles from './V2Shell.module.css';
 import { WorkTrayProvider, useWorkTray } from '../../lib/v2/workTrayContext';
 import InventoryStudio from './screens/InventoryStudio';
 import StudioDashboard from './screens/StudioDashboard';
+import JewelryBuilder from './screens/JewelryBuilder';
 import WorkTray from './WorkTray';
 
-// Screens available in v2.1
+// Screens available in v2
 const SCREENS = {
   dashboard: 'dashboard',
   inventory: 'inventory',
+  builder:   'builder',
 };
 
 function ShellInner() {
   const [currentScreen, setCurrentScreen] = useState(SCREENS.dashboard);
   const [trayOpen, setTrayOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
-  const { itemCount, totalCaratWeight } = useWorkTray();
+  const { itemCount, totalCaratWeight, currentDraft } = useWorkTray();
+
+  const hasDraft = !!currentDraft;
 
   const navItems = [
     {
@@ -36,6 +45,15 @@ function ShellInner() {
       icon: '◇',
       screen: SCREENS.inventory,
     },
+    // Builder nav entry appears only while a draft is active
+    ...(hasDraft
+      ? [{
+          id: SCREENS.builder,
+          label: 'בניית תכשיט',
+          icon: '✦',
+          screen: SCREENS.builder,
+        }]
+      : []),
   ];
 
   // External links — navigate to existing MVP screens
@@ -127,6 +145,11 @@ function ShellInner() {
               onOpenTray={() => setTrayOpen(true)}
             />
           )}
+          {currentScreen === SCREENS.builder && (
+            <JewelryBuilder
+              onBackToInventory={() => setCurrentScreen(SCREENS.inventory)}
+            />
+          )}
         </main>
       </div>
 
@@ -137,7 +160,10 @@ function ShellInner() {
             className={styles.overlay}
             onClick={() => setTrayOpen(false)}
           />
-          <WorkTray onClose={() => setTrayOpen(false)} />
+          <WorkTray
+            onClose={() => setTrayOpen(false)}
+            onOpenBuilder={() => setCurrentScreen(SCREENS.builder)}
+          />
         </>
       )}
 
@@ -184,6 +210,17 @@ function ShellInner() {
             <span className={styles.tabIcon}>◇</span>
             <span>מלאי</span>
           </button>
+          {hasDraft && (
+            <button
+              className={`${styles.tabItem} ${
+                currentScreen === SCREENS.builder ? styles.tabItemActive : ''
+              }`}
+              onClick={() => setCurrentScreen(SCREENS.builder)}
+            >
+              <span className={styles.tabIcon}>✦</span>
+              <span>בנייה</span>
+            </button>
+          )}
           <a className={styles.tabItem} href="/">
             <span className={styles.tabIcon}>⊞</span>
             <span>מחשבון</span>
