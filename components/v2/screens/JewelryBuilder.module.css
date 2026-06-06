@@ -372,6 +372,15 @@
   border-color: rgba(184,145,46,0.62);
 }
 
+.calcBtnLive:disabled,
+.calcBtnLive[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--v2-surface, #ffffff);
+  border-color: var(--v2-border, #e2dcd2);
+  color: var(--v2-text-muted, #a09080);
+}
+
 .calcBtnFuture,
 .saveBtnFuture {
   padding: 11px 18px;
@@ -533,4 +542,112 @@
     margin-right: 0;
     justify-content: center;
   }
+}
+
+/* ── v2.5 Handoff confirmation summary ───────────────────────────────────── */
+.summaryOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(54, 69, 79, 0.55);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.summaryCard {
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-border, #e2dcd2);
+  border-radius: 14px;
+  padding: 22px 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(54, 69, 79, 0.28);
+}
+
+.summaryTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--v2-text, #36454f);
+  font-family: 'Arial', sans-serif;
+  margin-bottom: 4px;
+}
+
+.summarySub {
+  font-size: 12px;
+  color: var(--v2-text-muted, #8a9aa2);
+  font-family: 'Arial', sans-serif;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--v2-border, #eee6da);
+}
+
+.summaryLabel {
+  font-size: 12.5px;
+  color: var(--v2-text-muted, #7a8e98);
+  font-family: 'Arial', sans-serif;
+}
+
+.summaryValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text, #36454f);
+  font-family: 'Arial', sans-serif;
+}
+
+.summaryNote {
+  font-size: 11px;
+  color: var(--v2-gold, #b8912e);
+  font-family: 'Arial', sans-serif;
+  line-height: 1.55;
+  padding: 6px 0 2px;
+}
+
+.summaryActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.summaryConfirm {
+  flex: 1;
+  padding: 11px 18px;
+  background: var(--v2-gold-muted, rgba(184,145,46,0.12));
+  border: 1.5px solid rgba(184,145,46,0.45);
+  border-radius: 8px;
+  color: var(--v2-gold, #b8912e);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Arial', sans-serif;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.summaryConfirm:hover {
+  background: rgba(184,145,46,0.20);
+  border-color: rgba(184,145,46,0.65);
+}
+
+.summaryCancel {
+  padding: 11px 18px;
+  background: transparent;
+  border: 1px solid var(--v2-border, #d8d0c4);
+  border-radius: 8px;
+  color: var(--v2-text-muted, #7a8e98);
+  font-size: 12.5px;
+  font-family: 'Arial', sans-serif;
+  cursor: pointer;
+}
+
+.summaryCancel:hover {
+  background: var(--v2-surface-3, #f2ede5);
 }

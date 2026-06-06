@@ -61,6 +61,15 @@ import { InventoryStudio }     from "../components/inventory/InventoryStudio";
 import { ProductIntakeWizard } from "../components/inventory/ProductIntakeWizard";
 import { CommandBar }          from "../components/inventory/CommandBar";
 
+// v2.5: builder → calculator handoff (localStorage payload + ?v2build=1)
+import {
+  readBuildHandoff,
+  clearBuildHandoff,
+  composeBuildNote,
+  BUILD_BRIDGE_FLAG,
+  MVP_SIDE_ROW_LIMIT,
+} from "../lib/v2/builderCalculatorBridge";
+
 const PAGE_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; }
@@ -195,6 +204,7 @@ export default function LeshemOS() {
   const [calcLoadItem,  setCalcLoadItem]  = useState(null);  // item awaiting New/Add choice
   const [calcRole,      setCalcRole]      = useState(null);  // chosen role: center/side/part
   const [calcBatch,     setCalcBatch]     = useState(null);  // { items, useAs } awaiting New/Add
+  const [calcBuild,     setCalcBuild]     = useState(null);  // v2.5: { payload } awaiting New/Add
 
   // v5.4.1: jewelry_part cert confirmation
   const [certPartConfirm, setCertPartConfirm] = useState(null); // item
@@ -235,15 +245,14 @@ export default function LeshemOS() {
    * Nothing happens if neither param is present — zero impact on MVP.
    */
   useEffect(() => {
-    const v2item = router.query?.v2item;
-    const v2cert = router.query?.v2cert;
+    const v2item  = router.query?.v2item;
+    const v2cert  = router.query?.v2cert;
+    const v2build = router.query?.[BUILD_BRIDGE_FLAG];
 
     // No bridge params — exit immediately, no side effects.
-    if (!v2item && !v2cert) return;
+    if (!v2item && !v2cert && !v2build) return;
     // Router not ready yet (SSR pass).
     if (!router.isReady) return;
-
-    const recordId = v2item || v2cert;
 
     // If inventory not yet loaded, trigger a fetch.
     // The effect re-runs when invStones populates (dependency below).
@@ -269,8 +278,40 @@ export default function LeshemOS() {
       return; // re-runs when invStones updates
     }
 
-    // Inventory loaded — find the matching item.
+    // ── v2.5: full Builder draft handoff ──────────────────────────────────
+    // Reads the structured payload from localStorage, re-resolves every record
+    // ID from the MVP's own invStones, then opens the existing New/Add dialog.
+    if (v2build) {
+      const payload = readBuildHandoff();
+      clearBuildHandoff();
+      router.replace("/", undefined, { shallow: true });
+      if (!payload) return;
+
+      const findItem = (id) => invStones.find((s) => s.id === id) || null;
+      const centerItems = (payload.centers || [])
+        .map((c) => findItem(c.id))
+        .filter(Boolean);
+      const sideEntries = (payload.sides || [])
+        .map((s) => ({ item: findItem(s.id), setting: s.setting }))
+        .filter((e) => e.item);
+
+      // Nothing resolvable — abort quietly (item may be out of inventory).
+      if (centerItems.length === 0 && sideEntries.length === 0) return;
+
+      // Stage the build and open the existing CalcLoadDialog (New / Add).
+      setCalcBuild({ payload, centerItems, sideEntries });
+      setCalcLoadItem({
+        name: "טיוטת בניית תכשיט",
+        caratWeight:
+          centerItems.reduce((s, i) => s + (parseFloat(i.caratWeight) || 0), 0) || null,
+        __build: true,
+      });
+      return;
+    }
+
+    // Inventory loaded — find the matching item (single-item bridges).
     // invStones is in normalizeStone() shape: item.id = Airtable record ID.
+    const recordId = v2item || v2cert;
     const item = invStones.find((s) => s.id === recordId);
     if (!item) return; // item not found in current inventory — no action
 
@@ -346,6 +387,14 @@ export default function LeshemOS() {
   }, []);
 
   const handleCalcLoadSelected = useCallback((mode) => {
+    // v2.5: full Builder draft takes priority when staged.
+    if (calcBuild) {
+      const build = calcBuild;
+      setCalcBuild(null);
+      setCalcLoadItem(null);
+      applyBuildToCfg(build, mode);
+      return;
+    }
     // Batch path takes priority when a tray batch is awaiting New/Add.
     if (calcBatch) {
       const { items, useAs } = calcBatch;
@@ -358,7 +407,7 @@ export default function LeshemOS() {
     setCalcLoadItem(null);
     setCalcRole(null);
     if (item) prefillCalcFromItem(item, role || "center", mode);
-  }, [calcBatch, calcLoadItem, calcRole]);
+  }, [calcBuild, calcBatch, calcLoadItem, calcRole]);
 
   /**
    * Runs the actual prefill. mode ∈ { "new", "add" }, default "new".
@@ -528,6 +577,114 @@ export default function LeshemOS() {
     handleTabChange("calc");
   }, [handleTabChange]);
 
+  // ── v2.5: full Builder draft → calculator ──────────────────────────────────
+  /**
+   * Applies a v2 Jewelry Build draft to the calculator with a load mode.
+   * mode ∈ { "new", "add" } (default "new").
+   *
+   * Mapping (safe-only; no pricing invented, no new cfg fields):
+   *   • Center stones  → each a SEPARATE center stone (never collapsed),
+   *     deduped by inventoryId. First stone mirrored into editable center fields.
+   *   • Side groups    → first two only, into the engine's ss1/ss2 rows
+   *     (type, carat, count, shape, setting). Third+ go into the note.
+   *   • Components     → selected-components NOTE only.
+   *   • Metal          → cfg.metal ONLY when an exact safe MVP mapping exists.
+   *   • Side color/clarity, overflow, unmapped metal, draft notes → cfg.notes.
+   *
+   * Every item is the MVP's own normalizeStone shape (re-resolved in the bridge
+   * receiver). Manual override remains possible afterward.
+   */
+  const applyBuildToCfg = useCallback((build, mode) => {
+    const isNew = mode !== "add";
+    const { payload, centerItems, sideEntries } = build;
+    const centers = centerItems || [];
+    const sides   = sideEntries || [];
+
+    setCfg((prev) => {
+      const base = isNew ? { ...DCFG, centerStones: [] } : { ...prev };
+      if (!Array.isArray(base.centerStones)) base.centerStones = [];
+
+      // ── Center stones — separate items ──
+      centers.forEach((item) => {
+        const totalCt = parseFloat(item.caratWeight) || 0;
+        const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
+        const ctPer   = totalCt > 0 ? totalCt / count : 0;
+        const entry = {
+          source:            "inventory",
+          inventoryId:       item.id,
+          stoneType:         item.stoneType || "",
+          shape:             item.cutForm   || item.stoneShape || "",
+          carat:             ctPer > 0 ? `${ctPer.toFixed(2)} ct` : "",
+          color:             item.color     || "",
+          clarity:           item.clarity   || "",
+          cost:              item.costUsd   || 0,
+          certificateLab:    item.certLab   || "",
+          certificateNumber: item.certNumber || item.laserInscription || "",
+        };
+        if (!base.centerStones.some((s) => s.inventoryId === item.id)) {
+          base.centerStones = [...base.centerStones, entry];
+        }
+      });
+      // Mirror first center into editable engine fields (source of truth).
+      if (centers.length > 0) {
+        const first = centers[0];
+        const ft = parseFloat(first.caratWeight) || 0;
+        const fc = Math.max(1, parseInt(first.stoneCount, 10) || 1);
+        const fper = ft > 0 ? ft / fc : 0;
+        if (first.stoneType) base.centerType = first.stoneType;
+        if (fper > 0)        base.centerCt   = fper.toFixed(2);
+        base.centerCount = String(fc);
+        if (first.color   && first.stoneType === "Diamond") base.centerColor   = first.color;
+        if (first.clarity && first.stoneType === "Diamond") base.centerClarity = first.clarity;
+      }
+
+      // ── Side groups — first two rows only ──
+      const rows = ["ss1", "ss2"];
+      sides.slice(0, MVP_SIDE_ROW_LIMIT).forEach((entry, idx) => {
+        const item    = entry.item;
+        const prefix  = rows[idx];
+        const totalCt = parseFloat(item.caratWeight) || 0;
+        const count   = Math.max(1, parseInt(item.stoneCount, 10) || 1);
+        const ctPer   = totalCt > 0 ? totalCt / count : 0;
+        if (item.stoneType) base[`${prefix}Type`] = item.stoneType;
+        if (ctPer > 0)      base[`${prefix}Ct`]   = ctPer.toFixed(3);
+        base[`${prefix}Count`]     = String(count);
+        base[`${prefix}Manual`]    = "";
+        base[`${prefix}PriceMode`] = "total";
+        if (item.cutForm || item.stoneShape) base[`${prefix}Shape`] = item.cutForm || item.stoneShape;
+        if (entry.setting) base[`${prefix}Setting`] = entry.setting; // mapped v2→MVP setting
+      });
+
+      // ── Metal — only on exact safe mapping ──
+      if (payload && payload.metal) base.metal = payload.metal;
+
+      // ── Notes — components, overflow, side grades, unmapped metal, draft notes ──
+      const buildNote = composeBuildNote(payload || {});
+      if (buildNote) {
+        base.notes = isNew
+          ? buildNote
+          : [base.notes, buildNote].filter(Boolean).join("\n");
+      }
+
+      return base;
+    });
+
+    const sideMapped   = Math.min(sides.length, MVP_SIDE_ROW_LIMIT);
+    const sideOverflow = Math.max(0, sides.length - MVP_SIDE_ROW_LIMIT);
+    const parts = [
+      centers.length ? `${centers.length} אבני מרכז` : null,
+      sides.length ? `${sideMapped} אבני צד${sideOverflow ? ` (+${sideOverflow} בהערה)` : ""}` : null,
+    ].filter(Boolean);
+
+    setCalcSrcBanner({
+      name:  `טיוטת בנייה → ${parts.join(" · ") || "טיוטה"}`,
+      useAs: "build",
+      mode:  isNew ? "new" : "add",
+    });
+
+    handleTabChange("calc");
+  }, [handleTabChange]);
+
   // ── v5.4.1 Task 3: correct certificate creation ───────────────────────────
   const handleCertFromItem = useCallback((item) => {
     const mapping = mapProductTypeToCertificate(item.productType);
@@ -666,7 +823,12 @@ export default function LeshemOS() {
         <CalcLoadDialog
           item={calcLoadItem}
           onSelect={handleCalcLoadSelected}
-          onCancel={() => { setCalcLoadItem(null); setCalcRole(null); }}
+          onCancel={() => {
+            setCalcLoadItem(null);
+            setCalcRole(null);
+            setCalcBatch(null);
+            setCalcBuild(null);
+          }}
         />
       )}
 

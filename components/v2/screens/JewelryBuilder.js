@@ -24,7 +24,6 @@ import { useWorkTray } from '../../../lib/v2/workTrayContext';
 import {
   getStoneTypeLabel,
   getShapeLabel,
-  getOriginGrowthLabel,
 } from '../../../lib/v2/taxonomyHelpers';
 import {
   removeCenterStone,
@@ -35,10 +34,15 @@ import {
   setSideGroupSetting,
   setMetal,
   setNotes,
-  isSingleCenterStoneDraft,
   draftEntryCount,
 } from '../../../lib/v2/jewelryBuildDraft';
-import { buildCalcBridgeUrl } from '../../../lib/v2/calculatorBridge';
+import {
+  buildHandoffPayload,
+  writeBuildHandoff,
+  buildHandoffUrl,
+  mapMetalToMvp,
+  MVP_SIDE_ROW_LIMIT,
+} from '../../../lib/v2/builderCalculatorBridge';
 
 // Metal placeholder options (UI only — no pricing lookup)
 const METAL_TYPES = [
@@ -208,6 +212,7 @@ function EmptyRow({ text }) {
 export default function JewelryBuilder({ onBackToInventory }) {
   const { currentDraft, setDraft, clearDraft } = useWorkTray();
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   // No active draft — guidance state
   if (!currentDraft) {
@@ -228,8 +233,10 @@ export default function JewelryBuilder({ onBackToInventory }) {
   }
 
   const draft = currentDraft;
-  const singleCenter = isSingleCenterStoneDraft(draft);
   const entryCount = draftEntryCount(draft);
+  const hasMappable =
+    draft.centerStones.length > 0 ||
+    draft.sideStoneGroups.length > 0;
 
   // ── Draft mutators (pure helpers → setDraft) ──
   const handleRemoveCenter   = (ref)     => setDraft(removeCenterStone(draft, ref));
@@ -243,12 +250,30 @@ export default function JewelryBuilder({ onBackToInventory }) {
   const handleNotes          = (v)       => setDraft(setNotes(draft, v));
 
   // ── Calculator handoff ──
+  // Step 1: open the confirmation summary (no navigation yet).
   function handleOpenCalculator() {
-    if (!singleCenter) return; // guarded — button is disabled otherwise
-    const stone = draft.centerStones[0];
-    if (!stone || !stone._ref) return;
-    window.location.href = buildCalcBridgeUrl(stone._ref, 'center');
+    if (!hasMappable) return;
+    setShowSummary(true);
   }
+
+  // Step 2: user confirmed from the summary → write payload, navigate to MVP.
+  // The MVP shows the existing "Start New / Add to Current" dialog after this.
+  function handleConfirmHandoff() {
+    const payload = buildHandoffPayload(draft);
+    writeBuildHandoff(payload);
+    setShowSummary(false);
+    window.location.href = buildHandoffUrl();
+  }
+
+  // Hebrew metal label for the summary (UI only).
+  const metalLabel = (() => {
+    const t = METAL_TYPES.find((m) => m.value === (draft.metal?.metalType || ''));
+    const k = KARAT_OPTIONS.find((o) => o.value === (draft.metal?.karat || ''));
+    const parts = [k?.value ? k.label : null, t?.value ? t.label : null].filter(Boolean);
+    return parts.join(' ');
+  })();
+  const metalMapsToMvp = !!mapMetalToMvp(draft.metal);
+  const sideOverflow = Math.max(0, draft.sideStoneGroups.length - MVP_SIDE_ROW_LIMIT);
 
   function handleDiscardConfirmed() {
     clearDraft();
@@ -385,16 +410,14 @@ export default function JewelryBuilder({ onBackToInventory }) {
 
       {/* ── Footer actions ── */}
       <div className={styles.footer}>
-        {singleCenter ? (
-          <button className={styles.calcBtnLive} onClick={handleOpenCalculator}>
-            פתח במחשבון MVP
-          </button>
-        ) : (
-          <button className={styles.calcBtnFuture} type="button" disabled aria-disabled="true">
-            שליחת טיוטה מלאה למחשבון
-            <span className={styles.futureNote}>בשלב הבא</span>
-          </button>
-        )}
+        <button
+          className={styles.calcBtnLive}
+          onClick={handleOpenCalculator}
+          disabled={!hasMappable}
+          aria-disabled={!hasMappable}
+        >
+          פתח במחשבון
+        </button>
 
         <button className={styles.saveBtnFuture} type="button" disabled aria-disabled="true">
           שמור טיוטה
@@ -413,6 +436,85 @@ export default function JewelryBuilder({ onBackToInventory }) {
           </button>
         )}
       </div>
+
+      {/* ── Handoff confirmation summary ── */}
+      {showSummary && (
+        <div
+          className={styles.summaryOverlay}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSummary(false); }}
+        >
+          <div className={styles.summaryCard} dir="rtl">
+            <div className={styles.summaryTitle}>פתיחה במחשבון · סיכום</div>
+            <div className={styles.summarySub}>
+              כך תיטען הטיוטה למחשבון. ניתן יהיה לערוך הכול ידנית לאחר מכן.
+            </div>
+
+            {/* Center stones */}
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>אבני מרכז</span>
+              <span className={styles.summaryValue}>
+                {draft.centerStones.length === 0
+                  ? '—'
+                  : `${draft.centerStones.length} אבנים נפרדות`}
+              </span>
+            </div>
+
+            {/* Side groups */}
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>אבני צד</span>
+              <span className={styles.summaryValue}>
+                {draft.sideStoneGroups.length === 0
+                  ? '—'
+                  : `${Math.min(draft.sideStoneGroups.length, MVP_SIDE_ROW_LIMIT)} קבוצות → שורות מחשבון`}
+              </span>
+            </div>
+            {sideOverflow > 0 && (
+              <div className={styles.summaryNote}>
+                {sideOverflow} קבוצות אבני צד נוספות יעברו כהערה (המחשבון תומך בשתי שורות צד).
+              </div>
+            )}
+
+            {/* Components */}
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>רכיבים</span>
+              <span className={styles.summaryValue}>
+                {draft.components.length === 0
+                  ? '—'
+                  : `${draft.components.length} רכיבים → הערה`}
+              </span>
+            </div>
+            {draft.components.length > 0 && (
+              <div className={styles.summaryNote}>
+                רכיבים אינם מתומחרים במחשבון בשלב זה — יופיעו כהערת "רכיבים שנבחרו".
+              </div>
+            )}
+
+            {/* Metal */}
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>מתכת</span>
+              <span className={styles.summaryValue}>
+                {metalLabel
+                  ? (metalMapsToMvp ? metalLabel : `${metalLabel} · תיבחר ידנית`)
+                  : 'תיבחר ידנית'}
+              </span>
+            </div>
+            {metalLabel && !metalMapsToMvp && (
+              <div className={styles.summaryNote}>
+                שילוב המתכת הנבחר אינו ממופה אוטומטית — בחר מתכת ידנית במחשבון.
+              </div>
+            )}
+
+            <div className={styles.summaryActions}>
+              <button className={styles.summaryConfirm} onClick={handleConfirmHandoff}>
+                המשך למחשבון
+              </button>
+              <button className={styles.summaryCancel} onClick={() => setShowSummary(false)}>
+                חזרה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
