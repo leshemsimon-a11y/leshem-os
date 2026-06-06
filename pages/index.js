@@ -1,5 +1,13 @@
 /**
- * pages/index.js  —  LESHEM.S OS  v5.5
+ * pages/index.js  —  LESHEM.S OS  v5.5.2
+ *
+ * v5.5.2 — v2 URL bridge (Milestone v2.3):
+ *   useEffect detects ?v2item=recXXX&role=... and ?v2cert=recXXX query params.
+ *   Finds matching item from invStones (already-normalized MVP shape).
+ *   Triggers existing prefill / cert seed flows respectively.
+ *   Params cleared after consumption to prevent re-fire.
+ *   If invStones not yet loaded, triggers fetch then re-runs via effect dependency.
+ *   No changes to pricing, calculator logic, certificate templates, or other MVP features.
  *
  * v5.5 — Work Tray multi-item → calculator:
  *   handleSendBatchToCalculator(items, useAs) loads every selected tray item
@@ -36,6 +44,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Head from "next/head";
+import { useRouter } from "next/router";
 
 import { DCFG, C }                        from "../lib/constants";
 import { calcApp, fmt, buildMetalPrices } from "../lib/calculations";
@@ -168,6 +177,8 @@ function CalcLoadDialog({ item, onSelect, onCancel }) {
 // ─── Main app ─────────────────────────────────────────────────────────────────
 export default function LeshemOS() {
 
+  const router = useRouter();
+
   const [cfg,              setCfg]              = useState({ ...DCFG, centerStones: [] });
   const [currency,         setCurrency]         = useState("USD");
   const [tab,              setTab]              = useState("calc");
@@ -207,6 +218,75 @@ export default function LeshemOS() {
     const t = setTimeout(() => setCalcSrcBanner(null), 4000);
     return () => clearTimeout(t);
   }, [calcSrcBanner]);
+
+  // ── v5.5.2: v2 URL bridge ─────────────────────────────────────────────────
+  /**
+   * Detects query params set by the v2 UI:
+   *   ?v2item=recXXX&role=center  → calculator prefill
+   *   ?v2cert=recXXX              → certificate seed
+   *
+   * Finds the matching item from the already-loaded invStones array.
+   * If invStones is empty (not yet fetched), triggers a fetch then re-runs
+   * via the invStones dependency when the data arrives.
+   *
+   * Params are cleared after consumption (router.replace) to prevent
+   * re-firing on back-navigation or re-render.
+   *
+   * Nothing happens if neither param is present — zero impact on MVP.
+   */
+  useEffect(() => {
+    const v2item = router.query?.v2item;
+    const v2cert = router.query?.v2cert;
+
+    // No bridge params — exit immediately, no side effects.
+    if (!v2item && !v2cert) return;
+    // Router not ready yet (SSR pass).
+    if (!router.isReady) return;
+
+    const recordId = v2item || v2cert;
+
+    // If inventory not yet loaded, trigger a fetch.
+    // The effect re-runs when invStones populates (dependency below).
+    if (invStones.length === 0 && !invFetched.current) {
+      invFetched.current = true;
+      setInvLoading(true);
+      Promise.all([
+        fetch("/api/airtable/stones").then((r) => r.json()),
+        fetch("/api/airtable/metals").then((r) => r.json()),
+      ])
+        .then(([stonesData, metalsData]) => {
+          const metals = metalsData.metals || [];
+          setInvStones(stonesData.stones || []);
+          setInvMetals(metals);
+          setInvLoading(false);
+          const derived = buildMetalPrices(metals);
+          if (Object.keys(derived).length > 0) setMetalPrices(derived);
+        })
+        .catch((err) => {
+          setInvError("Failed to load inventory — " + err.message);
+          setInvLoading(false);
+        });
+      return; // re-runs when invStones updates
+    }
+
+    // Inventory loaded — find the matching item.
+    // invStones is in normalizeStone() shape: item.id = Airtable record ID.
+    const item = invStones.find((s) => s.id === recordId);
+    if (!item) return; // item not found in current inventory — no action
+
+    // Clear params before triggering flows to prevent re-fire.
+    router.replace("/", undefined, { shallow: true });
+
+    if (v2item) {
+      // Calculator bridge: role comes from query param.
+      const role = router.query?.role || "center";
+      handleRoleChosenForCalc(item, role);
+    } else if (v2cert) {
+      // Certificate bridge: use existing handleCertFromItem flow.
+      handleCertFromItem(item);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query, invStones]);
 
   const doReset = useCallback(() => {
     setCfg({ ...DCFG, centerStones: [] });
