@@ -45,25 +45,68 @@ export default function InventoryStudio({ onOpenTray }) {
   const { itemCount } = useWorkTray();
   const showTrayColumn = itemCount > 0;
 
-  // Load from existing API endpoint — no new routes
+  // Load from existing API endpoint — no new routes.
+  // Degrades gracefully (like StudioDashboard): a soft API error that still
+  // returns a usable stones array renders normally; one malformed record never
+  // blanks the whole grid; the red banner appears ONLY on a true hard failure
+  // where no usable data can be rendered. Raw server/Airtable errors are logged
+  // for debugging but never surfaced in the UI.
   useEffect(() => {
     async function loadInventory() {
+      setLoading(true);
+      setError(null);
+
+      let data = null;
+      let parsedOk = false;
       try {
-        setLoading(true);
-        setError(null);
         const res = await fetch('/api/airtable/stones');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const rawRecords = Array.isArray(data)
-          ? data
-          : data.records || data.items || data.stones || data.inventory || [];
-        setAllAssets(rawRecords.map(normalizeAsset).filter(Boolean));
-      } catch (err) {
-        console.error('[v2 InventoryStudio] Load error:', err);
-        setError('לא ניתן לטעון את המלאי. אנא נסה שנית.');
-      } finally {
-        setLoading(false);
+        // Don't throw on a non-OK status — the API still returns { stones: [] }
+        // (or partial data) on a soft error. Log it and inspect the body.
+        if (!res.ok) {
+          console.warn('[v2 InventoryStudio] API responded with status', res.status);
+        }
+        try {
+          data = await res.json();
+          parsedOk = true;
+        } catch (parseErr) {
+          console.warn('[v2 InventoryStudio] Could not parse response JSON:', parseErr);
+        }
+        if (data && data.error) {
+          // Server-provided soft error — log only, never shown to the user.
+          console.warn('[v2 InventoryStudio] Server reported:', data.error);
+        }
+      } catch (netErr) {
+        // Network-level failure — nothing came back at all.
+        console.warn('[v2 InventoryStudio] Network error reaching inventory API:', netErr);
       }
+
+      // Accept the real expected shape { stones: [...] } first, then fall back
+      // to other historical shapes / a bare array.
+      const rawRecords = Array.isArray(data)
+        ? data
+        : (data && (data.stones || data.records || data.items || data.inventory)) || [];
+
+      // Per-item defensive normalization: a single bad record is skipped, not
+      // allowed to crash the whole inventory.
+      const normalized = [];
+      for (const rec of rawRecords) {
+        try {
+          const asset = normalizeAsset(rec);
+          if (asset) normalized.push(asset);
+        } catch (itemErr) {
+          console.warn('[v2 InventoryStudio] Skipped a malformed inventory record:', itemErr);
+        }
+      }
+
+      // Hard failure = we could not obtain any usable data at all
+      // (no parseable body AND nothing to render). Otherwise render what we have,
+      // including a legitimately empty inventory (handled by the empty state).
+      if (!parsedOk && normalized.length === 0) {
+        setError('לא ניתן לטעון את המלאי. אנא נסה שנית.');
+      }
+
+      setAllAssets(normalized);
+      setLoading(false);
     }
     loadInventory();
   }, []);
