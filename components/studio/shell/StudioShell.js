@@ -12,6 +12,7 @@
 //     by the rail; it uses the full width and the drawer overlays on demand.
 
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { tokens, FONT_HREF } from '../shared/tokens';
 import useIsMobile from '../shared/useIsMobile';
@@ -21,26 +22,52 @@ import DashboardHome from './DashboardHome';
 import { findItem } from './navConfig';
 import { UI_HE } from '../../../lib/studio/labels';
 
-export default function StudioShell() {
-  const [active, setActive] = useState('dashboard');
+export default function StudioShell({
+  initialSection = 'dashboard',
+  // Optional content override for built sub-pages (e.g. /studio/inventory).
+  // When provided and the active section matches `initialSection`, this is
+  // rendered instead of the default section content. Navigating to another
+  // section still falls back to the default content/future-state behavior.
+  renderContent = null,
+}) {
+  const [active, setActive] = useState(initialSection);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile(880);
+  const router = useRouter();
   const item = findItem(active);
 
-  const handleSelect = (id) => {
-    setActive(id);
-    setDrawerOpen(false); // closing is a no-op visually on desktop
+  // Sections that have a dedicated /studio sub-page route.
+  const SECTION_ROUTES = {
+    dashboard: '/studio',
+    inventory: '/studio/inventory',
   };
 
-  const Content = () =>
-    item && item.built ? (
-      <DashboardHome />
-    ) : (
+  const handleSelect = (id) => {
+    setDrawerOpen(false);
+    const route = SECTION_ROUTES[id];
+    // If the section has its own route and we're not already there, navigate.
+    if (route && route !== router.pathname) {
+      router.push(route);
+      return;
+    }
+    // Otherwise switch the active section in-page (future states, dashboard).
+    setActive(id);
+  };
+
+  const Content = () => {
+    if (renderContent && active === initialSection) {
+      return renderContent();
+    }
+    if (item && item.built) {
+      return <DashboardHome />;
+    }
+    return (
       <FutureSection
         titleHe={item ? item.labelHe : ''}
         descriptionHe={item ? item.descHe : ''}
       />
     );
+  };
 
   return (
     <>

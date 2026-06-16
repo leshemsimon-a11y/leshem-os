@@ -31,7 +31,7 @@ export const NAV_ITEMS = [
     labelHe: UI_HE.nav.inventory,
     group: 'create',
     glyph: '❖',
-    built: false,
+    built: true,
     descHe: 'ניהול אבנים, פרסלים, חלקים ותכשיטים כמרחב יצירה.',
   },
   {
