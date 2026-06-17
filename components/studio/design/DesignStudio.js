@@ -1,19 +1,21 @@
 // components/studio/design/DesignStudio.js
 //
-// LESHEM.S OS — Jewelry Design Studio (Clean 3 foundation)
+// LESHEM.S OS — Jewelry Design Studio (Clean 3 foundation → Clean 3.2)
 //
 // The first design surface. Stone-first: it begins from the items chosen in
 // the Work Tray, shows each with its assigned role, and reserves clearly
 // disabled space for the future Reference + Stone → Jewelry Design
 // Visualization workflow (reference/media, models, render brief).
 //
-// Clean 3 builds ONLY this foundation:
-//   • selected stone(s), grouped by assigned role (center stones stay separate)
-//   • a design-direction placeholder (not an input yet)
-//   • reserved, disabled future areas (reference / models / render)
+// Clean 3.2 adds a DESIGN DRAFT SUMMARY + STATUS at the top of the board:
+//   • a calm status line (needs-role / ready)
+//   • counts — total stones, center stones, side stones, and parcel/component/
+//     pair/reference counts when present
+// Center stones stay SEPARATE items (never collapsed into a quantity).
 //
-// NOT in scope: uploads, links, sketches, 3D, model records, renders, pricing,
-// certificates, Airtable. All future affordances are visibly disabled.
+// Still NOT in scope: uploads, links, sketches, 3D, model records, renders,
+// pricing, certificates, Airtable. All future affordances remain visibly
+// disabled, exactly as before.
 //
 // Mobile-first: everything stacks; the design board reads top-to-bottom with
 // generous spacing and no wide tables or hover-only actions.
@@ -26,6 +28,7 @@ import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   buildDesignGroups,
   summarizeDraft,
+  draftStatus,
   trayItemTitle,
   DESIGN_ROLE,
 } from '../../../lib/studio/designDraft';
@@ -75,6 +78,74 @@ function RoleGroup({ group }) {
   );
 }
 
+// Clean 3.2 — design draft summary (counts) + honest status line.
+function DraftSummary({ summary, status }) {
+  const S = DESIGN_HE.summary;
+  const ready = status.tone === 'ready';
+
+  // Build the count chips; show optional roles only when they exist.
+  const stats = [
+    { key: 'total', label: S.totalStones, value: summary.total, always: true },
+    {
+      key: 'center',
+      label: S.centerStones,
+      value: summary.centerStoneCount,
+      always: true,
+      accent: true,
+    },
+    { key: 'side', label: S.sideStones, value: summary.sideStoneCount, always: true },
+    { key: 'pair', label: S.pairs, value: summary.pairCount },
+    { key: 'parcel', label: S.parcels, value: summary.parcelCount },
+    { key: 'component', label: S.components, value: summary.componentCount },
+    { key: 'reference', label: S.references, value: summary.referenceCount },
+    { key: 'unassigned', label: S.unassigned, value: summary.unassigned },
+  ].filter((s) => s.always || s.value > 0);
+
+  return (
+    <section style={styles.summarySection} dir="rtl">
+      <div
+        style={{
+          ...styles.summaryStatus,
+          ...(ready ? styles.summaryReady : styles.summaryPending),
+        }}
+      >
+        <span
+          style={{
+            ...styles.summaryDot,
+            background: ready ? tokens.color.gold : tokens.color.goldSoft,
+          }}
+          aria-hidden="true"
+        />
+        <div style={styles.summaryStatusText}>
+          <span style={styles.summaryStatusTitle}>
+            {ready
+              ? DESIGN_HE.status.readyTitle
+              : DESIGN_HE.status.needsRoleTitle}
+          </span>
+          <span style={styles.summaryStatusBody}>
+            {ready ? DESIGN_HE.status.readyBody : DESIGN_HE.status.needsRoleBody}
+          </span>
+        </div>
+      </div>
+
+      <div style={styles.statGrid}>
+        {stats.map((s) => (
+          <div
+            key={s.key}
+            style={{
+              ...styles.stat,
+              ...(s.accent ? styles.statAccent : null),
+            }}
+          >
+            <span style={styles.statValue}>{s.value}</span>
+            <span style={styles.statLabel}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function FutureArea({ title, desc, children }) {
   return (
     <section style={styles.area}>
@@ -93,8 +164,9 @@ export default function DesignStudio() {
   const tray = useWorkTray();
 
   const groups = buildDesignGroups(tray.items);
-  const { total } = summarizeDraft(tray.items);
-  const hasItems = total > 0;
+  const summary = summarizeDraft(tray.items);
+  const status = draftStatus(tray.items);
+  const hasItems = summary.total > 0;
 
   const goTray = () => router.push('/studio/tray');
 
@@ -121,6 +193,9 @@ export default function DesignStudio() {
         </div>
       ) : (
         <>
+          {/* 0. Design draft summary + status (Clean 3.2) */}
+          <DraftSummary summary={summary} status={status} />
+
           {/* 1. Selected stones, grouped by role */}
           <section style={styles.section}>
             <h2 style={styles.sectionTitle}>{DESIGN_HE.sections.stones}</h2>
@@ -246,6 +321,87 @@ const styles = {
     maxWidth: '420px',
     margin: '0 0 8px',
   },
+
+  // ---- Clean 3.2 draft summary ----
+  summarySection: {
+    marginBottom: '30px',
+    paddingBottom: '26px',
+    borderBottom: `1px solid ${tokens.color.cardEdge}`,
+  },
+  summaryStatus: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: tokens.radius.md,
+    marginBottom: '16px',
+  },
+  summaryPending: {
+    background: tokens.color.pearl,
+    border: `1px solid ${tokens.color.goldFaint}`,
+  },
+  summaryReady: {
+    background: tokens.color.sageFaint,
+    border: `1px solid ${tokens.color.sage}`,
+  },
+  summaryDot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    marginTop: '5px',
+    flexShrink: 0,
+  },
+  summaryStatusText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: 0,
+  },
+  summaryStatusTitle: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  summaryStatusBody: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: tokens.color.inkSoft,
+  },
+  statGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+  },
+  stat: {
+    flex: '1 1 120px',
+    minWidth: '110px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    padding: '12px 14px',
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+  },
+  statAccent: {
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`,
+  },
+  statValue: {
+    fontFamily: tokens.font.display,
+    fontWeight: 700,
+    fontSize: '24px',
+    color: tokens.color.charcoal,
+    lineHeight: 1,
+  },
+  statLabel: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    color: tokens.color.inkSoft,
+  },
+
   section: {
     marginBottom: '30px',
     paddingBottom: '26px',

@@ -1,23 +1,26 @@
 // components/studio/tray/TrayItemCard.js
 //
-// LESHEM.S OS — Work Tray Item Card (Clean 3)
+// LESHEM.S OS — Work Tray Item Card (Clean 3 → Clean 3.2)
 //
 // One item in the Work Tray, designed mobile-first as a stacked card:
 //   • thumbnail + identity (stone type, shape, carat, color/clarity, SKU)
-//   • role selector (תפקיד בעיצוב) — large, thumb-friendly <select>
+//   • role selector (תפקיד בעיצוב) — tap-friendly CHIPS (Clean 3.2)
+//   • an honest "עדיין לא הוגדר תפקיד" marker while unassigned
 //   • remove action (הסרה)
+//
+// Clean 3.2 change: the role <select> is replaced by <RoleChips>, so choosing
+// a role feels like choosing what an object IS on the tray — visual and
+// thumb-friendly. The role can always be changed; the unassigned state stays
+// clearly marked. Center stones remain SEPARATE items (no quantity collapse).
 //
 // The Airtable record id is NEVER displayed. Identity uses the same field
 // precedence as the inventory card/drawer. No commerce language.
 
 import { tokens } from '../shared/tokens';
 import MediaPreview from '../media/MediaPreview';
+import RoleChips from '../shared/RoleChips';
 import { TRAY_HE } from '../../../lib/studio/labels';
-import {
-  ASSIGNABLE_ROLES,
-  roleHe,
-  DESIGN_ROLE,
-} from '../../../lib/studio/designDraft';
+import { DESIGN_ROLE, normalizeRole } from '../../../lib/studio/designDraft';
 
 function identity(snapshot) {
   const s = snapshot || {};
@@ -30,13 +33,19 @@ function identity(snapshot) {
 export default function TrayItemCard({ item, onRole, onRemove }) {
   if (!item) return null;
   const { title, carat, colorClarity, shape, sku } = identity(item.snapshot);
-  const role = item.role || DESIGN_ROLE.UNASSIGNED;
+  const role = normalizeRole(item.role);
+  const isUnassigned = role === DESIGN_ROLE.UNASSIGNED;
 
   return (
     <div style={styles.card} dir="rtl">
       <div style={styles.top}>
         <div style={styles.thumb}>
-          <MediaPreview src={item.snapshot && item.snapshot.primaryImage} alt={title} height={84} cover />
+          <MediaPreview
+            src={item.snapshot && item.snapshot.primaryImage}
+            alt={title}
+            height={84}
+            cover
+          />
         </div>
 
         <div style={styles.identity}>
@@ -47,25 +56,15 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
           {shape && <span style={styles.shape}>{shape}</span>}
           {colorClarity && <span style={styles.detail}>{colorClarity}</span>}
           {sku && <span style={styles.sku}>{sku}</span>}
-        </div>
-      </div>
 
-      <div style={styles.controls}>
-        <label style={styles.roleField}>
-          <span style={styles.roleCaption}>{TRAY_HE.roleLabel}</span>
-          <select
-            value={role}
-            onChange={(e) => onRole && onRole(item.id, e.target.value)}
-            style={styles.roleSelect}
-            aria-label={TRAY_HE.roleLabel}
-          >
-            {ASSIGNABLE_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {roleHe(r)}
-              </option>
-            ))}
-          </select>
-        </label>
+          {/* Honest, always-visible state marker while no role is set. */}
+          {isUnassigned && (
+            <span style={styles.unassignedMark}>
+              <span style={styles.unassignedDot} aria-hidden="true" />
+              {TRAY_HE.unassignedMark}
+            </span>
+          )}
+        </div>
 
         <button
           type="button"
@@ -75,6 +74,18 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
         >
           {TRAY_HE.remove}
         </button>
+      </div>
+
+      <div style={styles.controls}>
+        <div style={styles.roleCaptionRow}>
+          <span style={styles.roleCaption}>{TRAY_HE.roleLabel}</span>
+          <span style={styles.roleHint}>{TRAY_HE.roleChangeHint}</span>
+        </div>
+        <RoleChips
+          value={role}
+          onChange={(next) => onRole && onRole(item.id, next)}
+          ariaLabel={`${TRAY_HE.roleLabel}: ${title}`}
+        />
       </div>
     </div>
   );
@@ -148,44 +159,54 @@ const styles = {
     textAlign: 'right',
     marginTop: '2px',
   },
+  unassignedMark: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 600,
+    color: tokens.color.inkSoft,
+  },
+  unassignedDot: {
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    background: tokens.color.goldSoft,
+    display: 'inline-block',
+  },
   controls: {
     display: 'flex',
-    alignItems: 'flex-end',
+    flexDirection: 'column',
+    gap: '8px',
+    paddingTop: '12px',
+    borderTop: `1px solid ${tokens.color.cardEdge}`,
+  },
+  roleCaptionRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
     gap: '10px',
     flexWrap: 'wrap',
   },
-  roleField: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '5px',
-    flex: 1,
-    minWidth: '160px',
-  },
   roleCaption: {
     fontFamily: tokens.font.body,
-    fontSize: '11px',
-    fontWeight: 600,
+    fontSize: '12px',
+    fontWeight: 700,
     letterSpacing: '0.04em',
-    color: tokens.color.inkFaint,
-    paddingInlineStart: '4px',
+    color: tokens.color.inkSoft,
   },
-  roleSelect: {
-    width: '100%',
-    minHeight: '48px',
+  roleHint: {
     fontFamily: tokens.font.body,
-    fontSize: '15px',
-    color: tokens.color.charcoal,
-    background: tokens.color.ivory,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.md,
-    padding: '10px 14px',
-    cursor: 'pointer',
+    fontSize: '11px',
+    color: tokens.color.inkFaint,
   },
   remove: {
-    minHeight: '48px',
-    padding: '12px 18px',
+    minHeight: '44px',
+    padding: '10px 16px',
     fontFamily: tokens.font.body,
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 600,
     color: tokens.color.inkSoft,
     background: 'transparent',
@@ -193,5 +214,7 @@ const styles = {
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    flexShrink: 0,
+    alignSelf: 'flex-start',
   },
 };

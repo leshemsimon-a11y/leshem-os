@@ -1,12 +1,19 @@
 // components/studio/tray/WorkTray.js
 //
-// LESHEM.S OS — Work Tray (Clean 3)
+// LESHEM.S OS — Work Tray (Clean 3 → Clean 3.2)
 //
 // The review surface for the current creative selection (מגש עבודה). It is a
 // TEMPORARY draft — not saved inventory — and says so plainly. From here the
-// jeweller can review each selected item, assign its design role, remove an
-// item, clear the whole tray (with confirmation), and open the Jewelry Design
-// Studio to begin working around the stones.
+// jeweller can review each selected item, assign its design role (now via
+// tap-friendly chips), remove an item, clear the whole tray (with
+// confirmation), and open the Jewelry Design Studio to begin working around
+// the stones.
+//
+// Clean 3.2 adds honest draft validation:
+//   • An elegant status strip reflects three states — empty / needs-role /
+//     ready — without ever blocking progress (continuing is always allowed).
+//   • Readiness is stone-first: at least one CENTER STONE marks the draft as
+//     ready to begin. Until then the strip gently suggests assigning roles.
 //
 // Mobile-first: stacked item cards, generous tap targets, and a sticky bottom
 // action bar holding the primary "open design" action so it is always within
@@ -19,11 +26,41 @@ import { tokens } from '../shared/tokens';
 import useIsMobile from '../shared/useIsMobile';
 import { TRAY_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
-import { summarizeDraft } from '../../../lib/studio/designDraft';
+import { summarizeDraft, draftStatus } from '../../../lib/studio/designDraft';
 import TrayItemCard from './TrayItemCard';
 import ClearTrayConfirm from './ClearTrayConfirm';
 
 const useWorkTray = createUseWorkTray(React);
+
+function StatusStrip({ status }) {
+  if (!status || status.key === 'empty') return null;
+
+  const ready = status.tone === 'ready';
+  const stripStyle = {
+    ...styles.statusStrip,
+    ...(ready ? styles.statusReady : styles.statusPending),
+  };
+  const title = ready
+    ? TRAY_HE.status.readyTitle
+    : TRAY_HE.status.needsRoleTitle;
+  const body = ready ? TRAY_HE.status.readyBody : TRAY_HE.status.needsRoleBody;
+
+  return (
+    <div style={stripStyle} dir="rtl">
+      <span
+        style={{
+          ...styles.statusDot,
+          background: ready ? tokens.color.gold : tokens.color.goldSoft,
+        }}
+        aria-hidden="true"
+      />
+      <div style={styles.statusText}>
+        <span style={styles.statusTitle}>{title}</span>
+        <span style={styles.statusBody}>{body}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function WorkTray() {
   const isMobile = useIsMobile(880);
@@ -31,7 +68,9 @@ export default function WorkTray() {
   const tray = useWorkTray();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { total, assigned } = summarizeDraft(tray.items);
+  const summary = summarizeDraft(tray.items);
+  const { total, assigned, readyToBegin } = summary;
+  const status = draftStatus(tray.items);
   const hasItems = tray.items.length > 0;
 
   const goDesign = () => router.push('/studio/design');
@@ -77,6 +116,8 @@ export default function WorkTray() {
             </button>
           </div>
 
+          <StatusStrip status={status} />
+
           <div style={styles.list}>
             {tray.items.map((item) => (
               <TrayItemCard
@@ -94,9 +135,14 @@ export default function WorkTray() {
               <button type="button" onClick={goInventory} style={styles.secondaryBtn}>
                 {TRAY_HE.backToInventory}
               </button>
-              <button type="button" onClick={goDesign} style={styles.primaryBtn}>
-                {TRAY_HE.openDesign}
-              </button>
+              <div style={styles.desktopPrimaryWrap}>
+                <span style={styles.desktopReadyHint}>
+                  {readyToBegin ? TRAY_HE.readyHint : TRAY_HE.notReadyHint}
+                </span>
+                <button type="button" onClick={goDesign} style={styles.primaryBtn}>
+                  {TRAY_HE.openDesign}
+                </button>
+              </div>
             </div>
           )}
         </>
@@ -107,7 +153,8 @@ export default function WorkTray() {
         <div style={styles.stickyBar}>
           <div style={styles.stickyInner}>
             <span style={styles.stickyHint}>
-              {assigned}/{total} · {TRAY_HE.openDesignHint}
+              {assigned}/{total} ·{' '}
+              {readyToBegin ? TRAY_HE.readyHint : TRAY_HE.openDesignHint}
             </span>
             <button type="button" onClick={goDesign} style={styles.stickyBtn}>
               {TRAY_HE.openDesign}
@@ -200,7 +247,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '12px',
-    marginBottom: '16px',
+    marginBottom: '12px',
   },
   count: {
     fontFamily: tokens.font.body,
@@ -220,6 +267,47 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   },
+  statusStrip: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: tokens.radius.md,
+    marginBottom: '16px',
+  },
+  statusPending: {
+    background: tokens.color.pearl,
+    border: `1px solid ${tokens.color.goldFaint}`,
+  },
+  statusReady: {
+    background: tokens.color.sageFaint,
+    border: `1px solid ${tokens.color.sage}`,
+  },
+  statusDot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    marginTop: '5px',
+    flexShrink: 0,
+  },
+  statusText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: 0,
+  },
+  statusTitle: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  statusBody: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: tokens.color.inkSoft,
+  },
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -227,11 +315,22 @@ const styles = {
   },
   desktopActions: {
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: '12px',
     marginTop: '28px',
     paddingTop: '20px',
     borderTop: `1px solid ${tokens.color.cardEdge}`,
+  },
+  desktopPrimaryWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+  },
+  desktopReadyHint: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    color: tokens.color.inkFaint,
   },
   primaryBtn: {
     minHeight: '50px',

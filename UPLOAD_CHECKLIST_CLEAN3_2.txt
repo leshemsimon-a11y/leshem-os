@@ -1,0 +1,61 @@
+LESHEM.S OS — Clean 3.2 Upload Checklist
+Role Assignment (tap chips) + Design Draft Validation
+
+This ZIP is ROOT-READY: unzip at the project root; paths map 1:1.
+No new packages. No package.json change. Vercel builds on push.
+
+NEW (1)
+  components/studio/shared/RoleChips.js
+    Tap-friendly role chip selector. Large targets (>=44px), wraps (no
+    horizontal scroll), every chip stays tappable so role can always change,
+    "ללא תפקיד" chip stays visibly distinct. Pure presentation; reads the
+    canonical role list + Hebrew labels from lib/studio/designDraft.js.
+
+CHANGED (5)
+  lib/studio/designDraft.js
+    ADDITIVE. summarizeDraft() now returns the original keys
+    (total / assigned / unassigned) PLUS per-role counts (centerStoneCount,
+    sideStoneCount, pairCount, parcelCount, componentCount, referenceCount)
+    and readyToBegin (true iff >=1 center stone). New: normalizeRole(),
+    draftStatus() -> { key:'empty'|'needsRole'|'ready', tone }. Grouping +
+    role vocab unchanged. Center stones still emitted as separate groups.
+
+  lib/studio/labels.js
+    ADDITIVE ONLY (0 original lines removed; +34 lines). TRAY_HE gains
+    unassignedMark, roleChangeHint, status{}, readyHint, notReadyHint.
+    DESIGN_HE gains summary{} and status{}.
+
+  components/studio/tray/TrayItemCard.js
+    Role <select> replaced by <RoleChips>. Adds inline "עדיין לא הוגדר תפקיד"
+    marker while unassigned. Identity / thumbnail / remove unchanged. Record
+    id still never rendered.
+
+  components/studio/tray/WorkTray.js
+    Adds an honest draft status strip (needs-role / ready) above the list and
+    a readiness-aware hint next to the primary "פתחו את סטודיו העיצוב" action.
+    Continuing is never blocked. Empty state, clear-confirm, sticky mobile bar
+    all unchanged.
+
+  components/studio/design/DesignStudio.js
+    Adds a design-draft summary block at the top: status line + counts
+    (total / center / side, plus pair/parcel/component/reference/unassigned
+    when present). Role groups and all disabled future areas unchanged.
+
+NOT TOUCHED (do not re-upload from here)
+  pages/studio/tray.js, pages/studio/design.js (mount components only),
+  tokens.js, taxonomy.js, workTray.js, navConfig.js, StudioShell.js, NavRail.js,
+  AddToTrayButton.js, ClearTrayConfirm.js, WorkTrayIndicator.js, MediaPreview.js,
+  AssetDrawer.js, InventoryStudio.js, and everything under / and /v2.
+
+AFTER UPLOAD
+  1. git status should show exactly these 6 files (1 new, 5 changed).
+  2. No new deps, no package.json change.
+  3. Vercel build on push.
+
+ACCEPTANCE
+  / works · /v2 works · /studio · /studio/inventory · add-to-tray + indicator ·
+  /studio/tray opens · item appears · role assignable via chips · role
+  changeable · item removable · empty tray state · /studio/design opens ·
+  stones + roles + summary counts + status appear · future areas disabled ·
+  mobile usable (no tiny buttons / no wide tables / no horizontal scroll) ·
+  no Airtable write · no Stability call · no pricing/certificate regression.
