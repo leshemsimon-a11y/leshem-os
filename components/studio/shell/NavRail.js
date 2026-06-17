@@ -10,12 +10,18 @@
 // not yet built. Selecting an item updates the active section in the parent
 // shell; on mobile it also closes the drawer via onSelect's side effect there.
 
+import * as React from 'react';
 import { tokens } from '../shared/tokens';
 import { UI_HE } from '../../../lib/studio/labels';
 import { NAV_GROUPS, itemsByGroup } from './navConfig';
+import { createUseWorkTray } from '../../../lib/studio/workTray';
+
+const useWorkTray = createUseWorkTray(React);
 
 export default function NavRail({ active, onSelect, variant = 'desktop' }) {
   const isMobile = variant === 'mobile';
+  const tray = useWorkTray();
+  const trayCount = tray.hydrated ? tray.count : 0;
 
   return (
     <nav
@@ -55,6 +61,9 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
                       {item.glyph}
                     </span>
                     <span style={styles.itemLabel}>{item.labelHe}</span>
+                    {item.id === 'workTray' && trayCount > 0 && (
+                      <span style={styles.itemCount}>{trayCount}</span>
+                    )}
                     {!item.built && (
                       <span style={styles.itemBadge}>{UI_HE.futureBadge}</span>
                     )}
@@ -181,6 +190,20 @@ const styles = {
     background: tokens.color.pearl,
     borderRadius: '999px',
     padding: '2px 8px',
+  },
+  itemCount: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '20px',
+    height: '20px',
+    padding: '0 6px',
+    fontFamily: tokens.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    color: tokens.color.ivory,
+    background: tokens.color.gold,
+    borderRadius: '999px',
   },
   activeBar: {
     position: 'absolute',

@@ -1,30 +1,33 @@
-LESHEM.S OS — Clean 3 Upload Checklist
-Work Tray + Jewelry Design Studio Foundation
+LESHEM.S OS — Clean 3.1 Upload Checklist
+Work Tray Visibility Indicator + Design Studio North-Star Alignment
 
 This ZIP is ROOT-READY: unzip at the project root; paths map 1:1.
+It contains the full Clean 3 + Clean 3.1 studio bundle (everything changed across both).
 
-NEW FILES (10)
-  lib/studio/workTray.js
-  lib/studio/designDraft.js
-  components/studio/tray/AddToTrayButton.js
-  components/studio/tray/TrayItemCard.js
-  components/studio/tray/WorkTray.js
-  components/studio/tray/ClearTrayConfirm.js
-  components/studio/design/DesignStudio.js
-  components/studio/design/DesignFutureRail.js
-  pages/studio/tray.js
-  pages/studio/design.js
+NEW IN 3.1 (1)
+  components/studio/tray/WorkTrayIndicator.js   (desktop top pill + mobile floating tray button)
 
-CHANGED FILES (4) — minimal edits only
-  lib/studio/labels.js                       (additive: TRAY_HE, DESIGN_HE; nav 'builder' label -> 'סטודיו עיצוב'. No existing keys removed/renamed.)
-  components/studio/shell/navConfig.js        (workTray.built -> true; builder.built -> true + design wording. No structural change.)
-  components/studio/shell/StudioShell.js      (SECTION_ROUTES: added workTray -> /studio/tray, builder -> /studio/design. Nothing else.)
-  components/studio/drawer/AssetDrawer.js     (added "הוסף למגש עבודה" action below the title block via <AddToTrayButton/>. One style key added. No other changes.)
+CHANGED IN 3.1 (6)
+  components/studio/shell/StudioShell.js        (mount <WorkTrayIndicator/> in both layouts; reads router.pathname only — no routing change)
+  components/studio/shell/NavRail.js            (live count badge on the "מגש עבודה" nav item via the tray hook; no signature change)
+  components/studio/tray/AddToTrayButton.js     (transient "נוסף למגש ✓" confirmation on add; timeout-based, no deps)
+  lib/studio/labels.js                          (additive: TRAY_HE.added; DESIGN_HE collection + clientOutput sections/labels/descriptions)
+  components/studio/design/DesignFutureRail.js  (added disabled variants: collection, clientOutput)
+  components/studio/design/DesignStudio.js      (render two new disabled future areas: אוסף/עיצוב באצ׳, פלט ללקוח)
+
+CARRIED FROM CLEAN 3 (also in this ZIP — unchanged since 3)
+  NEW:   lib/studio/workTray.js, lib/studio/designDraft.js,
+         components/studio/tray/{AddToTrayButton*,TrayItemCard,WorkTray,ClearTrayConfirm}.js,
+         components/studio/design/{DesignStudio*,DesignFutureRail*}.js,
+         pages/studio/{tray,design}.js
+  EDITED: lib/studio/labels.js*, components/studio/shell/navConfig.js,
+          components/studio/shell/StudioShell.js*, components/studio/drawer/AssetDrawer.js
+  (* also touched again in 3.1)
 
 NOT SHIPPED ON PURPOSE (unchanged — do NOT re-upload from here)
-  lib/studio/taxonomy.js, lib/labels/productLabels.js, and all other Clean 1/2/2.5 files
-  StoneCard.js, InventoryStudio.js, InventoryToolbar.js — UNTOUCHED (drawer-only add)
+  tokens.js, taxonomy.js, productLabels.js, StoneCard.js, InventoryStudio.js,
+  InventoryToolbar.js, DashboardHome.js, and all other Clean 1/2/2.5 files.
 
 AFTER UPLOAD
-  1. git status should show exactly the 14 files above.
-  2. Vercel will build on push (no new deps, no package.json change).
+  1. git status should show the 16 files in this ZIP.
+  2. No new deps, no package.json change — Vercel builds on push.

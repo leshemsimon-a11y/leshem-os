@@ -10,7 +10,7 @@
 // Uses the workTray store via the React hook factory. No network, no Airtable,
 // no commerce language.
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
 import { TRAY_HE } from '../../../lib/studio/labels';
@@ -20,16 +20,39 @@ const useWorkTray = createUseWorkTray(React);
 
 export default function AddToTrayButton({ asset, block = true }) {
   const tray = useWorkTray();
+  const [justAdded, setJustAdded] = useState(false);
+  const timerRef = useRef(null);
 
   const inTray = useMemo(() => {
     if (!asset) return false;
     return tray.items.some((it) => it.id === asset.key);
   }, [asset, tray.items]);
 
+  // Clear any pending timer on unmount or when switching asset.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Reset the transient confirmation if the drawer switches to another asset.
+    setJustAdded(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, [asset && asset.key]);
+
   if (!asset) return null;
 
-  const handleAdd = () => tray.add(asset);
-  const handleRemove = () => tray.remove(asset.key);
+  const handleAdd = () => {
+    tray.add(asset);
+    setJustAdded(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setJustAdded(false), 2200);
+  };
+  const handleRemove = () => {
+    setJustAdded(false);
+    tray.remove(asset.key);
+  };
 
   if (inTray) {
     return (
@@ -38,7 +61,7 @@ export default function AddToTrayButton({ asset, block = true }) {
           <span style={styles.check} aria-hidden="true">
             ✓
           </span>
-          <span>{TRAY_HE.inTray}</span>
+          <span>{justAdded ? TRAY_HE.added : TRAY_HE.inTray}</span>
         </div>
         <button
           type="button"

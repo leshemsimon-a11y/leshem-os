@@ -63,6 +63,24 @@ export default function DesignFutureRail({ variant }) {
     );
   }
 
+  if (variant === 'collection') {
+    return (
+      <div style={styles.grid}>
+        <FutureTile label={F.buildCollection} glyph="❖" />
+        <FutureTile label={F.bulkDesign} glyph="⊞" />
+      </div>
+    );
+  }
+
+  if (variant === 'clientOutput') {
+    return (
+      <div style={styles.grid}>
+        <FutureTile label={F.exportClient} glyph="⇧" />
+        <FutureTile label={F.clientDataTable} glyph="▦" />
+      </div>
+    );
+  }
+
   return null;
 }
 

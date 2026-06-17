@@ -19,6 +19,7 @@ import useIsMobile from '../shared/useIsMobile';
 import FutureSection from '../shared/FutureSection';
 import NavRail from './NavRail';
 import DashboardHome from './DashboardHome';
+import WorkTrayIndicator from '../tray/WorkTrayIndicator';
 import { findItem } from './navConfig';
 import { UI_HE } from '../../../lib/studio/labels';
 
@@ -108,6 +109,9 @@ export default function StudioShell({
             </div>
           </main>
 
+          {/* Always-nearby Work Tray shortcut (shown only when tray has items) */}
+          <WorkTrayIndicator variant="mobile" />
+
           {drawerOpen && (
             <>
               <div
@@ -137,6 +141,7 @@ export default function StudioShell({
           <NavRail active={active} onSelect={handleSelect} variant="desktop" />
           <main style={styles.desktopMain}>
             <div style={styles.desktopContentWrap}>
+              <WorkTrayIndicator variant="desktop" />
               <Content />
             </div>
           </main>

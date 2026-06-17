@@ -164,6 +164,20 @@ export default function DesignStudio() {
           >
             <DesignFutureRail variant="render" />
           </FutureArea>
+
+          <FutureArea
+            title={DESIGN_HE.sections.collection}
+            desc={DESIGN_HE.areaDesc.collection}
+          >
+            <DesignFutureRail variant="collection" />
+          </FutureArea>
+
+          <FutureArea
+            title={DESIGN_HE.sections.clientOutput}
+            desc={DESIGN_HE.areaDesc.clientOutput}
+          >
+            <DesignFutureRail variant="clientOutput" />
+          </FutureArea>
         </>
       )}
     </div>
