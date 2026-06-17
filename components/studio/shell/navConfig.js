@@ -39,7 +39,7 @@ export const NAV_ITEMS = [
     labelHe: UI_HE.nav.workTray,
     group: 'create',
     glyph: '▤',
-    built: false,
+    built: true,
     descHe: 'הפריטים שנבחרו לעבודה הנוכחית.',
   },
   {
@@ -47,8 +47,8 @@ export const NAV_ITEMS = [
     labelHe: UI_HE.nav.builder,
     group: 'create',
     glyph: '✦',
-    built: false,
-    descHe: 'בניית תכשיט סביב האבן — לוח עיצוב.',
+    built: true,
+    descHe: 'סטודיו עיצוב — תחילה האבן, וסביבה נבנה התכשיט.',
   },
   {
     id: 'models',

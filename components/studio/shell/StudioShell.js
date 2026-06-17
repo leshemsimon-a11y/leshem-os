@@ -40,6 +40,8 @@ export default function StudioShell({
   const SECTION_ROUTES = {
     dashboard: '/studio',
     inventory: '/studio/inventory',
+    workTray: '/studio/tray',
+    builder: '/studio/design',
   };
 
   const handleSelect = (id) => {

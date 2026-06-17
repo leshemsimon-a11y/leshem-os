@@ -1,0 +1,30 @@
+LESHEM.S OS — Clean 3 Upload Checklist
+Work Tray + Jewelry Design Studio Foundation
+
+This ZIP is ROOT-READY: unzip at the project root; paths map 1:1.
+
+NEW FILES (10)
+  lib/studio/workTray.js
+  lib/studio/designDraft.js
+  components/studio/tray/AddToTrayButton.js
+  components/studio/tray/TrayItemCard.js
+  components/studio/tray/WorkTray.js
+  components/studio/tray/ClearTrayConfirm.js
+  components/studio/design/DesignStudio.js
+  components/studio/design/DesignFutureRail.js
+  pages/studio/tray.js
+  pages/studio/design.js
+
+CHANGED FILES (4) — minimal edits only
+  lib/studio/labels.js                       (additive: TRAY_HE, DESIGN_HE; nav 'builder' label -> 'סטודיו עיצוב'. No existing keys removed/renamed.)
+  components/studio/shell/navConfig.js        (workTray.built -> true; builder.built -> true + design wording. No structural change.)
+  components/studio/shell/StudioShell.js      (SECTION_ROUTES: added workTray -> /studio/tray, builder -> /studio/design. Nothing else.)
+  components/studio/drawer/AssetDrawer.js     (added "הוסף למגש עבודה" action below the title block via <AddToTrayButton/>. One style key added. No other changes.)
+
+NOT SHIPPED ON PURPOSE (unchanged — do NOT re-upload from here)
+  lib/studio/taxonomy.js, lib/labels/productLabels.js, and all other Clean 1/2/2.5 files
+  StoneCard.js, InventoryStudio.js, InventoryToolbar.js — UNTOUCHED (drawer-only add)
+
+AFTER UPLOAD
+  1. git status should show exactly the 14 files above.
+  2. Vercel will build on push (no new deps, no package.json change).

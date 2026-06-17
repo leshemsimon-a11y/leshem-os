@@ -1,38 +1,68 @@
 // components/studio/drawer/AssetDrawer.js
 //
-// LESHEM.S OS — Asset Drawer / Inspect View (Clean 2)
+// LESHEM.S OS — Asset Drawer / Inspect View (Clean 2.5)
 //
-// Opens over the inventory page (no navigation away). Loupe-style inspection:
-// large media, gemological detail, measurements, certificate/lab identifiers,
-// a clearly-marked internal/studio section (cost, supplier, location, notes),
-// and an English-ready preview of how the piece will read on a future
-// client-facing certificate.
+// Opens over the inventory page (no navigation away). Organized into five
+// clear sections per the Clean 2.5 spec:
+//
+//   1. Overview              — stone type, category, origin, shape, carat, measurements
+//   2. Gemological Details   — color, clarity, cut/polish/symmetry, fluorescence,
+//                              treatment, geographic origin (when available)
+//   3. Certificate / Report  — lab, report number, report link, cert media,
+//                              + future "Upload Certificate" / "Add Report Link"
+//   4. Inventory / Internal  — layer, status, supplier, SKU, cost, internal notes
+//   5. Media                 — image preview, extra media, + future "Upload Media"
 //
 // HARD RULES honored:
-//   • The Airtable record id is NEVER rendered.
-//   • Internal/studio fields are visibly separated and labelled internal.
-//   • The "client-facing preview" section uses ENGLISH-ready labels only and
-//     never leaks Hebrew or internal IDs.
+//   • The Airtable record id is NEVER rendered (SKU is the only visible id).
+//   • Internal/studio fields are visibly separated + labelled internal.
+//   • The client-facing preview uses ENGLISH-ready labels only — no Hebrew,
+//     no internal IDs.
+//   • Future affordances are non-functional placeholders, clearly marked.
 
 import { useEffect } from 'react';
 import { tokens } from '../shared/tokens';
 import MediaPreview from '../media/MediaPreview';
+import FuturePlaceholder from '../shared/FuturePlaceholder';
+import AddToTrayButton from '../tray/AddToTrayButton';
+import { INVENTORY_HE, CLIENT_EN } from '../../../lib/studio/labels';
 
-function Row({ label, value }) {
+const F = INVENTORY_HE.fields;
+const S = INVENTORY_HE.sections;
+
+function Row({ label, value, ltr = false }) {
   if (value == null || value === '') return null;
   return (
     <div style={styles.row}>
       <span style={styles.rowLabel}>{label}</span>
-      <span style={styles.rowValue}>{value}</span>
+      <span style={{ ...styles.rowValue, direction: ltr ? 'ltr' : 'rtl' }}>
+        {value}
+      </span>
     </div>
   );
 }
 
-function Section({ title, accent, children, hasContent }) {
-  if (!hasContent) return null;
+function LinkRow({ label, href }) {
+  if (!href) return null;
+  return (
+    <div style={styles.row}>
+      <span style={styles.rowLabel}>{label}</span>
+      <a href={href} target="_blank" rel="noopener noreferrer" style={styles.link}>
+        {INVENTORY_HE.open}
+      </a>
+    </div>
+  );
+}
+
+function Section({ title, accent, children }) {
   return (
     <section style={styles.section}>
-      <h3 style={{ ...styles.sectionTitle, ...(accent ? styles.sectionAccent : null) }}>
+      <h3
+        style={{
+          ...styles.sectionTitle,
+          ...(accent ? styles.sectionAccent : null),
+        }}
+      >
         {title}
       </h3>
       <div style={styles.sectionBody}>{children}</div>
@@ -41,7 +71,6 @@ function Section({ title, accent, children, hasContent }) {
 }
 
 export default function AssetDrawer({ asset, onClose }) {
-  // Close on Escape.
   useEffect(() => {
     if (!asset) return undefined;
     const onKey = (e) => {
@@ -54,54 +83,34 @@ export default function AssetDrawer({ asset, onClose }) {
   if (!asset) return null;
 
   const title =
-    asset.name || asset.stoneTypeHe || asset.productTypeHe || 'פריט מלאי';
+    asset.stoneTypeHe || asset.productTypeHe || asset.name || 'פריט מלאי';
 
   const measurements =
-    asset.measLength || asset.measWidth || asset.measHeight
+    asset.measLength != null ||
+    asset.measWidth != null ||
+    asset.measHeight != null
       ? [asset.measLength, asset.measWidth, asset.measHeight]
           .map((m) => (m != null ? m : '—'))
           .join(' × ') + ' מ״מ'
       : null;
 
-  const hasGemology =
-    asset.color ||
-    asset.clarity ||
-    asset.cutGrade ||
-    asset.polish ||
-    asset.symmetry ||
-    asset.caratWeight != null ||
-    asset.stoneCount != null ||
-    asset.fluorescenceIntensity ||
-    asset.transparency ||
-    asset.growthMethod ||
-    asset.fancyColorHue ||
-    asset.fancyColorIntensity;
+  const fluorescence = [asset.fluorescenceIntensity, asset.fluorescenceColor]
+    .filter(Boolean)
+    .join(' · ');
 
-  const hasCert =
-    asset.certLab ||
-    asset.laserInscription ||
-    asset.verificationId ||
-    asset.verificationUrl ||
-    asset.certPdfUrl;
-
-  const hasInternal =
-    asset.costUsd != null ||
-    asset.supplierName ||
-    asset.physicalLocation ||
-    asset.ownerClient ||
-    asset.virtualSupplier ||
-    asset.supplierAvailability ||
-    asset.memoNumber ||
-    asset.internalNotes;
+  const extraImages =
+    asset.images && asset.images.length > 1 ? asset.images.slice(0, 5) : [];
 
   // English-ready client-facing preview (never Hebrew, never IDs).
   const clientLine = [
-    asset.productTypeEn,
+    asset.stoneCategoryEn || asset.productTypeEn,
     asset.stoneTypeEn && asset.stoneTypeEn !== asset.productTypeEn
       ? asset.stoneTypeEn
       : null,
     asset.shapeEn,
     asset.caratWeight != null ? `${asset.caratWeight} ct` : null,
+    asset.color || null,
+    asset.clarity || null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -117,126 +126,128 @@ export default function AssetDrawer({ asset, onClose }) {
         aria-label={`פרטי פריט: ${title}`}
       >
         <header style={styles.header}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={styles.close}
-            aria-label="סגירה"
-          >
+          <button type="button" onClick={onClose} style={styles.close} aria-label="סגירה">
             ✕ סגירה
           </button>
         </header>
 
         <div style={styles.scroll}>
+          {/* Hero media */}
           <div style={styles.heroMedia}>
-            <MediaPreview
-              src={asset.primaryImage}
-              alt={title}
-              height={260}
-              cover
-            />
+            <MediaPreview src={asset.primaryImage} alt={title} height={260} cover />
           </div>
 
-          {/* Extra images, if any */}
-          {asset.images && asset.images.length > 1 && (
-            <div style={styles.thumbs}>
-              {asset.images.slice(0, 5).map((src, i) => (
-                <div key={i} style={styles.thumb}>
-                  <MediaPreview src={src} alt="" height={64} cover />
-                </div>
-              ))}
-            </div>
-          )}
-
+          {/* Title block */}
           <div style={styles.titleBlock}>
             <h2 style={styles.title}>{title}</h2>
             <div style={styles.titleMeta}>
               {asset.shapeHe && <span style={styles.chip}>{asset.shapeHe}</span>}
-              {asset.stoneTypeHe && (
-                <span style={styles.chip}>{asset.stoneTypeHe}</span>
+              {asset.stoneCategoryHe && (
+                <span style={styles.chip}>{asset.stoneCategoryHe}</span>
               )}
-              {asset.statusHe && (
-                <span style={styles.chipGold}>{asset.statusHe}</span>
-              )}
+              {asset.statusHe && <span style={styles.chipGold}>{asset.statusHe}</span>}
             </div>
-            {asset.sku && <div style={styles.sku}>מק״ט: {asset.sku}</div>}
           </div>
 
-          <Section title="נתונים גמולוגיים" hasContent={hasGemology}>
-            <Row label="משקל קראט" value={asset.caratWeight != null ? `${asset.caratWeight} ct` : null} />
-            <Row label="מספר אבנים" value={asset.stoneCount} />
-            <Row label="צבע" value={asset.color} />
-            <Row label="ניקיון" value={asset.clarity} />
-            <Row label="ליטוש (Cut)" value={asset.cutGrade} />
-            <Row label="פוליש" value={asset.polish} />
-            <Row label="סימטריה" value={asset.symmetry} />
-            <Row label="שקיפות" value={asset.transparency} />
-            <Row label="עוצמת פלורסנציה" value={asset.fluorescenceIntensity} />
-            <Row label="צבע פלורסנציה" value={asset.fluorescenceColor} />
-            <Row label="גוון Fancy" value={asset.fancyColorHue} />
-            <Row label="עוצמת Fancy" value={asset.fancyColorIntensity} />
-            <Row label="שיטת גידול" value={asset.growthMethod} />
+          {/* Work Tray action — the one live action in the drawer (Clean 3) */}
+          <div style={styles.trayAction}>
+            <AddToTrayButton asset={asset} block />
+          </div>
+
+          {/* 1. Overview */}
+          <Section title={S.overview}>
+            <Row label={F.stoneType} value={asset.stoneTypeHe} />
+            <Row label={F.stoneCategory} value={asset.stoneCategoryHe} />
+            <Row label={F.origin} value={asset.originHe} />
+            <Row label={F.shape} value={asset.shapeHe} />
+            <Row
+              label={F.carat}
+              value={asset.caratWeight != null ? `${asset.caratWeight} ct` : null}
+              ltr
+            />
+            <Row label={F.stoneCount} value={asset.stoneCount} ltr />
+            <Row label={F.measurements} value={measurements} ltr />
           </Section>
 
-          <Section title="מידות" hasContent={!!measurements}>
-            <Row label="אורך × רוחב × גובה" value={measurements} />
+          {/* 2. Gemological Details */}
+          <Section title={S.gemology}>
+            <Row label={F.color} value={asset.color} ltr />
+            <Row label={F.clarity} value={asset.clarity} ltr />
+            <Row label={F.cutGrade} value={asset.cutGrade} ltr />
+            <Row label={F.polish} value={asset.polish} ltr />
+            <Row label={F.symmetry} value={asset.symmetry} ltr />
+            <Row label={F.fluorescence} value={fluorescence || null} />
+            <Row label={F.transparency} value={asset.transparency} />
+            <Row label={F.treatment} value={asset.treatment} />
+            <Row label={F.geographicOrigin} value={asset.geographicOrigin} />
+            <Row label={F.growthMethod} value={asset.growthMethod} ltr />
+            <Row label={F.fancyHue} value={asset.fancyColorHue} />
+            <Row label={F.fancyIntensity} value={asset.fancyColorIntensity} />
           </Section>
 
-          <Section title="תעודה ומעבדה" hasContent={hasCert}>
-            <Row label="מעבדה" value={asset.certLab} />
-            <Row label="חריטת לייזר" value={asset.laserInscription} />
-            <Row label="מזהה אימות" value={asset.verificationId} />
-            {asset.verificationUrl && (
-              <div style={styles.row}>
-                <span style={styles.rowLabel}>קישור אימות</span>
-                <a
-                  href={asset.verificationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.link}
-                >
-                  פתיחה
-                </a>
-              </div>
-            )}
-            {asset.certPdfUrl && (
-              <div style={styles.row}>
-                <span style={styles.rowLabel}>קובץ תעודה</span>
-                <a
-                  href={asset.certPdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.link}
-                >
-                  פתיחה
-                </a>
-              </div>
-            )}
-          </Section>
-
-          {/* Internal / studio-only — clearly marked, separated visually. */}
-          <Section title="מידע פנימי לסטודיו" accent hasContent={hasInternal}>
-            <div style={styles.internalNote}>
-              מידע זה פנימי בלבד ואינו מופיע בתעודת הלקוח.
+          {/* 3. Certificate / Report */}
+          <Section title={S.certificate}>
+            <Row label={F.labName} value={asset.certLab} ltr />
+            <Row label={F.reportNumber} value={asset.reportNumber} ltr />
+            <Row label={F.laserInscription} value={asset.laserInscription} ltr />
+            <LinkRow label={F.reportLink} href={asset.verificationUrl} />
+            <LinkRow label={F.certFile} href={asset.certPdfUrl} />
+            <div style={styles.futureRow}>
+              <FuturePlaceholder
+                label={INVENTORY_HE.future.uploadCertificate}
+                glyph="↥"
+              />
+              <FuturePlaceholder
+                label={INVENTORY_HE.future.addReportLink}
+                glyph="🔗"
+              />
             </div>
-            <Row label="עלות" value={asset.costUsd != null ? `$${asset.costUsd}` : null} />
-            <Row label="ספק" value={asset.supplierName} />
-            <Row label="ספק וירטואלי" value={asset.virtualSupplier} />
-            <Row label="זמינות ספק" value={asset.supplierAvailability} />
-            <Row label="מיקום פיזי" value={asset.physicalLocation} />
-            <Row label="בעלים / לקוח" value={asset.ownerClient} />
-            <Row label="מספר ממו" value={asset.memoNumber} />
-            <Row label="הערות פנימיות" value={asset.internalNotes} />
           </Section>
 
-          {/* English-ready client-facing preview. */}
+          {/* 4. Inventory / Internal Studio */}
+          <Section title={S.internal} accent>
+            <div style={styles.internalNote}>{INVENTORY_HE.internalBanner}</div>
+            <Row label={F.inventoryLayer} value={asset.layerHe} />
+            <Row label={F.status} value={asset.statusHe} />
+            <Row label={F.supplier} value={asset.supplierName} />
+            <Row label={F.virtualSupplier} value={asset.virtualSupplier} />
+            <Row label={F.supplierAvailability} value={asset.supplierAvailability} />
+            <Row label={F.physicalLocation} value={asset.physicalLocation} />
+            <Row label={F.ownerClient} value={asset.ownerClient} />
+            <Row label={F.memoNumber} value={asset.memoNumber} ltr />
+            <Row label={F.sku} value={asset.sku} ltr />
+            <Row
+              label={F.cost}
+              value={asset.costUsd != null ? `$${asset.costUsd}` : null}
+              ltr
+            />
+            <Row label={F.internalNotes} value={asset.internalNotes} />
+          </Section>
+
+          {/* 5. Media */}
+          <Section title={S.media}>
+            {extraImages.length > 0 ? (
+              <div style={styles.thumbs}>
+                {extraImages.map((src, i) => (
+                  <div key={i} style={styles.thumb}>
+                    <MediaPreview src={src} alt="" height={64} cover />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={styles.mediaEmpty}>אין מדיה נוספת</div>
+            )}
+            <div style={styles.futureRow}>
+              <FuturePlaceholder label={INVENTORY_HE.future.uploadMedia} glyph="↥" />
+            </div>
+          </Section>
+
+          {/* English-ready client-facing preview */}
           {clientLine && (
             <section style={styles.clientPreview}>
-              <h3 style={styles.clientTitle}>Client-facing preview</h3>
+              <h3 style={styles.clientTitle}>{CLIENT_EN.previewLabel}</h3>
               <p style={styles.clientLine}>{clientLine}</p>
-              <span style={styles.clientHint}>
-                English-only · prepared for future certificate output
-              </span>
+              <span style={styles.clientHint}>{CLIENT_EN.previewHint}</span>
             </section>
           )}
         </div>
@@ -257,7 +268,7 @@ const styles = {
     top: 0,
     right: 0,
     height: '100vh',
-    width: 'min(440px, 92vw)',
+    width: 'min(460px, 94vw)',
     background: tokens.color.ivory,
     borderLeft: `1px solid ${tokens.color.cardEdge}`,
     boxShadow: tokens.shadow.lift,
@@ -292,21 +303,12 @@ const styles = {
     overflow: 'hidden',
     boxShadow: tokens.shadow.soft,
   },
-  thumbs: {
-    display: 'flex',
-    gap: '8px',
-    marginTop: '10px',
-  },
-  thumb: {
-    width: '64px',
-    height: '64px',
-    borderRadius: tokens.radius.sm,
-    overflow: 'hidden',
-    border: `1px solid ${tokens.color.cardEdge}`,
-  },
   titleBlock: {
-    padding: '20px 0 8px',
+    padding: '20px 0 16px',
     borderBottom: `1px solid ${tokens.color.cardEdge}`,
+  },
+  trayAction: {
+    padding: '16px 0 4px',
   },
   title: {
     fontFamily: tokens.font.display,
@@ -337,14 +339,8 @@ const styles = {
     borderRadius: '999px',
     padding: '4px 12px',
   },
-  sku: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    color: tokens.color.inkFaint,
-    marginTop: '10px',
-  },
   section: {
-    paddingTop: '20px',
+    paddingTop: '22px',
   },
   sectionTitle: {
     fontFamily: tokens.font.body,
@@ -380,7 +376,6 @@ const styles = {
     fontSize: '14px',
     color: tokens.color.charcoal,
     textAlign: 'left',
-    direction: 'ltr',
   },
   link: {
     fontFamily: tokens.font.body,
@@ -398,8 +393,31 @@ const styles = {
     padding: '8px 12px',
     marginBottom: '8px',
   },
+  thumbs: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+  thumb: {
+    width: '64px',
+    height: '64px',
+    borderRadius: tokens.radius.sm,
+    overflow: 'hidden',
+    border: `1px solid ${tokens.color.cardEdge}`,
+  },
+  mediaEmpty: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    color: tokens.color.inkFaint,
+  },
+  futureRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '12px',
+  },
   clientPreview: {
-    marginTop: '24px',
+    marginTop: '26px',
     padding: '16px',
     background: tokens.color.canvas,
     border: `1px solid ${tokens.color.cardEdge}`,
