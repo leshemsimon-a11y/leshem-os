@@ -1,24 +1,27 @@
 // components/studio/design/DesignStudio.js
 //
-// LESHEM.S OS — Jewelry Design Studio (Clean 3 foundation → Clean 3.2)
+// LESHEM.S OS — Jewelry Design Studio (Clean 3.3 — Visual Board)
 //
-// The first design surface. Stone-first: it begins from the items chosen in
-// the Work Tray, shows each with its assigned role, and reserves clearly
-// disabled space for the future Reference + Stone → Jewelry Design
-// Visualization workflow (reference/media, models, render brief).
+// A stone-first design BOARD. The page reads as a workspace of zones rather
+// than an information page: the selected stones sit on the board as visual
+// objects (the center stone visually dominant), followed by clearly reserved,
+// disabled future zones for the rest of the Stone → Jewelry workflow.
 //
-// Clean 3.2 adds a DESIGN DRAFT SUMMARY + STATUS at the top of the board:
-//   • a calm status line (needs-role / ready)
-//   • counts — total stones, center stones, side stones, and parcel/component/
-//     pair/reference counts when present
-// Center stones stay SEPARATE items (never collapsed into a quantity).
+// Seven board zones:
+//   1. Stones / Work Tray   (ACTIVE — role-grouped object cards)
+//   2. Design Direction     (future)
+//   3. Reference            (future)
+//   4. Model / Template     (future)
+//   5. Render Brief         (future)
+//   6. Visualization / Media(future)
+//   7. Client Output        (future)
 //
-// Still NOT in scope: uploads, links, sketches, 3D, model records, renders,
-// pricing, certificates, Airtable. All future affordances remain visibly
-// disabled, exactly as before.
+// Clean 3.3 is VISUAL/LAYOUT POLISH ONLY. No new functionality. Future zones
+// never look active. No uploads, no model records, no render/Stability, no
+// pricing, no certificates, no Airtable. Role logic + summary are reused as-is.
 //
-// Mobile-first: everything stacks; the design board reads top-to-bottom with
-// generous spacing and no wide tables or hover-only actions.
+// Mobile-first: zones stack, cards wrap, nothing scrolls sideways, text is
+// kept light, and future zones stay compact so they don't crowd the screen.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
@@ -29,133 +32,61 @@ import {
   buildDesignGroups,
   summarizeDraft,
   draftStatus,
-  trayItemTitle,
-  DESIGN_ROLE,
 } from '../../../lib/studio/designDraft';
-import MediaPreview from '../media/MediaPreview';
+import DesignBoardZone from './DesignBoardZone';
+import RoleZone from './RoleZone';
 import DesignFutureRail from './DesignFutureRail';
 
 const useWorkTray = createUseWorkTray(React);
 
-function StoneMini({ item }) {
-  const s = item.snapshot || {};
-  const title = trayItemTitle(item);
-  const carat = s.caratWeight != null ? `${s.caratWeight} ct` : null;
-  const colorClarity = [s.color, s.clarity].filter(Boolean).join(' · ');
-  return (
-    <div style={styles.stone} dir="rtl">
-      <div style={styles.stoneThumb}>
-        <MediaPreview src={s.primaryImage} alt={title} height={72} cover />
-      </div>
-      <div style={styles.stoneInfo}>
-        <div style={styles.stoneTitleRow}>
-          <span style={styles.stoneTitle}>{title}</span>
-          {carat && <span style={styles.stoneCarat}>{carat}</span>}
-        </div>
-        {s.shapeHe && <span style={styles.stoneSub}>{s.shapeHe}</span>}
-        {colorClarity && <span style={styles.stoneSub}>{colorClarity}</span>}
-        {s.sku && <span style={styles.stoneSku}>{s.sku}</span>}
-      </div>
-    </div>
-  );
-}
-
-function RoleGroup({ group }) {
-  return (
-    <div style={styles.group} dir="rtl">
-      <div style={styles.groupHead}>
-        <span style={styles.groupRole}>{group.roleHe}</span>
-        {group.role === DESIGN_ROLE.CENTER_STONE && (
-          <span style={styles.groupNote}>פריט נפרד</span>
-        )}
-      </div>
-      <div style={styles.groupItems}>
-        {group.items.map((it) => (
-          <StoneMini key={it.id} item={it} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Clean 3.2 — design draft summary (counts) + honest status line.
-function DraftSummary({ summary, status }) {
-  const S = DESIGN_HE.summary;
+// Compact, low-text draft header: status dot + one line + small count chips.
+function DraftHeader({ summary, status }) {
   const ready = status.tone === 'ready';
+  const S = DESIGN_HE.summary;
 
-  // Build the count chips; show optional roles only when they exist.
-  const stats = [
-    { key: 'total', label: S.totalStones, value: summary.total, always: true },
-    {
-      key: 'center',
-      label: S.centerStones,
-      value: summary.centerStoneCount,
-      always: true,
-      accent: true,
-    },
-    { key: 'side', label: S.sideStones, value: summary.sideStoneCount, always: true },
-    { key: 'pair', label: S.pairs, value: summary.pairCount },
-    { key: 'parcel', label: S.parcels, value: summary.parcelCount },
-    { key: 'component', label: S.components, value: summary.componentCount },
-    { key: 'reference', label: S.references, value: summary.referenceCount },
-    { key: 'unassigned', label: S.unassigned, value: summary.unassigned },
-  ].filter((s) => s.always || s.value > 0);
+  const chips = [
+    { key: 'total', label: S.totalStones, value: summary.total },
+    { key: 'center', label: S.centerStones, value: summary.centerStoneCount, accent: true },
+    { key: 'side', label: S.sideStones, value: summary.sideStoneCount },
+    { key: 'pair', label: S.pairs, value: summary.pairCount, optional: true },
+    { key: 'parcel', label: S.parcels, value: summary.parcelCount, optional: true },
+    { key: 'component', label: S.components, value: summary.componentCount, optional: true },
+    { key: 'reference', label: S.references, value: summary.referenceCount, optional: true },
+    { key: 'unassigned', label: S.unassigned, value: summary.unassigned, optional: true },
+  ].filter((c) => !c.optional || c.value > 0);
 
   return (
-    <section style={styles.summarySection} dir="rtl">
-      <div
-        style={{
-          ...styles.summaryStatus,
-          ...(ready ? styles.summaryReady : styles.summaryPending),
-        }}
-      >
+    <div
+      style={{
+        ...styles.draftHeader,
+        ...(ready ? styles.draftReady : styles.draftPending),
+      }}
+      dir="rtl"
+    >
+      <div style={styles.draftStatusRow}>
         <span
           style={{
-            ...styles.summaryDot,
+            ...styles.draftDot,
             background: ready ? tokens.color.gold : tokens.color.goldSoft,
           }}
           aria-hidden="true"
         />
-        <div style={styles.summaryStatusText}>
-          <span style={styles.summaryStatusTitle}>
-            {ready
-              ? DESIGN_HE.status.readyTitle
-              : DESIGN_HE.status.needsRoleTitle}
-          </span>
-          <span style={styles.summaryStatusBody}>
-            {ready ? DESIGN_HE.status.readyBody : DESIGN_HE.status.needsRoleBody}
-          </span>
-        </div>
+        <span style={styles.draftStatusText}>
+          {ready ? DESIGN_HE.status.readyTitle : DESIGN_HE.status.needsRoleTitle}
+        </span>
       </div>
-
-      <div style={styles.statGrid}>
-        {stats.map((s) => (
-          <div
-            key={s.key}
-            style={{
-              ...styles.stat,
-              ...(s.accent ? styles.statAccent : null),
-            }}
+      <div style={styles.chipRow}>
+        {chips.map((c) => (
+          <span
+            key={c.key}
+            style={{ ...styles.chip, ...(c.accent ? styles.chipAccent : null) }}
           >
-            <span style={styles.statValue}>{s.value}</span>
-            <span style={styles.statLabel}>{s.label}</span>
-          </div>
+            <span style={styles.chipValue}>{c.value}</span>
+            <span style={styles.chipLabel}>{c.label}</span>
+          </span>
         ))}
       </div>
-    </section>
-  );
-}
-
-function FutureArea({ title, desc, children }) {
-  return (
-    <section style={styles.area}>
-      <div style={styles.areaHead}>
-        <h3 style={styles.areaTitle}>{title}</h3>
-        <span style={styles.stageBadge}>{DESIGN_HE.futureStage}</span>
-      </div>
-      <p style={styles.areaDesc}>{desc}</p>
-      {children}
-    </section>
+    </div>
   );
 }
 
@@ -168,6 +99,7 @@ export default function DesignStudio() {
   const status = draftStatus(tray.items);
   const hasItems = summary.total > 0;
 
+  const Z = DESIGN_HE.zones;
   const goTray = () => router.push('/studio/tray');
 
   return (
@@ -175,7 +107,6 @@ export default function DesignStudio() {
       <header style={styles.header}>
         <span style={styles.eyebrow}>{DESIGN_HE.eyebrow}</span>
         <h1 style={styles.title}>{DESIGN_HE.title}</h1>
-        <p style={styles.lede}>{DESIGN_HE.lede}</p>
       </header>
 
       {!tray.hydrated ? (
@@ -187,73 +118,52 @@ export default function DesignStudio() {
           </div>
           <h2 style={styles.emptyTitle}>{DESIGN_HE.emptyTitle}</h2>
           <p style={styles.emptyHint}>{DESIGN_HE.emptyHint}</p>
-          <button type="button" onClick={goTray} style={styles.secondaryBtn}>
+          <button type="button" onClick={goTray} style={styles.primaryBtn}>
             {DESIGN_HE.goToTray}
           </button>
         </div>
       ) : (
-        <>
-          {/* 0. Design draft summary + status (Clean 3.2) */}
-          <DraftSummary summary={summary} status={status} />
-
-          {/* 1. Selected stones, grouped by role */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>{DESIGN_HE.sections.stones}</h2>
-            <div style={styles.groups}>
+        <div style={styles.board}>
+          {/* ZONE 1 — Stones / Work Tray (ACTIVE) */}
+          <DesignBoardZone title={Z.stones.title} caption={Z.stones.caption} glyph={Z.stones.glyph}>
+            <DraftHeader summary={summary} status={status} />
+            <div style={styles.roleZones}>
               {groups.map((g) => (
-                <RoleGroup key={g.id} group={g} />
+                <RoleZone key={g.id} group={g} />
               ))}
             </div>
-            <button type="button" onClick={goTray} style={styles.editTrayLink}>
-              {DESIGN_HE.goToTray}
+            <button type="button" onClick={goTray} style={styles.trayLink}>
+              {DESIGN_HE.status.backToTray}
             </button>
-          </section>
+          </DesignBoardZone>
 
-          {/* 2. Design direction (placeholder, not an input yet) */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>{DESIGN_HE.sections.direction}</h2>
+          {/* ZONES 2–7 — reserved future zones (clearly disabled) */}
+          <DesignBoardZone title={Z.direction.title} caption={Z.direction.caption} glyph={Z.direction.glyph} future>
             <div style={styles.directionBox}>
               <p style={styles.directionText}>{DESIGN_HE.directionPlaceholder}</p>
-              <span style={styles.inlineBadge}>{DESIGN_HE.futureBadge}</span>
             </div>
-          </section>
+          </DesignBoardZone>
 
-          {/* 3. Reserved future areas — clearly disabled */}
-          <FutureArea
-            title={DESIGN_HE.sections.reference}
-            desc={DESIGN_HE.areaDesc.reference}
-          >
+          <DesignBoardZone title={Z.reference.title} caption={Z.reference.caption} glyph={Z.reference.glyph} future>
             <DesignFutureRail variant="reference" />
-          </FutureArea>
+          </DesignBoardZone>
 
-          <FutureArea
-            title={DESIGN_HE.sections.models}
-            desc={DESIGN_HE.areaDesc.models}
-          >
+          <DesignBoardZone title={Z.model.title} caption={Z.model.caption} glyph={Z.model.glyph} future>
             <DesignFutureRail variant="models" />
-          </FutureArea>
+          </DesignBoardZone>
 
-          <FutureArea
-            title={DESIGN_HE.sections.render}
-            desc={DESIGN_HE.areaDesc.render}
-          >
-            <DesignFutureRail variant="render" />
-          </FutureArea>
+          <DesignBoardZone title={Z.renderBrief.title} caption={Z.renderBrief.caption} glyph={Z.renderBrief.glyph} future>
+            <DesignFutureRail variant="renderBrief" />
+          </DesignBoardZone>
 
-          <FutureArea
-            title={DESIGN_HE.sections.collection}
-            desc={DESIGN_HE.areaDesc.collection}
-          >
-            <DesignFutureRail variant="collection" />
-          </FutureArea>
+          <DesignBoardZone title={Z.visualization.title} caption={Z.visualization.caption} glyph={Z.visualization.glyph} future>
+            <DesignFutureRail variant="visualization" />
+          </DesignBoardZone>
 
-          <FutureArea
-            title={DESIGN_HE.sections.clientOutput}
-            desc={DESIGN_HE.areaDesc.clientOutput}
-          >
+          <DesignBoardZone title={Z.clientOutput.title} caption={Z.clientOutput.caption} glyph={Z.clientOutput.glyph} future>
             <DesignFutureRail variant="clientOutput" />
-          </FutureArea>
-        </>
+          </DesignBoardZone>
+        </div>
       )}
     </div>
   );
@@ -261,7 +171,7 @@ export default function DesignStudio() {
 
 const styles = {
   header: {
-    marginBottom: '24px',
+    marginBottom: '20px',
   },
   eyebrow: {
     fontFamily: tokens.font.body,
@@ -275,15 +185,7 @@ const styles = {
     fontWeight: 700,
     fontSize: '34px',
     color: tokens.color.charcoal,
-    margin: '8px 0 12px',
-  },
-  lede: {
-    fontFamily: tokens.font.body,
-    fontSize: '15px',
-    lineHeight: 1.7,
-    color: tokens.color.inkSoft,
-    maxWidth: '600px',
-    margin: 0,
+    margin: '8px 0 0',
   },
   loading: {
     fontFamily: tokens.font.body,
@@ -321,190 +223,78 @@ const styles = {
     maxWidth: '420px',
     margin: '0 0 8px',
   },
-
-  // ---- Clean 3.2 draft summary ----
-  summarySection: {
-    marginBottom: '30px',
-    paddingBottom: '26px',
-    borderBottom: `1px solid ${tokens.color.cardEdge}`,
-  },
-  summaryStatus: {
+  board: {
     display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
-    padding: '12px 16px',
+    flexDirection: 'column',
+  },
+  // ---- draft header (compact) ----
+  draftHeader: {
     borderRadius: tokens.radius.md,
+    padding: '12px 14px',
     marginBottom: '16px',
   },
-  summaryPending: {
+  draftPending: {
     background: tokens.color.pearl,
     border: `1px solid ${tokens.color.goldFaint}`,
   },
-  summaryReady: {
+  draftReady: {
     background: tokens.color.sageFaint,
     border: `1px solid ${tokens.color.sage}`,
   },
-  summaryDot: {
-    width: '10px',
-    height: '10px',
+  draftStatusRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '10px',
+  },
+  draftDot: {
+    width: '9px',
+    height: '9px',
     borderRadius: '50%',
-    marginTop: '5px',
     flexShrink: 0,
   },
-  summaryStatusText: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    minWidth: 0,
-  },
-  summaryStatusTitle: {
+  draftStatusText: {
     fontFamily: tokens.font.body,
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 700,
     color: tokens.color.charcoal,
   },
-  summaryStatusBody: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    lineHeight: 1.6,
-    color: tokens.color.inkSoft,
-  },
-  statGrid: {
+  chipRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '10px',
+    gap: '8px',
   },
-  stat: {
-    flex: '1 1 120px',
-    minWidth: '110px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    padding: '12px 14px',
+  chip: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    gap: '6px',
+    padding: '5px 12px',
     background: tokens.color.canvas,
     border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.md,
+    borderRadius: '999px',
   },
-  statAccent: {
+  chipAccent: {
     background: tokens.color.goldFaint,
     border: `1px solid ${tokens.color.goldSoft}`,
   },
-  statValue: {
+  chipValue: {
     fontFamily: tokens.font.display,
     fontWeight: 700,
-    fontSize: '24px',
+    fontSize: '15px',
     color: tokens.color.charcoal,
-    lineHeight: 1,
   },
-  statLabel: {
+  chipLabel: {
     fontFamily: tokens.font.body,
     fontSize: '12px',
     color: tokens.color.inkSoft,
   },
-
-  section: {
-    marginBottom: '30px',
-    paddingBottom: '26px',
-    borderBottom: `1px solid ${tokens.color.cardEdge}`,
-  },
-  sectionTitle: {
-    fontFamily: tokens.font.display,
-    fontWeight: 400,
-    fontSize: '20px',
-    color: tokens.color.charcoal,
-    margin: '0 0 16px',
-  },
-  groups: {
+  roleZones: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '18px',
+    gap: '22px',
   },
-  group: {
-    background: tokens.color.canvas,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.soft,
-    padding: '16px',
-  },
-  groupHead: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '12px',
-  },
-  groupRole: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    fontWeight: 700,
-    letterSpacing: '0.06em',
-    color: tokens.color.gold,
-  },
-  groupNote: {
-    fontFamily: tokens.font.body,
-    fontSize: '11px',
-    color: tokens.color.inkFaint,
-    background: tokens.color.pearl,
-    borderRadius: '999px',
-    padding: '2px 10px',
-  },
-  groupItems: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  stone: {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'flex-start',
-  },
-  stoneThumb: {
-    width: '72px',
-    height: '72px',
-    flexShrink: 0,
-    borderRadius: tokens.radius.md,
-    overflow: 'hidden',
-    border: `1px solid ${tokens.color.cardEdge}`,
-  },
-  stoneInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    minWidth: 0,
-    flex: 1,
-  },
-  stoneTitleRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: '8px',
-  },
-  stoneTitle: {
-    fontFamily: tokens.font.display,
-    fontSize: '17px',
-    color: tokens.color.charcoal,
-  },
-  stoneCarat: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    fontWeight: 600,
-    color: tokens.color.gold,
-    whiteSpace: 'nowrap',
-  },
-  stoneSub: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    color: tokens.color.inkSoft,
-  },
-  stoneSku: {
-    fontFamily: tokens.font.body,
-    fontSize: '11px',
-    color: tokens.color.inkFaint,
-    direction: 'ltr',
-    textAlign: 'right',
-    marginTop: '2px',
-  },
-  editTrayLink: {
-    marginTop: '16px',
+  trayLink: {
+    marginTop: '18px',
     minHeight: '46px',
     padding: '11px 22px',
     fontFamily: tokens.font.body,
@@ -516,78 +306,31 @@ const styles = {
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
   },
-  directionBox: {
-    position: 'relative',
-    background: tokens.color.pearl,
-    border: `1px dashed ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.md,
-    padding: '18px',
-  },
-  directionText: {
-    fontFamily: tokens.font.body,
-    fontSize: '14px',
-    lineHeight: 1.7,
-    color: tokens.color.inkFaint,
-    margin: 0,
-    maxWidth: '560px',
-  },
-  inlineBadge: {
-    position: 'absolute',
-    top: '14px',
-    insetInlineStart: '14px',
-    fontFamily: tokens.font.body,
-    fontSize: '10px',
-    fontWeight: 600,
-    letterSpacing: '0.04em',
-    color: tokens.color.inkFaint,
-    background: tokens.color.goldFaint,
-    borderRadius: '999px',
-    padding: '2px 8px',
-  },
-  area: {
-    marginBottom: '26px',
-  },
-  areaHead: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '8px',
-  },
-  areaTitle: {
-    fontFamily: tokens.font.display,
-    fontWeight: 400,
-    fontSize: '19px',
-    color: tokens.color.charcoal,
-    margin: 0,
-  },
-  stageBadge: {
-    fontFamily: tokens.font.body,
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.04em',
-    color: tokens.color.gold,
-    background: tokens.color.goldFaint,
-    borderRadius: '999px',
-    padding: '3px 12px',
-  },
-  areaDesc: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    lineHeight: 1.6,
-    color: tokens.color.inkFaint,
-    margin: '0 0 14px',
-    maxWidth: '560px',
-  },
-  secondaryBtn: {
+  primaryBtn: {
     minHeight: '50px',
     padding: '14px 26px',
     fontFamily: tokens.font.body,
     fontSize: '15px',
     fontWeight: 600,
-    color: tokens.color.charcoal,
-    background: tokens.color.canvas,
-    border: `1px solid ${tokens.color.cardEdge}`,
+    color: tokens.color.ivory,
+    background: tokens.color.charcoal,
+    border: 'none',
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
+    boxShadow: tokens.shadow.soft,
+  },
+  directionBox: {
+    background: tokens.color.canvas,
+    border: `1px dashed ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    padding: '16px',
+  },
+  directionText: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: tokens.color.inkFaint,
+    margin: 0,
+    maxWidth: '560px',
   },
 };

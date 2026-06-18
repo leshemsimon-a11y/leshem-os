@@ -1,0 +1,57 @@
+LESHEM.S OS — Clean 3.3 Upload Checklist
+Design Studio Visual Board Polish
+
+This ZIP is ROOT-READY: unzip at the project root; paths map 1:1.
+No new packages. No package.json change. No image files. No icon imports.
+Visual/layout polish only — no new functionality. Vercel builds on push.
+
+NEW (3)
+  components/studio/design/StoneObjectCard.js
+    A selected stone as a VISUAL OBJECT on the board (facet-framed image,
+    name, gold carat, gemmological tag pills). `dominant` mode = larger, more
+    prominent card used for center stones + pairs. Record id never rendered.
+
+  components/studio/design/RoleZone.js
+    One role's stones inside the Stones zone. CSS-glyph token + Hebrew role
+    name + count header; center/pair render as dominant cards (each separate —
+    never collapsed to quantity), other roles as a calm wrapping grid.
+
+  components/studio/design/DesignBoardZone.js
+    Reusable board-zone frame (token + title + caption). Active variant for the
+    stones zone; `future` variant is dashed/muted with a "שלב עתידי" badge,
+    aria-disabled and not-allowed cursor — can never look active.
+
+CHANGED (3)
+  components/studio/design/DesignStudio.js
+    Recomposed as a visual BOARD with seven zones: Stones/Work Tray (active,
+    role-grouped object cards + compact draft header), then disabled future
+    zones — Design Direction, Reference, Model/Template, Render Brief,
+    Visualization/Media, Client Output. Text reduced. Role logic + summary +
+    status reused unchanged (buildDesignGroups / summarizeDraft / draftStatus).
+
+  components/studio/design/DesignFutureRail.js
+    ADDITIVE: new `renderBrief` and `visualization` variants so those two zones
+    render separately. The original `render` variant is kept for back-compat.
+    Everything still fully disabled.
+
+  lib/studio/labels.js
+    ADDITIVE ONLY (0 original lines removed; +40 lines). DESIGN_HE gains a
+    `zones` map: seven short Hebrew zone titles + one-line captions + glyphs.
+
+NOT TOUCHED (do not re-upload from here)
+  pages/studio/design.js (mount only), WorkTray.js, TrayItemCard.js,
+  RoleChips.js, designDraft.js, workTray.js, tokens.js, navConfig.js,
+  StudioShell.js, NavRail.js, inventory/*, and everything under / and /v2.
+
+AFTER UPLOAD
+  1. git status should show exactly these 6 files (3 new, 3 changed).
+  2. No new deps, no package.json change.
+  3. Vercel build on push.
+
+ACCEPTANCE
+  / works · /v2 works · /studio · /studio/inventory · /studio/tray · role
+  assignment still works · /studio/design opens · selected stones appear as
+  object cards · roles (incl. "לא הוגדר") render correctly · all seven board
+  zones appear · future zones clearly disabled (שלב עתידי / בקרוב) · mobile
+  usable, no horizontal scroll, no tiny text · no Airtable write · no Stability
+  call · no pricing/certificate regression · build passes.

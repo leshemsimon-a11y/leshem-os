@@ -63,6 +63,23 @@ export default function DesignFutureRail({ variant }) {
     );
   }
 
+  // Clean 3.3 — render split into two distinct board zones.
+  if (variant === 'renderBrief') {
+    return (
+      <div style={styles.grid}>
+        <FutureTile label={F.generateRenderBrief} glyph="✺" />
+      </div>
+    );
+  }
+
+  if (variant === 'visualization') {
+    return (
+      <div style={styles.grid}>
+        <FutureTile label={F.createVisualization} glyph="◆" />
+      </div>
+    );
+  }
+
   if (variant === 'collection') {
     return (
       <div style={styles.grid}>
