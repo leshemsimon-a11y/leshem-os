@@ -26,7 +26,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { DESIGN_HE, SNAPSHOT_HE } from '../../../lib/studio/labels';
+import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   buildDesignGroups,
@@ -38,6 +38,7 @@ import RoleZone from './RoleZone';
 import DesignFutureRail from './DesignFutureRail';
 import DesignBriefPanel from './DesignBriefPanel';
 import DesignSnapshotPanel from './DesignSnapshotPanel';
+import SaveProjectPanel from '../projects/SaveProjectPanel';
 
 const useWorkTray = createUseWorkTray(React);
 
@@ -148,6 +149,11 @@ export default function DesignStudio() {
           {/* ZONE 2.5 — Design Snapshot (ACTIVE in Clean 3D — internal summary) */}
           <DesignBoardZone title={SNAPSHOT_HE.title} caption={SNAPSHOT_HE.caption} glyph="❒">
             <DesignSnapshotPanel />
+          </DesignBoardZone>
+
+          {/* ZONE 2.7 — Save as Design Project (ACTIVE in Clean 4A) */}
+          <DesignBoardZone title={PROJECTS_HE.saveTitle} caption={PROJECTS_HE.caption} glyph="❒">
+            <SaveProjectPanel />
           </DesignBoardZone>
 
           {/* ZONES 3–7 — reserved future zones (clearly disabled) */}

@@ -51,6 +51,14 @@ export const NAV_ITEMS = [
     descHe: 'סטודיו עיצוב — תחילה האבן, וסביבה נבנה התכשיט.',
   },
   {
+    id: 'projects',
+    labelHe: UI_HE.nav.projects,
+    group: 'create',
+    glyph: '❒',
+    built: true,
+    descHe: 'תיקי עיצוב שמורים — פתיחה, שכפול וניהול.',
+  },
+  {
     id: 'models',
     labelHe: UI_HE.nav.models,
     group: 'visualize',

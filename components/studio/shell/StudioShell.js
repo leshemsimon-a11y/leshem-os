@@ -19,6 +19,7 @@ import useIsMobile from '../shared/useIsMobile';
 import FutureSection from '../shared/FutureSection';
 import NavRail from './NavRail';
 import DashboardHome from './DashboardHome';
+import UnifiedDashboard from './UnifiedDashboard';
 import WorkTrayIndicator from '../tray/WorkTrayIndicator';
 import { findItem } from './navConfig';
 import { UI_HE } from '../../../lib/studio/labels';
@@ -43,6 +44,7 @@ export default function StudioShell({
     inventory: '/studio/inventory',
     workTray: '/studio/tray',
     builder: '/studio/design',
+    projects: '/studio/projects',
   };
 
   const handleSelect = (id) => {
@@ -62,7 +64,7 @@ export default function StudioShell({
       return renderContent();
     }
     if (item && item.built) {
-      return <DashboardHome />;
+      return <UnifiedDashboard />;
     }
     return (
       <FutureSection
