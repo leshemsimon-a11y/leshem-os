@@ -26,7 +26,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { DESIGN_HE } from '../../../lib/studio/labels';
+import { DESIGN_HE, SNAPSHOT_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   buildDesignGroups,
@@ -37,6 +37,7 @@ import DesignBoardZone from './DesignBoardZone';
 import RoleZone from './RoleZone';
 import DesignFutureRail from './DesignFutureRail';
 import DesignBriefPanel from './DesignBriefPanel';
+import DesignSnapshotPanel from './DesignSnapshotPanel';
 
 const useWorkTray = createUseWorkTray(React);
 
@@ -142,6 +143,11 @@ export default function DesignStudio() {
           {/* ZONE 2 — Design Direction (ACTIVE in Clean 3C — Jewelry Design Brief) */}
           <DesignBoardZone title={Z.direction.title} caption={Z.direction.caption} glyph={Z.direction.glyph}>
             <DesignBriefPanel />
+          </DesignBoardZone>
+
+          {/* ZONE 2.5 — Design Snapshot (ACTIVE in Clean 3D — internal summary) */}
+          <DesignBoardZone title={SNAPSHOT_HE.title} caption={SNAPSHOT_HE.caption} glyph="❒">
+            <DesignSnapshotPanel />
           </DesignBoardZone>
 
           {/* ZONES 3–7 — reserved future zones (clearly disabled) */}
