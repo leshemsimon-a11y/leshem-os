@@ -36,6 +36,7 @@ import {
 import DesignBoardZone from './DesignBoardZone';
 import RoleZone from './RoleZone';
 import DesignFutureRail from './DesignFutureRail';
+import DesignBriefPanel from './DesignBriefPanel';
 
 const useWorkTray = createUseWorkTray(React);
 
@@ -138,13 +139,12 @@ export default function DesignStudio() {
             </button>
           </DesignBoardZone>
 
-          {/* ZONES 2–7 — reserved future zones (clearly disabled) */}
-          <DesignBoardZone title={Z.direction.title} caption={Z.direction.caption} glyph={Z.direction.glyph} future>
-            <div style={styles.directionBox}>
-              <p style={styles.directionText}>{DESIGN_HE.directionPlaceholder}</p>
-            </div>
+          {/* ZONE 2 — Design Direction (ACTIVE in Clean 3C — Jewelry Design Brief) */}
+          <DesignBoardZone title={Z.direction.title} caption={Z.direction.caption} glyph={Z.direction.glyph}>
+            <DesignBriefPanel />
           </DesignBoardZone>
 
+          {/* ZONES 3–7 — reserved future zones (clearly disabled) */}
           <DesignBoardZone title={Z.reference.title} caption={Z.reference.caption} glyph={Z.reference.glyph} future>
             <DesignFutureRail variant="reference" />
           </DesignBoardZone>
