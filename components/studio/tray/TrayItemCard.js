@@ -24,7 +24,7 @@ import { DESIGN_ROLE, normalizeRole } from '../../../lib/studio/designDraft';
 
 function identity(snapshot) {
   const s = snapshot || {};
-  const title = s.stoneTypeHe || s.productTypeHe || s.name || 'פריט מלאי';
+  const title = s.name || s.stoneTypeHe || s.productTypeHe || 'פריט מלאי';
   const carat = s.caratWeight != null ? `${s.caratWeight} ct` : null;
   const colorClarity = [s.color, s.clarity].filter(Boolean).join(' · ');
   return { title, carat, colorClarity, shape: s.shapeHe || null, sku: s.sku || null };

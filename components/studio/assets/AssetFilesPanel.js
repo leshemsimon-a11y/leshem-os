@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { tokens } from '../shared/tokens';
-import { ASSETS_OBJ_HE } from '../../../lib/studio/labels';
+import { ASSETS_OBJ_HE, DELETE_HE } from '../../../lib/studio/labels';
 import { filterFiles } from '../../../lib/studio/assetsStore';
 import AssetPreviewPanel from './AssetPreviewPanel';
 
@@ -32,8 +32,10 @@ export default function AssetFilesPanel({
   onArchiveFile,
   onUnarchiveFile,
   onSetPurpose,
+  onPermanentDeleteFile,
 }) {
   const [openId, setOpenId] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
 
   const visible = filterFiles(files, {
     fileKind: filters.fileKind,
@@ -96,7 +98,33 @@ export default function AssetFilesPanel({
                   {ASSETS_OBJ_HE.archiveFile}
                 </button>
               )}
+              {archived && onPermanentDeleteFile && (
+                <button type="button" onClick={() => setConfirmId(f.fileId)} style={styles.danger}>
+                  {DELETE_HE.permanentDelete}
+                </button>
+              )}
             </div>
+
+            {confirmId === f.fileId && (
+              <div style={styles.confirmBox}>
+                <p style={styles.confirmBody}>{DELETE_HE.confirmFileBody}</p>
+                <div style={styles.confirmRow}>
+                  <button type="button" onClick={() => setConfirmId(null)} style={styles.ghost}>
+                    {DELETE_HE.confirmNo}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPermanentDeleteFile(f.fileId);
+                      setConfirmId(null);
+                    }}
+                    style={styles.danger}
+                  >
+                    {DELETE_HE.confirmYes}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {isOpen && (
               <div style={styles.previewWrap}>
@@ -111,6 +139,10 @@ export default function AssetFilesPanel({
 }
 
 const styles = {
+  danger: { minHeight: '40px', padding: '8px 14px', fontFamily: tokens.font.body, fontSize: '13px', fontWeight: 600, color: '#8c2f2f', background: 'transparent', border: '1px solid #c9a3a3', borderRadius: tokens.radius.md, cursor: 'pointer' },
+  confirmBox: { marginTop: '8px', padding: '12px', background: '#faf3f3', border: '1px solid #c9a3a3', borderRadius: tokens.radius.md },
+  confirmBody: { fontFamily: tokens.font.body, fontSize: '13px', lineHeight: 1.6, color: tokens.color.charcoal, margin: '0 0 10px' },
+  confirmRow: { display: 'flex', gap: '8px' },
   list: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' },
   row: {
     display: 'flex',

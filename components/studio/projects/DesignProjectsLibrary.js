@@ -18,15 +18,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
 import { PROJECTS_HE } from '../../../lib/studio/labels';
-import { createUseDesignProjects, PROJECT_STATUS } from '../../../lib/studio/designProjects';
+import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
-import { createUseAssets } from '../../../lib/studio/assetsStore';
+import LinkedAssetsPanel from '../design/LinkedAssetsPanel';
 
 const useDesignProjects = createUseDesignProjects(React);
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
-const useAssets = createUseAssets(React);
 
 function fmtDate(ts) {
   if (!ts) return '—';
@@ -43,13 +42,13 @@ function fmtDate(ts) {
 
 function StatusPill({ status }) {
   const label = PROJECTS_HE.status[status] || status;
-  const ready = status === PROJECT_STATUS.APPROVED;
+  const ready = status === 'approved';
   return (
     <span
       style={{
         ...styles.statusPill,
         ...(ready ? styles.statusApproved : null),
-        ...(status === PROJECT_STATUS.ARCHIVED ? styles.statusArchived : null),
+        ...(status === 'archived' ? styles.statusArchived : null),
       }}
     >
       {label}
@@ -57,22 +56,10 @@ function StatusPill({ status }) {
   );
 }
 
-function ProjectCard({
-  project,
-  linkedAssetCount,
-  onOpen,
-  onDuplicate,
-  onRename,
-  onArchive,
-  onUnarchive,
-  onSetStatus,
-}) {
+function ProjectCard({ project, onOpenAssets, onOpen, onDuplicate, onRename, onArchive, onUnarchive }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(project.name);
-  const archived = project.status === PROJECT_STATUS.ARCHIVED;
-  const approved = project.status === PROJECT_STATUS.APPROVED;
-  const inReview = project.status === PROJECT_STATUS.IN_REVIEW;
-  const draft = project.status === PROJECT_STATUS.DRAFT;
+  const archived = project.status === 'archived';
   const itemCount = Array.isArray(project.trayItems) ? project.trayItems.length : 0;
 
   const commitRename = () => {
@@ -126,65 +113,28 @@ function ProjectCard({
       </div>
 
       <div style={styles.linkedAssets}>
-        {linkedAssetCount > 0
-          ? `${PROJECTS_HE.linkedAssets}: ${linkedAssetCount}`
-          : PROJECTS_HE.linkedAssetsEmpty}
+        <LinkedAssetsPanel
+          projectId={project.id}
+          primaryAssetObjectId={project.primaryAssetObjectId}
+          onOpenAssets={onOpenAssets}
+          compact
+        />
       </div>
 
       <div style={styles.actions}>
-        {!archived && !approved && (
+        {!archived && (
           <button type="button" onClick={() => onOpen(project)} style={styles.primaryBtn}>
             {PROJECTS_HE.open}
           </button>
         )}
-
-        {approved && !archived && (
-          <span style={styles.lockedNote}>{PROJECTS_HE.approvedLocked}</span>
-        )}
-
-        <button
-          type="button"
-          onClick={() => onDuplicate(project.id)}
-          style={approved ? styles.primaryBtn : styles.ghostBtn}
-        >
-          {approved ? PROJECTS_HE.duplicateForEdit : PROJECTS_HE.duplicate}
+        <button type="button" onClick={() => onDuplicate(project.id)} style={styles.ghostBtn}>
+          {PROJECTS_HE.duplicate}
         </button>
-
-        {!archived && draft && (
-          <button
-            type="button"
-            onClick={() => onSetStatus(project.id, PROJECT_STATUS.IN_REVIEW)}
-            style={styles.ghostBtn}
-          >
-            {PROJECTS_HE.markInReview}
-          </button>
-        )}
-
-        {!archived && inReview && (
-          <>
-            <button
-              type="button"
-              onClick={() => onSetStatus(project.id, PROJECT_STATUS.APPROVED)}
-              style={styles.primaryBtn}
-            >
-              {PROJECTS_HE.approve}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetStatus(project.id, PROJECT_STATUS.DRAFT)}
-              style={styles.ghostBtn}
-            >
-              {PROJECTS_HE.backToDraft}
-            </button>
-          </>
-        )}
-
-        {!renaming && !approved && !archived && (
+        {!renaming && (
           <button type="button" onClick={() => setRenaming(true)} style={styles.ghostBtn}>
             {PROJECTS_HE.rename}
           </button>
         )}
-
         {archived ? (
           <button type="button" onClick={() => onUnarchive(project.id)} style={styles.ghostBtn}>
             {PROJECTS_HE.unarchive}
@@ -202,7 +152,6 @@ function ProjectCard({
 export default function DesignProjectsLibrary() {
   const router = useRouter();
   const projectsStore = useDesignProjects();
-  const assetsStore = useAssets();
   const tray = useWorkTray();
   const brief = useDesignBrief();
   const [showArchived, setShowArchived] = useState(false);
@@ -212,6 +161,14 @@ export default function DesignProjectsLibrary() {
     // Restore the saved design into the live studio stores, then route in.
     tray.replace(project.trayItems || []);
     brief.set(project.brief || {});
+    // Remember which project is open so the studio can show its linked assets.
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('leshem_studio_current_project_v1', project.id);
+      }
+    } catch (e) {
+      /* non-fatal */
+    }
     setPendingOpen(null);
     router.push('/studio/design');
   };
@@ -254,17 +211,12 @@ export default function DesignProjectsLibrary() {
               <ProjectCard
                 key={p.id}
                 project={p}
-                linkedAssetCount={
-                  assetsStore.hydrated
-                    ? assetsStore.active.filter((a) => a.linkedProjectId === p.id).length
-                    : 0
-                }
+                onOpenAssets={() => router.push('/studio/assets')}
                 onOpen={(proj) => setPendingOpen(proj)}
                 onDuplicate={projectsStore.duplicate}
                 onRename={projectsStore.rename}
                 onArchive={projectsStore.archive}
                 onUnarchive={projectsStore.unarchive}
-                onSetStatus={projectsStore.setStatus}
               />
             ))}
           </div>
@@ -282,17 +234,12 @@ export default function DesignProjectsLibrary() {
                 <ProjectCard
                   key={p.id}
                   project={p}
-                  linkedAssetCount={
-                    assetsStore.hydrated
-                      ? assetsStore.active.filter((a) => a.linkedProjectId === p.id).length
-                      : 0
-                  }
+                  onOpenAssets={() => router.push('/studio/assets')}
                   onOpen={(proj) => setPendingOpen(proj)}
                   onDuplicate={projectsStore.duplicate}
                   onRename={projectsStore.rename}
                   onArchive={projectsStore.archive}
                   onUnarchive={projectsStore.unarchive}
-                  onSetStatus={projectsStore.setStatus}
                 />
               ))}
             </div>
@@ -475,19 +422,6 @@ const styles = {
     flexWrap: 'wrap',
     gap: '8px',
     paddingTop: '6px',
-  },
-  lockedNote: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    minHeight: '44px',
-    padding: '8px 12px',
-    fontFamily: tokens.font.body,
-    fontSize: '12px',
-    fontWeight: 600,
-    color: tokens.color.gold,
-    background: tokens.color.goldFaint,
-    border: `1px solid ${tokens.color.goldSoft}`,
-    borderRadius: tokens.radius.md,
   },
   primaryBtn: {
     minHeight: '44px',

@@ -8,10 +8,18 @@
 // only — no Airtable, no cloud, no commerce wording.
 
 import { useState } from 'react';
+import * as React from 'react';
 import { tokens } from '../shared/tokens';
-import { ASSETS_OBJ_HE } from '../../../lib/studio/labels';
+import { ASSETS_OBJ_HE, DELETE_HE, INTAKE_HE } from '../../../lib/studio/labels';
+import { createUseWorkTray } from '../../../lib/studio/workTray';
+import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import AssetUploadZone from './AssetUploadZone';
 import AssetFilesPanel from './AssetFilesPanel';
+import AssetIntakeRouter from './AssetIntakeRouter';
+import AssetNextActions from './AssetNextActions';
+
+const useWorkTray = createUseWorkTray(React);
+const useDesignProjects = createUseDesignProjects(React);
 
 const TYPE_GLYPH = {
   stone: '◆',
@@ -32,6 +40,9 @@ export default function AssetObjectCard({
   store,
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const tray = useWorkTray();
+  const projectsStore = useDesignProjects();
   const archived = object.status === 'archived';
   const visibleFileCount = files.filter((f) => f.status !== 'archived').length;
   const approvedCount = files.filter((f) => f.status === 'approved').length;
@@ -60,30 +71,36 @@ export default function AssetObjectCard({
         )}
       </div>
 
-      {/* Link to design project */}
-      <label style={styles.fieldLabel}>{ASSETS_OBJ_HE.linkProject}</label>
-      <select
-        value={object.linkedDesignProjectId || ''}
-        onChange={(e) => store.linkObjectToProject(object.objectId, e.target.value || null)}
-        style={styles.select}
-        dir="rtl"
-      >
-        <option value="">{ASSETS_OBJ_HE.linkNone}</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+      {/* Owner badge */}
+      <div style={styles.ownerLine}>
+        {object.ownerContextType === 'internal'
+          ? INTAKE_HE.ownerInternal
+          : `${INTAKE_HE.ownerClientPrefix}${object.linkedClientName || object.ownerDisplayName || ''}`}
+      </div>
+
+      {/* Destination-aware next actions */}
+      <AssetNextActions
+        object={object}
+        files={files}
+        projects={projects}
+        tray={tray}
+        projectsStore={projectsStore}
+        assetsStore={store}
+      />
 
       <div style={styles.actions}>
         <button type="button" onClick={() => setOpen((o) => !o)} style={styles.primary}>
           {open ? ASSETS_OBJ_HE.closeObject : ASSETS_OBJ_HE.openObject}
         </button>
         {archived ? (
-          <button type="button" onClick={() => store.unarchiveObject(object.objectId)} style={styles.ghost}>
-            {ASSETS_OBJ_HE.unarchiveObject}
-          </button>
+          <>
+            <button type="button" onClick={() => store.unarchiveObject(object.objectId)} style={styles.ghost}>
+              {ASSETS_OBJ_HE.unarchiveObject}
+            </button>
+            <button type="button" onClick={() => setConfirmDelete(true)} style={styles.danger}>
+              {DELETE_HE.permanentDelete}
+            </button>
+          </>
         ) : (
           <button type="button" onClick={() => store.archiveObject(object.objectId)} style={styles.ghost}>
             {ASSETS_OBJ_HE.archiveObject}
@@ -91,9 +108,32 @@ export default function AssetObjectCard({
         )}
       </div>
 
+      {confirmDelete && (
+        <div style={styles.confirmBox}>
+          <p style={styles.confirmBody}>{DELETE_HE.confirmObjectBody}</p>
+          <div style={styles.confirmRow}>
+            <button type="button" onClick={() => setConfirmDelete(false)} style={styles.ghost}>
+              {DELETE_HE.confirmNo}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                store.permanentlyDeleteObject(object.objectId);
+                setConfirmDelete(false);
+              }}
+              style={styles.danger}
+            >
+              {DELETE_HE.confirmYes}
+            </button>
+          </div>
+        </div>
+      )}
+
       {open && (
         <div style={styles.expand}>
-          <AssetUploadZone objectId={object.objectId} onAddFile={store.addFile} />
+          {/* Intake: ownership + destination */}
+          <AssetIntakeRouter object={object} store={store} />
+          <AssetUploadZone object={object} store={store} />
           <h4 style={styles.filesHeading}>{ASSETS_OBJ_HE.filesHeading}</h4>
           <AssetFilesPanel
             files={files}
@@ -103,6 +143,7 @@ export default function AssetObjectCard({
             onArchiveFile={store.archiveFile}
             onUnarchiveFile={store.unarchiveFile}
             onSetPurpose={store.setFilePurpose}
+            onPermanentDeleteFile={store.permanentlyDeleteFile}
           />
         </div>
       )}
@@ -209,6 +250,43 @@ const styles = {
     paddingTop: '12px',
     borderTop: `1px solid ${tokens.color.cardEdge}`,
   },
+  ownerLine: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    color: tokens.color.inkSoft,
+    background: tokens.color.pearl,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: '999px',
+    padding: '3px 10px',
+    alignSelf: 'flex-start',
+  },
+  danger: {
+    minHeight: '44px',
+    padding: '10px 16px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#8c2f2f',
+    background: 'transparent',
+    border: '1px solid #c9a3a3',
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
+  confirmBox: {
+    marginTop: '8px',
+    padding: '12px',
+    background: '#faf3f3',
+    border: '1px solid #c9a3a3',
+    borderRadius: tokens.radius.md,
+  },
+  confirmBody: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: tokens.color.charcoal,
+    margin: '0 0 10px',
+  },
+  confirmRow: { display: 'flex', gap: '8px' },
   filesHeading: {
     fontFamily: tokens.font.body,
     fontSize: '12px',
