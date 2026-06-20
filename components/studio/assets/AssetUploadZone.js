@@ -1,44 +1,46 @@
 // components/studio/assets/AssetUploadZone.js
 //
-// LESHEM.S OS — Asset Upload Zone (Clean 4B)
+// LESHEM.S OS — Asset Upload Zone (Clean 4B.1)
 //
-// A simple, non-technical upload area. The jeweller picks a file from the
-// device; we read small images into a local preview and record larger files
-// (3D, PDF) by name/type/size. It is honest that this is prototype LOCAL
-// storage — no cloud, no backend, no GitHub, no Airtable, no network.
-//
-// On select, a new asset is created (default category inferred from file type,
-// status = draft) and the parent list refreshes. No commerce wording.
+// Adds one or more files to a GIVEN Asset Object. Files (with their Blob) are
+// persisted to IndexedDB via the store's addFile. File kind is inferred; for
+// 3D files a default purpose can be chosen. Local only — no cloud, no backend,
+// no Airtable, no network, no new packages, no commerce wording.
 
 import { useRef, useState } from 'react';
 import { tokens } from '../shared/tokens';
-import { ASSETS_HE } from '../../../lib/studio/labels';
-import { fileToAssetInput, ASSET_CATEGORY } from '../../../lib/studio/assetsStore';
+import { ASSETS_OBJ_HE } from '../../../lib/studio/labels';
+import {
+  inferFileKind,
+  extensionOf,
+  is3DExt,
+  FILE_PURPOSE,
+  FILE_PURPOSE_VALUES,
+} from '../../../lib/studio/assetsStore';
 
-// Infer a sensible default category from the file's MIME type / extension.
-function inferCategory(file) {
-  const type = (file && file.type) || '';
-  const name = ((file && file.name) || '').toLowerCase();
-  if (type.startsWith('image/')) return ASSET_CATEGORY.STONE_IMAGE;
-  if (type === 'application/pdf' || name.endsWith('.pdf')) return ASSET_CATEGORY.CERTIFICATE;
-  if (/\.(stl|obj|3dm|gltf|glb|step|stp|igs|iges)$/.test(name)) return ASSET_CATEGORY.MODEL_3D;
-  return ASSET_CATEGORY.OTHER;
-}
-
-export default function AssetUploadZone({ onAdd }) {
+export default function AssetUploadZone({ objectId, onAddFile }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
-  const [lastName, setLastName] = useState(null);
+  const [purpose, setPurpose] = useState(FILE_PURPOSE.NONE);
 
   const handleFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
     setBusy(true);
     for (const file of files) {
+      const ext = extensionOf(file.name);
+      const kind = inferFileKind(file);
+      const meta = {
+        fileName: file.name,
+        mimeType: file.type || '',
+        extension: ext,
+        fileSize: typeof file.size === 'number' ? file.size : null,
+        fileKind: kind,
+        filePurpose: is3DExt(ext) ? purpose : FILE_PURPOSE.NONE,
+        status: 'draft',
+      };
       // eslint-disable-next-line no-await-in-loop
-      const input = await fileToAssetInput(file);
-      onAdd({ ...input, category: inferCategory(file), status: 'draft' });
-      setLastName(file.name);
+      await onAddFile(objectId, meta, file);
     }
     setBusy(false);
     if (inputRef.current) inputRef.current.value = '';
@@ -46,7 +48,21 @@ export default function AssetUploadZone({ onAdd }) {
 
   return (
     <div style={styles.wrap} dir="rtl">
-      <p style={styles.localNote}>{ASSETS_HE.localNote}</p>
+      <div style={styles.controls}>
+        <label style={styles.purposeLabel}>{ASSETS_OBJ_HE.purposeLabel} (תלת־ממד)</label>
+        <select
+          value={purpose}
+          onChange={(e) => setPurpose(e.target.value)}
+          style={styles.select}
+          dir="rtl"
+        >
+          {FILE_PURPOSE_VALUES.map((p) => (
+            <option key={p} value={p}>
+              {ASSETS_OBJ_HE.filePurpose[p]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div
         style={styles.drop}
@@ -56,95 +72,69 @@ export default function AssetUploadZone({ onAdd }) {
           handleFiles(e.dataTransfer && e.dataTransfer.files);
         }}
       >
-        <span style={styles.dropGlyph} aria-hidden="true">
-          ＋
-        </span>
-        <span style={styles.dropText}>{ASSETS_HE.uploadDrop}</span>
+        <span style={styles.glyph} aria-hidden="true">＋</span>
         <button
           type="button"
           onClick={() => inputRef.current && inputRef.current.click()}
           style={styles.button}
           disabled={busy}
         >
-          {busy ? '…' : ASSETS_HE.uploadButton}
+          {busy ? '…' : ASSETS_OBJ_HE.addFiles}
         </button>
         <input
           ref={inputRef}
           type="file"
           onChange={(e) => handleFiles(e.target.files)}
           style={{ display: 'none' }}
-          accept="image/*,application/pdf,.stl,.obj,.3dm,.gltf,.glb,.step,.stp,.igs,.iges"
+          accept="image/*,video/*,application/pdf,.stl,.obj,.3dm,.glb,.gltf"
           multiple
         />
-        {lastName && <span style={styles.added}>נוסף: {lastName}</span>}
       </div>
-      <p style={styles.hint}>{ASSETS_HE.uploadHint}</p>
     </div>
   );
 }
 
 const styles = {
-  wrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    marginBottom: '22px',
-  },
-  localNote: {
+  wrap: { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' },
+  controls: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  purposeLabel: {
     fontFamily: tokens.font.body,
-    fontSize: '12px',
-    lineHeight: 1.6,
+    fontSize: '11px',
+    fontWeight: 700,
     color: tokens.color.inkSoft,
-    background: tokens.color.pearl,
-    border: `1px solid ${tokens.color.goldFaint}`,
-    borderRadius: tokens.radius.sm,
-    padding: '10px 14px',
-    margin: 0,
+  },
+  select: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    color: tokens.color.ink,
+    background: tokens.color.ivory,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    padding: '9px 10px',
+    minHeight: '42px',
+    maxWidth: '240px',
   },
   drop: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '10px',
-    padding: '28px 20px',
+    gap: '12px',
+    padding: '18px',
     background: tokens.color.canvas,
     border: `1px dashed ${tokens.color.goldSoft}`,
-    borderRadius: tokens.radius.lg,
-    textAlign: 'center',
+    borderRadius: tokens.radius.md,
   },
-  dropGlyph: {
-    fontSize: '28px',
-    lineHeight: 1,
-    color: tokens.color.goldSoft,
-  },
-  dropText: {
+  glyph: { fontSize: '22px', color: tokens.color.goldSoft },
+  button: {
+    minHeight: '44px',
+    padding: '10px 22px',
     fontFamily: tokens.font.body,
     fontSize: '14px',
-    color: tokens.color.inkSoft,
-  },
-  button: {
-    minHeight: '48px',
-    padding: '12px 26px',
-    fontFamily: tokens.font.body,
-    fontSize: '15px',
     fontWeight: 600,
     color: tokens.color.ivory,
     background: tokens.color.charcoal,
     border: 'none',
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
-    boxShadow: tokens.shadow.soft,
-  },
-  added: {
-    fontFamily: tokens.font.body,
-    fontSize: '12px',
-    color: tokens.color.gold,
-  },
-  hint: {
-    fontFamily: tokens.font.body,
-    fontSize: '12px',
-    color: tokens.color.inkFaint,
-    margin: 0,
   },
 };
