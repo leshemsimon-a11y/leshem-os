@@ -1,18 +1,15 @@
 // components/studio/assets/AssetFilters.js
 //
-// LESHEM.S OS — Asset Filters (Clean 4B.1)
+// LESHEM.S OS — Asset Filters (Clean 4B)
 //
-// Chip filters across four axes: object type, file kind, file purpose, status.
-// Object type filters which objects show; file kind / purpose / status filter
-// which files show inside each object. "הכול" clears an axis. Pure UI.
+// Tap-friendly chip filters for the Asset Library: filter by category and by
+// status. "הכול" clears each axis. Pure presentation; the parent owns state.
 
 import { tokens } from '../shared/tokens';
-import { ASSETS_OBJ_HE } from '../../../lib/studio/labels';
+import { ASSETS_HE } from '../../../lib/studio/labels';
 import {
-  OBJECT_TYPE_VALUES,
-  FILE_KIND_VALUES,
-  FILE_PURPOSE_VALUES,
-  STATUS_VALUES,
+  ASSET_CATEGORY_VALUES,
+  ASSET_STATUS_VALUES,
 } from '../../../lib/studio/assetsStore';
 
 function ChipRow({ label, options, labelMap, value, onChange }) {
@@ -25,7 +22,7 @@ function ChipRow({ label, options, labelMap, value, onChange }) {
           onClick={() => onChange(null)}
           style={{ ...styles.chip, ...(!value ? styles.chipActive : null) }}
         >
-          {ASSETS_OBJ_HE.filterAll}
+          {ASSETS_HE.filterAll}
         </button>
         {options.map((opt) => (
           <button
@@ -42,43 +39,20 @@ function ChipRow({ label, options, labelMap, value, onChange }) {
   );
 }
 
-export default function AssetFilters({
-  objectType,
-  fileKind,
-  filePurpose,
-  status,
-  onObjectType,
-  onFileKind,
-  onFilePurpose,
-  onStatus,
-}) {
+export default function AssetFilters({ category, status, onCategory, onStatus }) {
   return (
     <div style={styles.wrap}>
       <ChipRow
-        label={ASSETS_OBJ_HE.filterObjectType}
-        options={OBJECT_TYPE_VALUES}
-        labelMap={ASSETS_OBJ_HE.objectType}
-        value={objectType}
-        onChange={onObjectType}
+        label={ASSETS_HE.categoryLabel}
+        options={ASSET_CATEGORY_VALUES}
+        labelMap={ASSETS_HE.category}
+        value={category}
+        onChange={onCategory}
       />
       <ChipRow
-        label={ASSETS_OBJ_HE.filterFileKind}
-        options={FILE_KIND_VALUES}
-        labelMap={ASSETS_OBJ_HE.fileKind}
-        value={fileKind}
-        onChange={onFileKind}
-      />
-      <ChipRow
-        label={ASSETS_OBJ_HE.filterPurpose}
-        options={FILE_PURPOSE_VALUES.filter((p) => p !== 'none')}
-        labelMap={ASSETS_OBJ_HE.filePurpose}
-        value={filePurpose}
-        onChange={onFilePurpose}
-      />
-      <ChipRow
-        label={ASSETS_OBJ_HE.filterStatus}
-        options={STATUS_VALUES.filter((s) => s !== 'archived')}
-        labelMap={STATUS_LABELS}
+        label={ASSETS_HE.statusLabel}
+        options={ASSET_STATUS_VALUES.filter((s) => s !== 'archived')}
+        labelMap={ASSETS_HE.status}
         value={status}
         onChange={onStatus}
       />
@@ -86,16 +60,18 @@ export default function AssetFilters({
   );
 }
 
-const STATUS_LABELS = {
-  draft: 'טיוטה',
-  reference: 'רפרנס',
-  approved: 'מאושר',
-  archived: 'בארכיון',
-};
-
 const styles = {
-  wrap: { display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' },
-  row: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  wrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '18px',
+  },
+  row: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
   rowLabel: {
     fontFamily: tokens.font.body,
     fontSize: '12px',
@@ -103,7 +79,11 @@ const styles = {
     letterSpacing: '0.04em',
     color: tokens.color.inkSoft,
   },
-  chips: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  chips: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
   chip: {
     minHeight: '40px',
     padding: '8px 14px',
@@ -117,5 +97,8 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   },
-  chipActive: { background: tokens.color.goldFaint, border: `1px solid ${tokens.color.gold}` },
+  chipActive: {
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+  },
 };

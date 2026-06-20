@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
 import { PROJECTS_HE } from '../../../lib/studio/labels';
-import { createUseDesignProjects } from '../../../lib/studio/designProjects';
+import { createUseDesignProjects, PROJECT_STATUS } from '../../../lib/studio/designProjects';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
 import { createUseAssets } from '../../../lib/studio/assetsStore';
@@ -43,13 +43,13 @@ function fmtDate(ts) {
 
 function StatusPill({ status }) {
   const label = PROJECTS_HE.status[status] || status;
-  const ready = status === 'approved';
+  const ready = status === PROJECT_STATUS.APPROVED;
   return (
     <span
       style={{
         ...styles.statusPill,
         ...(ready ? styles.statusApproved : null),
-        ...(status === 'archived' ? styles.statusArchived : null),
+        ...(status === PROJECT_STATUS.ARCHIVED ? styles.statusArchived : null),
       }}
     >
       {label}
@@ -57,10 +57,22 @@ function StatusPill({ status }) {
   );
 }
 
-function ProjectCard({ project, linkedAssetCount, onOpen, onDuplicate, onRename, onArchive, onUnarchive }) {
+function ProjectCard({
+  project,
+  linkedAssetCount,
+  onOpen,
+  onDuplicate,
+  onRename,
+  onArchive,
+  onUnarchive,
+  onSetStatus,
+}) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(project.name);
-  const archived = project.status === 'archived';
+  const archived = project.status === PROJECT_STATUS.ARCHIVED;
+  const approved = project.status === PROJECT_STATUS.APPROVED;
+  const inReview = project.status === PROJECT_STATUS.IN_REVIEW;
+  const draft = project.status === PROJECT_STATUS.DRAFT;
   const itemCount = Array.isArray(project.trayItems) ? project.trayItems.length : 0;
 
   const commitRename = () => {
@@ -120,19 +132,59 @@ function ProjectCard({ project, linkedAssetCount, onOpen, onDuplicate, onRename,
       </div>
 
       <div style={styles.actions}>
-        {!archived && (
+        {!archived && !approved && (
           <button type="button" onClick={() => onOpen(project)} style={styles.primaryBtn}>
             {PROJECTS_HE.open}
           </button>
         )}
-        <button type="button" onClick={() => onDuplicate(project.id)} style={styles.ghostBtn}>
-          {PROJECTS_HE.duplicate}
+
+        {approved && !archived && (
+          <span style={styles.lockedNote}>{PROJECTS_HE.approvedLocked}</span>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onDuplicate(project.id)}
+          style={approved ? styles.primaryBtn : styles.ghostBtn}
+        >
+          {approved ? PROJECTS_HE.duplicateForEdit : PROJECTS_HE.duplicate}
         </button>
-        {!renaming && (
+
+        {!archived && draft && (
+          <button
+            type="button"
+            onClick={() => onSetStatus(project.id, PROJECT_STATUS.IN_REVIEW)}
+            style={styles.ghostBtn}
+          >
+            {PROJECTS_HE.markInReview}
+          </button>
+        )}
+
+        {!archived && inReview && (
+          <>
+            <button
+              type="button"
+              onClick={() => onSetStatus(project.id, PROJECT_STATUS.APPROVED)}
+              style={styles.primaryBtn}
+            >
+              {PROJECTS_HE.approve}
+            </button>
+            <button
+              type="button"
+              onClick={() => onSetStatus(project.id, PROJECT_STATUS.DRAFT)}
+              style={styles.ghostBtn}
+            >
+              {PROJECTS_HE.backToDraft}
+            </button>
+          </>
+        )}
+
+        {!renaming && !approved && !archived && (
           <button type="button" onClick={() => setRenaming(true)} style={styles.ghostBtn}>
             {PROJECTS_HE.rename}
           </button>
         )}
+
         {archived ? (
           <button type="button" onClick={() => onUnarchive(project.id)} style={styles.ghostBtn}>
             {PROJECTS_HE.unarchive}
@@ -204,7 +256,7 @@ export default function DesignProjectsLibrary() {
                 project={p}
                 linkedAssetCount={
                   assetsStore.hydrated
-                    ? assetsStore.objects.filter((o) => o.status !== 'archived' && o.linkedDesignProjectId === p.id).length
+                    ? assetsStore.active.filter((a) => a.linkedProjectId === p.id).length
                     : 0
                 }
                 onOpen={(proj) => setPendingOpen(proj)}
@@ -212,6 +264,7 @@ export default function DesignProjectsLibrary() {
                 onRename={projectsStore.rename}
                 onArchive={projectsStore.archive}
                 onUnarchive={projectsStore.unarchive}
+                onSetStatus={projectsStore.setStatus}
               />
             ))}
           </div>
@@ -231,7 +284,7 @@ export default function DesignProjectsLibrary() {
                   project={p}
                   linkedAssetCount={
                     assetsStore.hydrated
-                      ? assetsStore.objects.filter((o) => o.status !== 'archived' && o.linkedDesignProjectId === p.id).length
+                      ? assetsStore.active.filter((a) => a.linkedProjectId === p.id).length
                       : 0
                   }
                   onOpen={(proj) => setPendingOpen(proj)}
@@ -239,6 +292,7 @@ export default function DesignProjectsLibrary() {
                   onRename={projectsStore.rename}
                   onArchive={projectsStore.archive}
                   onUnarchive={projectsStore.unarchive}
+                  onSetStatus={projectsStore.setStatus}
                 />
               ))}
             </div>
@@ -421,6 +475,19 @@ const styles = {
     flexWrap: 'wrap',
     gap: '8px',
     paddingTop: '6px',
+  },
+  lockedNote: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: '44px',
+    padding: '8px 12px',
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 600,
+    color: tokens.color.gold,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`,
+    borderRadius: tokens.radius.md,
   },
   primaryBtn: {
     minHeight: '44px',
