@@ -48,6 +48,7 @@ function DraftHeader({ summary, status }) {
     { key: 'total', label: S.totalStones, value: summary.total },
     { key: 'center', label: S.centerStones, value: summary.centerStoneCount, accent: true },
     { key: 'side', label: S.sideStones, value: summary.sideStoneCount },
+    { key: 'accent', label: S.accentStones, value: summary.accentStoneCount, optional: true },
     { key: 'pair', label: S.pairs, value: summary.pairCount, optional: true },
     { key: 'parcel', label: S.parcels, value: summary.parcelCount, optional: true },
     { key: 'component', label: S.components, value: summary.componentCount, optional: true },
