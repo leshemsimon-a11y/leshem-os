@@ -45,6 +45,7 @@ export default function StudioShell({
     workTray: '/studio/tray',
     builder: '/studio/design',
     projects: '/studio/projects',
+    assets: '/studio/assets',
   };
 
   const handleSelect = (id) => {

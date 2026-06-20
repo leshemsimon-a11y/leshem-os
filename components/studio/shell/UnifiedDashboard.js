@@ -23,6 +23,7 @@ const TILES = [
   { key: 'workTray', route: '/studio/tray' },
   { key: 'design', route: '/studio/design' },
   { key: 'projects', route: '/studio/projects' },
+  { key: 'assets', route: '/studio/assets' },
 ];
 
 export default function UnifiedDashboard() {

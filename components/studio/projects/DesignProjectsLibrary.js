@@ -21,10 +21,12 @@ import { PROJECTS_HE } from '../../../lib/studio/labels';
 import { createUseDesignProjects, PROJECT_STATUS } from '../../../lib/studio/designProjects';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
+import { createUseAssets } from '../../../lib/studio/assetsStore';
 
 const useDesignProjects = createUseDesignProjects(React);
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
+const useAssets = createUseAssets(React);
 
 function fmtDate(ts) {
   if (!ts) return '—';
@@ -57,6 +59,7 @@ function StatusPill({ status }) {
 
 function ProjectCard({
   project,
+  linkedAssetCount,
   onOpen,
   onDuplicate,
   onRename,
@@ -120,6 +123,12 @@ function ProjectCard({
         {project.clonedFromProjectId && (
           <span style={styles.clonedTag}>{PROJECTS_HE.clonedFrom}</span>
         )}
+      </div>
+
+      <div style={styles.linkedAssets}>
+        {linkedAssetCount > 0
+          ? `${PROJECTS_HE.linkedAssets}: ${linkedAssetCount}`
+          : PROJECTS_HE.linkedAssetsEmpty}
       </div>
 
       <div style={styles.actions}>
@@ -193,6 +202,7 @@ function ProjectCard({
 export default function DesignProjectsLibrary() {
   const router = useRouter();
   const projectsStore = useDesignProjects();
+  const assetsStore = useAssets();
   const tray = useWorkTray();
   const brief = useDesignBrief();
   const [showArchived, setShowArchived] = useState(false);
@@ -244,6 +254,11 @@ export default function DesignProjectsLibrary() {
               <ProjectCard
                 key={p.id}
                 project={p}
+                linkedAssetCount={
+                  assetsStore.hydrated
+                    ? assetsStore.active.filter((a) => a.linkedProjectId === p.id).length
+                    : 0
+                }
                 onOpen={(proj) => setPendingOpen(proj)}
                 onDuplicate={projectsStore.duplicate}
                 onRename={projectsStore.rename}
@@ -267,11 +282,17 @@ export default function DesignProjectsLibrary() {
                 <ProjectCard
                   key={p.id}
                   project={p}
+                  linkedAssetCount={
+                    assetsStore.hydrated
+                      ? assetsStore.active.filter((a) => a.linkedProjectId === p.id).length
+                      : 0
+                  }
                   onOpen={(proj) => setPendingOpen(proj)}
                   onDuplicate={projectsStore.duplicate}
                   onRename={projectsStore.rename}
                   onArchive={projectsStore.archive}
                   onUnarchive={projectsStore.unarchive}
+                  onSetStatus={projectsStore.setStatus}
                 />
               ))}
             </div>
@@ -443,6 +464,11 @@ const styles = {
     background: tokens.color.goldFaint,
     borderRadius: '999px',
     padding: '2px 8px',
+  },
+  linkedAssets: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    color: tokens.color.inkSoft,
   },
   actions: {
     display: 'flex',

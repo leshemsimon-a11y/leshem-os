@@ -59,6 +59,14 @@ export const NAV_ITEMS = [
     descHe: 'תיקי עיצוב שמורים — פתיחה, שכפול וניהול.',
   },
   {
+    id: 'assets',
+    labelHe: UI_HE.nav.assets,
+    group: 'create',
+    glyph: '▣',
+    built: true,
+    descHe: 'ספריית נכסים — תמונות, סקיצות, קבצים, תעודות ורפרנסים.',
+  },
+  {
     id: 'models',
     labelHe: UI_HE.nav.models,
     group: 'visualize',
