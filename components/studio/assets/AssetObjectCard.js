@@ -17,6 +17,9 @@ import AssetUploadZone from './AssetUploadZone';
 import AssetFilesPanel from './AssetFilesPanel';
 import AssetIntakeRouter from './AssetIntakeRouter';
 import AssetNextActions from './AssetNextActions';
+import AssetThumbnail from './AssetThumbnail';
+import AssetCoverSelector from './AssetCoverSelector';
+import AssetCatalogPanel from './AssetCatalogPanel';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
@@ -50,16 +53,39 @@ export default function AssetObjectCard({
   return (
     <div style={{ ...styles.card, ...(archived ? styles.cardArchived : null) }} dir="rtl">
       <div style={styles.head}>
-        <span style={styles.typeGlyph} aria-hidden="true">
-          {TYPE_GLYPH[object.objectType] || '▣'}
-        </span>
+        {object.primaryFileId ? (
+          <AssetThumbnail
+            fileId={object.primaryFileId}
+            getFileUrl={store.getFileUrl}
+            alt={object.title}
+            size={48}
+            glyph={TYPE_GLYPH[object.objectType] || '▣'}
+          />
+        ) : (
+          <span style={styles.typeGlyph} aria-hidden="true">
+            {TYPE_GLYPH[object.objectType] || '▣'}
+          </span>
+        )}
         <div style={styles.idCol}>
           <span style={styles.title}>{object.title}</span>
           <span style={styles.type}>{ASSETS_OBJ_HE.objectType[object.objectType]}</span>
         </div>
       </div>
 
+      {object.catalogCode && <span style={styles.catalogCode}>{object.catalogCode}</span>}
+
       {object.description ? <p style={styles.desc}>{object.description}</p> : null}
+
+      {Array.isArray(object.tags) && object.tags.length > 0 && (
+        <div style={styles.tagsRow}>
+          {object.tags.slice(0, 6).map((t) => (
+            <span key={t} style={styles.tagChip}>{t}</span>
+          ))}
+          {object.tags.length > 6 && (
+            <span style={styles.tagMore}>+{object.tags.length - 6}</span>
+          )}
+        </div>
+      )}
 
       <div style={styles.meta}>
         <span>{ASSETS_OBJ_HE.filesCount(visibleFileCount)}</span>
@@ -133,7 +159,16 @@ export default function AssetObjectCard({
         <div style={styles.expand}>
           {/* Intake: ownership + destination */}
           <AssetIntakeRouter object={object} store={store} />
+          {/* Clean 4B.4a: catalog & tags */}
+          <AssetCatalogPanel object={object} files={files} store={store} />
           <AssetUploadZone object={object} store={store} />
+          {/* Clean 4B.4a: choose primary/cover image */}
+          <AssetCoverSelector
+            object={object}
+            files={files}
+            getFileUrl={store.getFileUrl}
+            onSetPrimary={store.setPrimaryFile}
+          />
           <h4 style={styles.filesHeading}>{ASSETS_OBJ_HE.filesHeading}</h4>
           <AssetFilesPanel
             files={files}
@@ -185,6 +220,17 @@ const styles = {
     lineHeight: 1.3,
   },
   type: { fontFamily: tokens.font.body, fontSize: '12px', color: tokens.color.inkFaint },
+  catalogCode: {
+    alignSelf: 'flex-start', fontFamily: tokens.font.body, fontSize: '12px', fontWeight: 700,
+    letterSpacing: '0.04em', color: tokens.color.gold, background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`, borderRadius: '999px', padding: '2px 9px',
+  },
+  tagsRow: { display: 'flex', flexWrap: 'wrap', gap: '5px' },
+  tagChip: {
+    fontFamily: tokens.font.body, fontSize: '11px', fontWeight: 600, color: tokens.color.charcoal,
+    background: tokens.color.pearl, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: '999px', padding: '2px 8px',
+  },
+  tagMore: { fontFamily: tokens.font.body, fontSize: '11px', color: tokens.color.inkFaint },
   desc: {
     fontFamily: tokens.font.body,
     fontSize: '13px',

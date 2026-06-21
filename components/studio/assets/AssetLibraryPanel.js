@@ -11,7 +11,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { tokens } from '../shared/tokens';
-import { ASSETS_HE, ASSETS_OBJ_HE } from '../../../lib/studio/labels';
+import { ASSETS_HE, ASSETS_OBJ_HE, WIZARD_HE, ARCHIVE_HE } from '../../../lib/studio/labels';
 import {
   createUseAssets,
   OBJECT_TYPE_VALUES,
@@ -20,6 +20,8 @@ import {
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import AssetFilters from './AssetFilters';
 import AssetObjectCard from './AssetObjectCard';
+import AssetQuickCreateWizard from './AssetQuickCreateWizard';
+import AssetArchiveView from './AssetArchiveView';
 
 const useAssets = createUseAssets(React);
 const useDesignProjects = createUseDesignProjects(React);
@@ -37,6 +39,10 @@ export default function AssetLibraryPanel() {
   const [fPurpose, setFPurpose] = useState(null);
   const [fStatus, setFStatus] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+
+  // Clean 4B.4a: quick-create wizard + active/archive tab
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [tab, setTab] = useState('active'); // 'active' | 'archive'
 
   const projects = projectsStore.hydrated ? projectsStore.projects : [];
 
@@ -73,9 +79,46 @@ export default function AssetLibraryPanel() {
     <div dir="rtl">
       <Header />
 
+      {/* Clean 4B.4a: primary quick-create entry + tabs */}
+      <div style={styles.topBar}>
+        <button type="button" onClick={() => setWizardOpen(true)} style={styles.wizardBtn}>
+          ＋ {WIZARD_HE.openWizard}
+        </button>
+        <div style={styles.tabs}>
+          <button
+            type="button"
+            onClick={() => setTab('active')}
+            style={{ ...styles.tab, ...(tab === 'active' ? styles.tabActive : null) }}
+          >
+            {ARCHIVE_HE.activeTab}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('archive')}
+            style={{ ...styles.tab, ...(tab === 'archive' ? styles.tabActive : null) }}
+          >
+            {ARCHIVE_HE.tab}
+            {archivedObjects.length > 0 ? ` (${archivedObjects.length})` : ''}
+          </button>
+        </div>
+      </div>
+
+      {wizardOpen && (
+        <AssetQuickCreateWizard
+          store={store}
+          existingObjects={allObjects}
+          onClose={() => setWizardOpen(false)}
+          onCreated={() => setTab('active')}
+        />
+      )}
+
+      {tab === 'archive' ? (
+        <AssetArchiveView objects={allObjects} store={store} />
+      ) : (
+      <>
       <section style={styles.createBox}>
         <h2 style={styles.createTitle}>{ASSETS_OBJ_HE.newObjectTitle}</h2>
-        <p style={styles.createHint}>{ASSETS_OBJ_HE.newObjectHint}</p>
+        <p style={styles.createHint}>{WIZARD_HE.classicHint}</p>
         <div style={styles.createRow}>
           <input
             value={name}
@@ -172,6 +215,8 @@ export default function AssetLibraryPanel() {
           )}
         </>
       )}
+      </>
+      )}
     </div>
   );
 }
@@ -188,6 +233,11 @@ function Header() {
 
 const styles = {
   header: { marginBottom: '18px' },
+  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' },
+  wizardBtn: { minHeight: '48px', padding: '12px 22px', fontFamily: tokens.font.body, fontSize: '15px', fontWeight: 700, color: tokens.color.ivory, background: tokens.color.gold, border: 'none', borderRadius: tokens.radius.md, cursor: 'pointer', boxShadow: tokens.shadow.soft },
+  tabs: { display: 'flex', gap: '6px' },
+  tab: { minHeight: '40px', padding: '8px 16px', fontFamily: tokens.font.body, fontSize: '13px', fontWeight: 600, color: tokens.color.inkSoft, background: 'transparent', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: '999px', cursor: 'pointer' },
+  tabActive: { color: tokens.color.charcoal, background: tokens.color.goldFaint, border: `1px solid ${tokens.color.gold}` },
   eyebrow: { fontFamily: tokens.font.body, fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', color: tokens.color.gold },
   title: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '34px', color: tokens.color.charcoal, margin: '8px 0 10px' },
   caption: { fontFamily: tokens.font.body, fontSize: '14px', lineHeight: 1.6, color: tokens.color.inkSoft, margin: 0, maxWidth: '580px' },
