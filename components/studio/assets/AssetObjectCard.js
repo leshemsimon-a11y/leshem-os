@@ -20,6 +20,7 @@ import AssetNextActions from './AssetNextActions';
 import AssetThumbnail from './AssetThumbnail';
 import AssetCoverSelector from './AssetCoverSelector';
 import AssetCatalogPanel from './AssetCatalogPanel';
+import { resolvePrimaryImageFileId } from '../../../lib/studio/assetImage';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
@@ -49,13 +50,14 @@ export default function AssetObjectCard({
   const archived = object.status === 'archived';
   const visibleFileCount = files.filter((f) => f.status !== 'archived').length;
   const approvedCount = files.filter((f) => f.status === 'approved').length;
+  const previewFileId = resolvePrimaryImageFileId(object, files);
 
   return (
     <div style={{ ...styles.card, ...(archived ? styles.cardArchived : null) }} dir="rtl">
       <div style={styles.head}>
-        {object.primaryFileId ? (
+        {previewFileId ? (
           <AssetThumbnail
-            fileId={object.primaryFileId}
+            fileId={previewFileId}
             getFileUrl={store.getFileUrl}
             alt={object.title}
             size={48}

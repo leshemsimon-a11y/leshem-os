@@ -12,17 +12,22 @@
 // No IDs are exposed. Inventory/model "creation" makes a metadata-only DRAFT —
 // it does NOT touch the real inventory schema. Local only.
 
+import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
 import { NEXT_ACTIONS_HE } from '../../../lib/studio/labels';
 import { DESTINATION_TYPE } from '../../../lib/studio/assetsStore';
 import { assetObjectToTrayItem } from '../../../lib/studio/assetWorkflowBridge';
+import { createUseInventoryDrafts } from '../../../lib/studio/inventoryDraftsStore';
+
+const useInventoryDrafts = createUseInventoryDrafts(React);
 
 export default function AssetNextActions({ object, files, projects, tray, projectsStore, assetsStore }) {
   const router = useRouter();
   const [linkChoice, setLinkChoice] = useState('');
   const [toast, setToast] = useState(null);
+  const inventoryDrafts = useInventoryDrafts();
 
   const dest = object.destinationType || DESTINATION_TYPE.UNDECIDED;
   const trayItem = assetObjectToTrayItem(object, files);
@@ -67,6 +72,7 @@ export default function AssetNextActions({ object, files, projects, tray, projec
 
   const createInventoryDraft = async () => {
     await assetsStore.createInventoryDraft(object.objectId);
+    inventoryDrafts.createFromObject(object);
     flash(NEXT_ACTIONS_HE.inventoryDraftCreated);
   };
 
