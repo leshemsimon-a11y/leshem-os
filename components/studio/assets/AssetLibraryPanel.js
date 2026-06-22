@@ -10,6 +10,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
 import { ASSETS_HE, ASSETS_OBJ_HE, WIZARD_HE, ARCHIVE_HE } from '../../../lib/studio/labels';
 import {
@@ -18,6 +19,9 @@ import {
   OBJECT_TYPE,
 } from '../../../lib/studio/assetsStore';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
+import { createUseWorkTray } from '../../../lib/studio/workTray';
+import { createUseInventoryDrafts } from '../../../lib/studio/inventoryDraftsStore';
+import { assetObjectToTrayItem } from '../../../lib/studio/assetWorkflowBridge';
 import AssetFilters from './AssetFilters';
 import AssetObjectCard from './AssetObjectCard';
 import AssetQuickCreateWizard from './AssetQuickCreateWizard';
@@ -25,10 +29,15 @@ import AssetArchiveView from './AssetArchiveView';
 
 const useAssets = createUseAssets(React);
 const useDesignProjects = createUseDesignProjects(React);
+const useWorkTray = createUseWorkTray(React);
+const useInventoryDrafts = createUseInventoryDrafts(React);
 
 export default function AssetLibraryPanel() {
+  const router = useRouter();
   const store = useAssets();
   const projectsStore = useDesignProjects();
+  const tray = useWorkTray();
+  const inventoryDrafts = useInventoryDrafts();
 
   const [name, setName] = useState('');
   const [objectType, setObjectType] = useState(OBJECT_TYPE.STONE);
@@ -50,6 +59,45 @@ export default function AssetLibraryPanel() {
     await store.createObject({ title: name, objectType, description, status: 'draft' });
     setName('');
     setDescription('');
+  };
+
+  // Clean 4B.4b — execute the wizard's chosen "next action" after the asset and
+  // its files are created. result = { object, files }. All local; no Airtable.
+  const handleWizardCreated = async (result, nextAction) => {
+    setTab('active');
+    const object = result && result.object;
+    const files = (result && result.files) || [];
+    if (!object) return;
+
+    if (nextAction === 'createInventory') {
+      inventoryDrafts.createFromObject(object);
+      await store.updateObject(object.objectId, { destinationType: 'inventory' });
+      router.push('/studio/inventory');
+      return;
+    }
+    if (nextAction === 'addToTray') {
+      const item = assetObjectToTrayItem(object, files);
+      if (item && !tray.has(item.id)) tray.addItem(item);
+      router.push('/studio/tray');
+      return;
+    }
+    if (nextAction === 'createProject') {
+      const project = await projectsStore.createFromAsset(object, files);
+      if (project && project.id) {
+        await store.linkObjectToProject(object.objectId, project.id);
+        router.push('/studio/projects');
+      }
+      return;
+    }
+    if (nextAction === 'openInStudio') {
+      // Bring the new asset into the studio as an additive tray item, then go to
+      // the design board. (No replace/clear here — additive is always safe.)
+      const item = assetObjectToTrayItem(object, files);
+      if (item && !tray.has(item.id)) tray.addItem(item);
+      router.push('/studio/design');
+      return;
+    }
+    // 'saveOnly' → stay in the library; the new card is already visible.
   };
 
   if (!store.hydrated) {
@@ -108,7 +156,7 @@ export default function AssetLibraryPanel() {
           store={store}
           existingObjects={allObjects}
           onClose={() => setWizardOpen(false)}
-          onCreated={() => setTab('active')}
+          onCreated={handleWizardCreated}
         />
       )}
 

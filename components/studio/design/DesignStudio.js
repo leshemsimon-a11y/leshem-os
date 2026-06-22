@@ -26,8 +26,9 @@
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE } from '../../../lib/studio/labels';
+import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE, ASSET_FLOW_HE, PICKER_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
+import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import {
   buildDesignGroups,
   summarizeDraft,
@@ -39,8 +40,11 @@ import DesignFutureRail from './DesignFutureRail';
 import DesignBriefPanel from './DesignBriefPanel';
 import DesignSnapshotPanel from './DesignSnapshotPanel';
 import SaveProjectPanel from '../projects/SaveProjectPanel';
+import LinkedAssetsPanel from './LinkedAssetsPanel';
+import AssetPicker from '../assets/AssetPicker';
 
 const useWorkTray = createUseWorkTray(React);
+const useDesignProjects = createUseDesignProjects(React);
 
 // Compact, low-text draft header: status dot + one line + small count chips.
 function DraftHeader({ summary, status }) {
@@ -97,6 +101,7 @@ function DraftHeader({ summary, status }) {
 export default function DesignStudio() {
   const router = useRouter();
   const tray = useWorkTray();
+  const projectsStore = useDesignProjects();
 
   const groups = buildDesignGroups(tray.items);
   const summary = summarizeDraft(tray.items);
@@ -105,6 +110,19 @@ export default function DesignStudio() {
 
   const Z = DESIGN_HE.zones;
   const goTray = () => router.push('/studio/tray');
+
+  // Clean 4B.4b — Asset Picker (pull assets into the studio) + link target.
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [currentProjectId, setCurrentProjectId] = React.useState(null);
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        setCurrentProjectId(window.localStorage.getItem('leshem_studio_current_project_v1'));
+      }
+    } catch (e) {
+      /* non-fatal */
+    }
+  }, []);
 
   return (
     <div dir="rtl">
@@ -122,9 +140,14 @@ export default function DesignStudio() {
           </div>
           <h2 style={styles.emptyTitle}>{DESIGN_HE.emptyTitle}</h2>
           <p style={styles.emptyHint}>{DESIGN_HE.emptyHint}</p>
-          <button type="button" onClick={goTray} style={styles.primaryBtn}>
-            {DESIGN_HE.goToTray}
-          </button>
+          <div style={styles.emptyActions}>
+            <button type="button" onClick={goTray} style={styles.primaryBtn}>
+              {DESIGN_HE.goToTray}
+            </button>
+            <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickBtn}>
+              {PICKER_HE.openFromStudio}
+            </button>
+          </div>
         </div>
       ) : (
         <div style={styles.board}>
@@ -136,9 +159,14 @@ export default function DesignStudio() {
                 <RoleZone key={g.id} group={g} />
               ))}
             </div>
-            <button type="button" onClick={goTray} style={styles.trayLink}>
-              {DESIGN_HE.status.backToTray}
-            </button>
+            <div style={styles.zone1Actions}>
+              <button type="button" onClick={goTray} style={styles.trayLink}>
+                {DESIGN_HE.status.backToTray}
+              </button>
+              <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickInline}>
+                {PICKER_HE.openFromStudio}
+              </button>
+            </div>
           </DesignBoardZone>
 
           {/* ZONE 2 — Design Direction (ACTIVE in Clean 3C — Jewelry Design Brief) */}
@@ -154,6 +182,11 @@ export default function DesignStudio() {
           {/* ZONE 2.7 — Save as Design Project (ACTIVE in Clean 4A) */}
           <DesignBoardZone title={PROJECTS_HE.saveTitle} caption={PROJECTS_HE.caption} glyph="❒">
             <SaveProjectPanel />
+          </DesignBoardZone>
+
+          {/* ZONE 2.8 — Linked Assets for the open project (ACTIVE in Clean 4B.2) */}
+          <DesignBoardZone title={ASSET_FLOW_HE.linkedTitle} caption={ASSET_FLOW_HE.linkedEmpty} glyph="▣">
+            <StudioLinkedAssets router={router} />
           </DesignBoardZone>
 
           {/* ZONES 3–7 — reserved future zones (clearly disabled) */}
@@ -178,7 +211,37 @@ export default function DesignStudio() {
           </DesignBoardZone>
         </div>
       )}
+
+      <AssetPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        tray={tray}
+        projectsStore={projectsStore}
+        currentProjectId={currentProjectId}
+      />
     </div>
+  );
+}
+
+// Reads the project most recently opened into the studio (set by the projects
+// library on open) and shows its linked assets. If none is open, the panel
+// simply shows the empty state. Local only.
+function StudioLinkedAssets({ router }) {
+  const [projectId, setProjectId] = React.useState(null);
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        setProjectId(window.localStorage.getItem('leshem_studio_current_project_v1'));
+      }
+    } catch (e) {
+      /* non-fatal */
+    }
+  }, []);
+  return (
+    <LinkedAssetsPanel
+      projectId={projectId}
+      onOpenAssets={() => router.push('/studio/assets')}
+    />
   );
 }
 
@@ -307,7 +370,6 @@ const styles = {
     gap: '22px',
   },
   trayLink: {
-    marginTop: '18px',
     minHeight: '46px',
     padding: '11px 22px',
     fontFamily: tokens.font.body,
@@ -316,6 +378,42 @@ const styles = {
     color: tokens.color.charcoal,
     background: tokens.color.canvas,
     border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
+  zone1Actions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    marginTop: '18px',
+  },
+  pickInline: {
+    minHeight: '46px',
+    padding: '11px 20px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
+  emptyActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    justifyContent: 'center',
+  },
+  pickBtn: {
+    minHeight: '50px',
+    padding: '14px 22px',
+    fontFamily: tokens.font.body,
+    fontSize: '15px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
   },

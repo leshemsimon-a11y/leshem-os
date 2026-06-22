@@ -14,10 +14,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { STLLoader } from 'three/addons/loaders/STLLoader.js';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// Clean 4B.4b hotfix: import the addon modules from the canonical
+// `three/examples/jsm/*` file paths. The previous `three/addons/*` specifier
+// relies on the package "exports" import-map alias, which is NOT resolved under
+// the Next.js/webpack build — so every STL/OBJ load threw at import/parse time
+// and fell into the catch branch, showing the "saved but cannot preview"
+// message. The examples/jsm paths are real files in the `three` package and
+// resolve reliably under webpack. No version change, no new packages.
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { tokens } from '../shared/tokens';
 import { ASSETS_OBJ_HE } from '../../../lib/studio/labels';
 

@@ -16,11 +16,16 @@
 // The Airtable record id is NEVER displayed. Identity uses the same field
 // precedence as the inventory card/drawer. No commerce language.
 
+import * as React from 'react';
 import { tokens } from '../shared/tokens';
 import MediaPreview from '../media/MediaPreview';
+import AssetThumbnail from '../assets/AssetThumbnail';
 import RoleChips from '../shared/RoleChips';
 import { TRAY_HE } from '../../../lib/studio/labels';
 import { DESIGN_ROLE, normalizeRole } from '../../../lib/studio/designDraft';
+import { createUseAssets } from '../../../lib/studio/assetsStore';
+
+const useAssets = createUseAssets(React);
 
 function identity(snapshot) {
   const s = snapshot || {};
@@ -36,16 +41,29 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
   const role = normalizeRole(item.role);
   const isUnassigned = role === DESIGN_ROLE.UNASSIGNED;
 
+  // Clean 4B.4b — primary image propagation. Asset-sourced tray items store a
+  // previewImageFileId (an IndexedDB blob) rather than a URL, so resolve it via
+  // the assets store. Inventory items keep the exact original MediaPreview path.
+  const isAssetSourced = item.source === 'assetLibrary';
+  const previewFileId =
+    item.previewImageFileId ||
+    (item.snapshot && item.snapshot.primaryImageFileId) ||
+    null;
+
   return (
     <div style={styles.card} dir="rtl">
       <div style={styles.top}>
         <div style={styles.thumb}>
-          <MediaPreview
-            src={item.snapshot && item.snapshot.primaryImage}
-            alt={title}
-            height={84}
-            cover
-          />
+          {isAssetSourced && previewFileId ? (
+            <AssetThumbnailFromStore fileId={previewFileId} alt={title} />
+          ) : (
+            <MediaPreview
+              src={item.snapshot && item.snapshot.primaryImage}
+              alt={title}
+              height={84}
+              cover
+            />
+          )}
         </div>
 
         <div style={styles.identity}>
@@ -88,6 +106,25 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
         />
       </div>
     </div>
+  );
+}
+
+// Resolves an asset-sourced tray item's primary image from IndexedDB and fills
+// the existing 84px tray thumbnail frame. Local only; SSR-safe via the store.
+function AssetThumbnailFromStore({ fileId, alt }) {
+  const store = useAssets();
+  if (!store.hydrated) {
+    return <MediaPreview src={null} alt={alt} height={84} cover />;
+  }
+  return (
+    <AssetThumbnail
+      fileId={fileId}
+      getFileUrl={store.getFileUrl}
+      alt={alt}
+      size="100%"
+      radius={0}
+      fit="cover"
+    />
   );
 }
 

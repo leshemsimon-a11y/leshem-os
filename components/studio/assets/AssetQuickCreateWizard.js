@@ -47,13 +47,15 @@ const DEST_OPTIONS = [
   DESTINATION_TYPE.APPROVED_MEDIA,
 ];
 
-// 4B.4a: only saveOnly is active. The rest are deferred to 4B.4b.
+// Clean 4B.4b: all next-actions are now active. Execution happens in the
+// parent's onCreated(result, nextAction) handler, which has the router + tray /
+// projects / inventory-draft stores.
 const NEXT_ACTIONS = [
   { key: 'saveOnly', label: WIZARD_HE.saveOnly, active: true },
-  { key: 'createInventory', label: WIZARD_HE.createInventory, active: false },
-  { key: 'addToTray', label: WIZARD_HE.addToTray, active: false },
-  { key: 'createProject', label: WIZARD_HE.createProject, active: false },
-  { key: 'openInStudio', label: WIZARD_HE.openInStudio, active: false },
+  { key: 'createInventory', label: WIZARD_HE.createInventory, active: true },
+  { key: 'addToTray', label: WIZARD_HE.addToTray, active: true },
+  { key: 'createProject', label: WIZARD_HE.createProject, active: true },
+  { key: 'openInStudio', label: WIZARD_HE.openInStudio, active: true },
 ];
 
 const STEPS = ['title', 'owner', 'destination', 'catalog', 'files', 'cover', 'next'];
@@ -451,7 +453,7 @@ export default function AssetQuickCreateWizard({ store, existingObjects, onClose
                   );
                 })}
               </div>
-              <p style={styles.note}>{WIZARD_HE.deferredNote}</p>
+              <p style={styles.note}>{WIZARD_HE.nextActionActiveNote}</p>
             </div>
           )}
         </div>

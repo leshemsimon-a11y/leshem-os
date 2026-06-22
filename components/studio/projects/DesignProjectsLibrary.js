@@ -17,11 +17,12 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { PROJECTS_HE } from '../../../lib/studio/labels';
+import { PROJECTS_HE, OPEN_STUDIO_HE } from '../../../lib/studio/labels';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
 import LinkedAssetsPanel from '../design/LinkedAssetsPanel';
+import OpenInStudioChooser from '../assets/OpenInStudioChooser';
 
 const useDesignProjects = createUseDesignProjects(React);
 const useWorkTray = createUseWorkTray(React);
@@ -173,6 +174,47 @@ export default function DesignProjectsLibrary() {
     router.push('/studio/design');
   };
 
+  // Clean 4B.4b — additive open: append the project's items to the current tray
+  // without discarding existing work, set the brief only if empty, then route.
+  const doAddToCurrent = (project) => {
+    const incoming = Array.isArray(project.trayItems) ? project.trayItems : [];
+    incoming.forEach((it) => {
+      if (it && it.id && !tray.has(it.id)) tray.addItem(it);
+    });
+    const currentBrief = brief.brief || {};
+    const hasBrief = currentBrief && Object.keys(currentBrief).length > 0;
+    if (!hasBrief && project.brief) brief.set(project.brief);
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('leshem_studio_current_project_v1', project.id);
+      }
+    } catch (e) {
+      /* non-fatal */
+    }
+    setPendingOpen(null);
+    router.push('/studio/design');
+  };
+
+  // GUARD: save the CURRENT work as a local project with a simple default name.
+  // Returns the saved project (truthy with .id) on success, or null on failure
+  // so the chooser can refuse to replace work when saving did not succeed.
+  const saveCurrentWork = () => {
+    try {
+      const items = tray.items || [];
+      if (items.length === 0) return { id: '__nothing_to_save__', name: '' };
+      const stamp = new Date().toLocaleString('he-IL');
+      const saved = projectsStore.save({
+        name: `${OPEN_STUDIO_HE.defaultProjectName} · ${stamp}`,
+        trayItems: items,
+        brief: brief.brief || {},
+      });
+      return saved && saved.id ? saved : null;
+    } catch (e) {
+      console.warn('[projects] saveCurrentWork failed', e);
+      return null;
+    }
+  };
+
   if (!projectsStore.hydrated) {
     return (
       <div dir="rtl">
@@ -247,24 +289,16 @@ export default function DesignProjectsLibrary() {
         </section>
       )}
 
-      {/* Open confirmation (replaces current tray + brief). */}
-      {pendingOpen && (
-        <>
-          <div style={styles.scrim} onClick={() => setPendingOpen(null)} aria-hidden="true" />
-          <div style={styles.dialog} role="dialog" aria-modal="true" dir="rtl">
-            <h3 style={styles.dialogTitle}>{PROJECTS_HE.openConfirmTitle}</h3>
-            <p style={styles.dialogBody}>{PROJECTS_HE.openConfirmBody}</p>
-            <div style={styles.dialogActions}>
-              <button type="button" onClick={() => setPendingOpen(null)} style={styles.ghostBtn}>
-                {PROJECTS_HE.openConfirmNo}
-              </button>
-              <button type="button" onClick={() => doOpen(pendingOpen)} style={styles.primaryBtn}>
-                {PROJECTS_HE.openConfirmYes}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Clean 4B.4b — choice-based open flow that protects unsaved work. */}
+      <OpenInStudioChooser
+        open={!!pendingOpen}
+        mode="project"
+        hasCurrentWork={(tray.items || []).length > 0}
+        onAddToCurrent={() => pendingOpen && doAddToCurrent(pendingOpen)}
+        saveCurrentWork={saveCurrentWork}
+        proceedReplace={() => pendingOpen && doOpen(pendingOpen)}
+        onClose={() => setPendingOpen(null)}
+      />
     </div>
   );
 }

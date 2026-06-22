@@ -29,8 +29,12 @@ import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { summarizeDraft, draftStatus } from '../../../lib/studio/designDraft';
 import TrayItemCard from './TrayItemCard';
 import ClearTrayConfirm from './ClearTrayConfirm';
+import AssetPicker from '../assets/AssetPicker';
+import { createUseDesignProjects } from '../../../lib/studio/designProjects';
+import { PICKER_HE } from '../../../lib/studio/labels';
 
 const useWorkTray = createUseWorkTray(React);
+const useDesignProjects = createUseDesignProjects(React);
 
 function StatusStrip({ status }) {
   if (!status || status.key === 'empty') return null;
@@ -66,7 +70,9 @@ export default function WorkTray() {
   const isMobile = useIsMobile(880);
   const router = useRouter();
   const tray = useWorkTray();
+  const projectsStore = useDesignProjects();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const summary = summarizeDraft(tray.items);
   const { total, assigned, readyToBegin } = summary;
@@ -99,21 +105,31 @@ export default function WorkTray() {
           </div>
           <h2 style={styles.emptyTitle}>{TRAY_HE.empty}</h2>
           <p style={styles.emptyHint}>{TRAY_HE.emptyHint}</p>
-          <button type="button" onClick={goInventory} style={styles.secondaryBtn}>
-            {TRAY_HE.backToInventory}
-          </button>
+          <div style={styles.emptyActions}>
+            <button type="button" onClick={() => setPickerOpen(true)} style={styles.primaryBtn}>
+              {PICKER_HE.openFromTray}
+            </button>
+            <button type="button" onClick={goInventory} style={styles.secondaryBtn}>
+              {TRAY_HE.backToInventory}
+            </button>
+          </div>
         </div>
       ) : (
         <>
           <div style={styles.metaRow}>
             <span style={styles.count}>{TRAY_HE.itemsCount(total)}</span>
-            <button
-              type="button"
-              onClick={() => setConfirmOpen(true)}
-              style={styles.clearBtn}
-            >
-              {TRAY_HE.clear}
-            </button>
+            <div style={styles.metaActions}>
+              <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickBtn}>
+                {PICKER_HE.openFromTray}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(true)}
+                style={styles.clearBtn}
+              >
+                {TRAY_HE.clear}
+              </button>
+            </div>
           </div>
 
           <StatusStrip status={status} />
@@ -167,6 +183,14 @@ export default function WorkTray() {
         open={confirmOpen}
         onConfirm={handleClear}
         onCancel={() => setConfirmOpen(false)}
+      />
+
+      <AssetPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        tray={tray}
+        projectsStore={projectsStore}
+        currentProjectId={null}
       />
     </div>
   );
@@ -248,6 +272,32 @@ const styles = {
     justifyContent: 'space-between',
     gap: '12px',
     marginBottom: '12px',
+  },
+  metaActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+  emptyActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  pickBtn: {
+    minHeight: '44px',
+    padding: '10px 16px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   count: {
     fontFamily: tokens.font.body,

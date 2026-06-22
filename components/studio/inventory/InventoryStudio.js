@@ -14,6 +14,7 @@ import { LoadingState, EmptyState, ErrorState } from '../shared/StudioStates';
 import { fetchInventory } from '../../../lib/studio/assets';
 import InventoryToolbar from './InventoryToolbar';
 import StoneCard from './StoneCard';
+import InventoryDraftsPanel from './InventoryDraftsPanel';
 import AssetDrawer from '../drawer/AssetDrawer';
 
 const EMPTY_FILTERS = {
@@ -105,6 +106,10 @@ export default function InventoryStudio() {
           חלל היצירה של הסטודיו — עיינו באבנים, חפשו וסננו, ובדקו כל פריט מקרוב.
         </p>
       </header>
+
+      {/* Clean 4B.4b — local inventory drafts created from assets. Renders only
+          when drafts exist; the read-only Airtable inventory below is untouched. */}
+      <InventoryDraftsPanel />
 
       {status === 'loading' && <LoadingState />}
 
