@@ -58,7 +58,18 @@ export default function AssetPreviewPanel({ file, getFileUrl }) {
       ? ASSETS_OBJ_HE.filePurpose[file.filePurpose]
       : null;
 
-  // 3D handled by the dedicated viewer (it shows its own fallback message).
+  if (loading) {
+    return <div style={styles.message}>{ASSETS_OBJ_HE.viewer3dLoading}</div>;
+  }
+
+  if (!url) {
+    return <div style={styles.message}>{ASSETS_OBJ_HE.notStored}</div>;
+  }
+
+  // 3D handled by the dedicated viewer only AFTER the IndexedDB Blob URL is
+  // available. Previously the viewer rendered once with url=null, switched
+  // itself to an error state, and then had no canvas mounted when the real URL
+  // arrived — so STL/OBJ previews stayed stuck on the generic error message.
   if (file.fileKind === FILE_KIND.MODEL_3D) {
     return (
       <Asset3DViewer
@@ -68,14 +79,6 @@ export default function AssetPreviewPanel({ file, getFileUrl }) {
         purposeHe={purposeHe}
       />
     );
-  }
-
-  if (loading) {
-    return <div style={styles.message}>{ASSETS_OBJ_HE.viewer3dLoading}</div>;
-  }
-
-  if (!url) {
-    return <div style={styles.message}>{ASSETS_OBJ_HE.notStored}</div>;
   }
 
   if (file.fileKind === FILE_KIND.IMAGE) {
