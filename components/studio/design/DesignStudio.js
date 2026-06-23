@@ -42,6 +42,7 @@ import DesignSnapshotPanel from './DesignSnapshotPanel';
 import SaveProjectPanel from '../projects/SaveProjectPanel';
 import LinkedAssetsPanel from './LinkedAssetsPanel';
 import AssetPicker from '../assets/AssetPicker';
+import ActiveWorkBadge from '../shared/ActiveWorkBadge';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
@@ -130,6 +131,8 @@ export default function DesignStudio() {
         <span style={styles.eyebrow}>{DESIGN_HE.eyebrow}</span>
         <h1 style={styles.title}>{DESIGN_HE.title}</h1>
       </header>
+
+      <ActiveWorkBadge />
 
       {!tray.hydrated ? (
         <div style={styles.loading}>טוען את העיצוב…</div>

@@ -15,30 +15,59 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { INV_HE } from '../../../lib/studio/labels';
+import { INV_HE, ACTIVE_WORK_HE } from '../../../lib/studio/labels';
 import {
   createUseInventory,
   INV_OWNERSHIP,
 } from '../../../lib/studio/inventoryStore';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
+import { createUseDesignProjects } from '../../../lib/studio/designProjects';
+import { createUseActiveWork } from '../../../lib/studio/activeWorkStore';
 import { inventoryItemToTrayItem } from '../../../lib/studio/inventoryTrayBridge';
 import InventoryQuickAdd from './InventoryQuickAdd';
 import LocalInventoryItemCard from './LocalInventoryItemCard';
+import InventoryItemDetail from './InventoryItemDetail';
 
 const useInventory = createUseInventory(React);
 const useWorkTray = createUseWorkTray(React);
+const useDesignProjects = createUseDesignProjects(React);
+const useActiveWork = createUseActiveWork(React);
 
 export default function LocalInventorySections() {
   const router = useRouter();
   const inv = useInventory();
   const tray = useWorkTray();
+  const projects = useDesignProjects();
+  const activeWork = useActiveWork();
   const [selectedIds, setSelectedIds] = useState([]);
+  const [openItemId, setOpenItemId] = useState(null);
   const [toast, setToast] = useState(null);
 
   const flash = (m) => {
     setToast(m);
     setTimeout(() => setToast(null), 2000);
   };
+
+  const openItem = inv.items.find((it) => it.inventoryItemId === openItemId) || null;
+
+  // Create a work (Design Project) from a single inventory item: ensure it is
+  // in the tray, then save a project from the current tray and mark it active.
+  const createWorkFromItem = (item) => {
+    const ti = inventoryItemToTrayItem(item);
+    if (ti && !tray.has(ti.id)) tray.addItem(ti);
+    const project = projects.save({
+      name: item.title || ACTIVE_WORK_HE.defaultName,
+      trayItems: tray.has(ti.id) ? tray.items : (tray.items || []).concat(ti),
+    });
+    if (project && project.id) {
+      activeWork.setActiveWork(project.id);
+      setOpenItemId(null);
+      router.push('/studio/projects');
+    }
+  };
+
+  const openLinkedAsset = () => router.push('/studio/assets');
+  const addFilesViaAssets = () => router.push('/studio/assets');
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.concat(id)));
@@ -101,9 +130,11 @@ export default function LocalInventorySections() {
     onToggleSelect: toggleSelect,
     onAvailability: inv.setAvailability,
     onAddToTray: addOneToTray,
+    onOpen: (item) => setOpenItemId(item.inventoryItemId),
     onRemove: (id) => {
       inv.remove(id);
       setSelectedIds((prev) => prev.filter((x) => x !== id));
+      if (openItemId === id) setOpenItemId(null);
     },
   };
 
@@ -158,6 +189,22 @@ export default function LocalInventorySections() {
       )}
 
       {toast && <div style={styles.toast}>{toast}</div>}
+
+      <InventoryItemDetail
+        item={openItem}
+        onClose={() => setOpenItemId(null)}
+        onSave={(id, patch) => {
+          inv.update(id, patch);
+          flash('נשמר ✓');
+        }}
+        onAddToTray={(item) => {
+          addOneToTray(item);
+        }}
+        onCreateWork={createWorkFromItem}
+        onOpenLinkedAsset={openLinkedAsset}
+        onAddFilesViaAssets={addFilesViaAssets}
+        inTray={openItem ? isInTray(openItem) : false}
+      />
     </div>
   );
 }

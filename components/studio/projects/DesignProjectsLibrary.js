@@ -23,6 +23,7 @@ import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
 import LinkedAssetsPanel from '../design/LinkedAssetsPanel';
 import OpenInStudioChooser from '../assets/OpenInStudioChooser';
+import { setActiveWorkId } from '../../../lib/studio/activeWorkStore';
 
 const useDesignProjects = createUseDesignProjects(React);
 const useWorkTray = createUseWorkTray(React);
@@ -162,14 +163,8 @@ export default function DesignProjectsLibrary() {
     // Restore the saved design into the live studio stores, then route in.
     tray.replace(project.trayItems || []);
     brief.set(project.brief || {});
-    // Remember which project is open so the studio can show its linked assets.
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('leshem_studio_current_project_v1', project.id);
-      }
-    } catch (e) {
-      /* non-fatal */
-    }
+    // Mark this project as the active work (fires the active-work event).
+    setActiveWorkId(project.id);
     setPendingOpen(null);
     router.push('/studio/design');
   };
@@ -184,13 +179,7 @@ export default function DesignProjectsLibrary() {
     const currentBrief = brief.brief || {};
     const hasBrief = currentBrief && Object.keys(currentBrief).length > 0;
     if (!hasBrief && project.brief) brief.set(project.brief);
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('leshem_studio_current_project_v1', project.id);
-      }
-    } catch (e) {
-      /* non-fatal */
-    }
+    setActiveWorkId(project.id);
     setPendingOpen(null);
     router.push('/studio/design');
   };

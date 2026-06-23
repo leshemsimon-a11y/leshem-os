@@ -30,11 +30,17 @@ import { summarizeDraft, draftStatus } from '../../../lib/studio/designDraft';
 import TrayItemCard from './TrayItemCard';
 import ClearTrayConfirm from './ClearTrayConfirm';
 import AssetPicker from '../assets/AssetPicker';
+import ActiveWorkBadge from '../shared/ActiveWorkBadge';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
-import { PICKER_HE } from '../../../lib/studio/labels';
+import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
+import { createUseActiveWork } from '../../../lib/studio/activeWorkStore';
+import { buildDesignSnapshot } from '../../../lib/studio/designDraft';
+import { PICKER_HE, ACTIVE_WORK_HE } from '../../../lib/studio/labels';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
+const useDesignBrief = createUseDesignBrief(React);
+const useActiveWork = createUseActiveWork(React);
 
 function StatusStrip({ status }) {
   if (!status || status.key === 'empty') return null;
@@ -71,8 +77,49 @@ export default function WorkTray() {
   const router = useRouter();
   const tray = useWorkTray();
   const projectsStore = useDesignProjects();
+  const brief = useDesignBrief();
+  const activeWork = useActiveWork();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [workName, setWorkName] = useState('');
+  const [workToast, setWorkToast] = useState(null);
+
+  const flashWork = (m) => {
+    setWorkToast(m);
+    setTimeout(() => setWorkToast(null), 2000);
+  };
+
+  const activeProject =
+    activeWork.activeWorkId && projectsStore.hydrated
+      ? projectsStore.projects.find((p) => p.id === activeWork.activeWorkId)
+      : null;
+
+  const saveAsNewWork = () => {
+    if (tray.items.length === 0) return;
+    const snapshot = buildDesignSnapshot(tray.items, brief.brief || {});
+    const project = projectsStore.save({
+      name: workName.trim() || ACTIVE_WORK_HE.defaultName,
+      trayItems: tray.items,
+      brief: brief.brief || {},
+      snapshot,
+    });
+    if (project && project.id) {
+      activeWork.setActiveWork(project.id);
+      setWorkName('');
+      flashWork(ACTIVE_WORK_HE.savedToast);
+    }
+  };
+
+  const updateExistingWork = () => {
+    if (!activeProject) return;
+    const snapshot = buildDesignSnapshot(tray.items, brief.brief || {});
+    projectsStore.update(activeProject.id, {
+      trayItems: tray.items,
+      brief: brief.brief || {},
+      snapshot,
+    });
+    flashWork(ACTIVE_WORK_HE.updatedToast);
+  };
 
   const summary = summarizeDraft(tray.items);
   const { total, assigned, readyToBegin } = summary;
@@ -94,6 +141,8 @@ export default function WorkTray() {
         <h1 style={styles.title}>{TRAY_HE.title}</h1>
         <p style={styles.draftNote}>{TRAY_HE.draftNote}</p>
       </header>
+
+      {tray.hydrated && <ActiveWorkBadge />}
 
       {/* Don't render hydration-sensitive content until the store has synced. */}
       {!tray.hydrated ? (
@@ -143,6 +192,28 @@ export default function WorkTray() {
                 onRemove={tray.remove}
               />
             ))}
+          </div>
+
+          {/* Clean 4C.1 — Save the tray as a work (Design Project). */}
+          <div style={styles.workPanel}>
+            <div style={styles.workRow}>
+              <input
+                value={workName}
+                onChange={(e) => setWorkName(e.target.value)}
+                placeholder={activeProject ? activeProject.name : ACTIVE_WORK_HE.namePlaceholder}
+                style={styles.workInput}
+                dir="rtl"
+              />
+              <button type="button" onClick={saveAsNewWork} style={styles.workSave}>
+                {activeProject ? ACTIVE_WORK_HE.createNewWork : ACTIVE_WORK_HE.saveAsWork}
+              </button>
+            </div>
+            {activeProject && (
+              <button type="button" onClick={updateExistingWork} style={styles.workUpdate}>
+                {ACTIVE_WORK_HE.updateExisting}
+              </button>
+            )}
+            {workToast && <span style={styles.workToast}>{workToast}</span>}
           </div>
 
           {/* Desktop: inline action row. Mobile: sticky bottom bar below. */}
@@ -363,6 +434,26 @@ const styles = {
     flexDirection: 'column',
     gap: '14px',
   },
+  workPanel: {
+    display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px', padding: '16px',
+    background: tokens.color.pearl, border: `1px solid ${tokens.color.goldFaint}`, borderRadius: tokens.radius.lg,
+  },
+  workRow: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
+  workInput: {
+    flex: 1, minWidth: '180px', boxSizing: 'border-box', fontFamily: tokens.font.body, fontSize: '14px',
+    color: tokens.color.ink, background: tokens.color.ivory, border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md, padding: '11px 13px', minHeight: '46px',
+  },
+  workSave: {
+    minHeight: '46px', padding: '11px 22px', fontFamily: tokens.font.body, fontSize: '14px', fontWeight: 700,
+    color: tokens.color.ivory, background: tokens.color.charcoal, border: 'none', borderRadius: tokens.radius.md, cursor: 'pointer',
+  },
+  workUpdate: {
+    alignSelf: 'flex-start', minHeight: '44px', padding: '10px 18px', fontFamily: tokens.font.body, fontSize: '14px',
+    fontWeight: 700, color: tokens.color.charcoal, background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`, borderRadius: tokens.radius.md, cursor: 'pointer',
+  },
+  workToast: { fontFamily: tokens.font.body, fontSize: '13px', fontWeight: 600, color: tokens.color.sage },
   desktopActions: {
     display: 'flex',
     alignItems: 'center',

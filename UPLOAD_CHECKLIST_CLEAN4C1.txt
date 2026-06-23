@@ -1,0 +1,31 @@
+LESHEM.S OS — Clean 4C.1 Final Patch
+
+Upload the contents of this patch to GitHub root.
+Commit message:
+Clean 4C.1 active work save
+
+Included:
+- Inventory item detail/edit drawer
+- Active Work store
+- Active Work badge
+- Work Tray save as work / update active work
+- Project open marks active work
+- Design Studio active work indicator
+- Hebrew labels for 4C.1
+- public npm registry package-lock.json
+
+After Vercel deploy, test:
+1. Inventory opens.
+2. Create inventory item.
+3. Open/edit inventory item.
+4. Save and refresh.
+5. Add item to Work Tray from detail drawer.
+6. Assign role in Work Tray.
+7. Save tray as work.
+8. Confirm project appears in Design Projects.
+9. Open project and confirm tray/items/roles are restored.
+10. Update existing work from Work Tray.
+11. Confirm Active Work badge appears in Work Tray and Design Studio.
+12. Asset Library still opens.
+13. STL/OBJ preview still works.
+14. Build passes.
