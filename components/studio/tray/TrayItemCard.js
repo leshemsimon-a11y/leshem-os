@@ -41,20 +41,39 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
   const role = normalizeRole(item.role);
   const isUnassigned = role === DESIGN_ROLE.UNASSIGNED;
 
-  // Clean 4B.4b — primary image propagation. Asset-sourced tray items store a
-  // previewImageFileId (an IndexedDB blob) rather than a URL, so resolve it via
-  // the assets store. Inventory items keep the exact original MediaPreview path.
+  // Clean 4B.4b/4C — primary image propagation. Asset- and inventory-sourced
+  // tray items store a previewImageFileId (an IndexedDB blob) rather than a URL,
+  // so resolve it via the assets store. Plain inventory items keep the original
+  // MediaPreview path.
   const isAssetSourced = item.source === 'assetLibrary';
+  const isInventorySourced = item.source === 'inventory';
   const previewFileId =
     item.previewImageFileId ||
     (item.snapshot && item.snapshot.primaryImageFileId) ||
     null;
+  const resolveFromStore = (isAssetSourced || isInventorySourced) && previewFileId;
+
+  // Clean 4C — provenance line for the Work Tray card: where the item came
+  // from, plus client/supplier and availability when present.
+  const s = item.snapshot || {};
+  const sourceHe =
+    s.sourceHe ||
+    (isAssetSourced ? 'ספריית נכסים' : null);
+  const contextHe = s.linkedClientName
+    ? `לקוח: ${s.linkedClientName}`
+    : s.supplierName
+    ? `ספק: ${s.supplierName}`
+    : null;
+  const availabilityHe =
+    s.availabilityStatus && TRAY_HE.availability
+      ? TRAY_HE.availability[s.availabilityStatus] || null
+      : null;
 
   return (
     <div style={styles.card} dir="rtl">
       <div style={styles.top}>
         <div style={styles.thumb}>
-          {isAssetSourced && previewFileId ? (
+          {resolveFromStore ? (
             <AssetThumbnailFromStore fileId={previewFileId} alt={title} />
           ) : (
             <MediaPreview
@@ -74,6 +93,13 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
           {shape && <span style={styles.shape}>{shape}</span>}
           {colorClarity && <span style={styles.detail}>{colorClarity}</span>}
           {sku && <span style={styles.sku}>{sku}</span>}
+
+          {/* Clean 4C — provenance: source, client/supplier, availability. */}
+          {(sourceHe || contextHe || availabilityHe) && (
+            <span style={styles.provenance}>
+              {[sourceHe, contextHe, availabilityHe].filter(Boolean).join(' · ')}
+            </span>
+          )}
 
           {/* Honest, always-visible state marker while no role is set. */}
           {isUnassigned && (
@@ -195,6 +221,13 @@ const styles = {
     direction: 'ltr',
     textAlign: 'right',
     marginTop: '2px',
+  },
+  provenance: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 600,
+    color: tokens.color.gold,
+    marginTop: '4px',
   },
   unassignedMark: {
     display: 'inline-flex',

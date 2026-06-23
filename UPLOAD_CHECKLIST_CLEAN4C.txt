@@ -1,0 +1,71 @@
+LESHEM.S OS — Clean 4C — Upload Checklist
+Inventory + Work Tray Core Flow
+Baseline: Clean 4B.4b stable (root-ready ZIP you supplied).
+
+────────────────────────────────────────────────────────
+ROOT-READY: unzip at the repo root. Paths map 1:1 (no wrapper folder).
+After upload, run:  npm install   (the `three` dependency is already in
+package.json from 4B.2 — no new dependencies were added in 4C).
+────────────────────────────────────────────────────────
+
+NEW FILES (5)
+  lib/studio/inventoryStore.js              Local inventory items store (manual/supplier/client)
+  lib/studio/inventoryTrayBridge.js         inventoryItemToTrayItem() — preserves title/image/source/ownership/client/supplier
+  components/studio/inventory/InventoryQuickAdd.js          "הוסף פריט מלאי" quick manual add
+  components/studio/inventory/LocalInventoryItemCard.js     selectable item card + availability + add-to-tray
+  components/studio/inventory/LocalInventorySections.js     4 sections + multi-select bar + start-design
+
+CHANGED FILES (3)
+  components/studio/inventory/InventoryStudio.js   renders local sections + asset drafts + labels Airtable grid as physical catalog
+  components/studio/tray/TrayItemCard.js           shows source/ownership/availability/client/supplier; resolves inventory thumbnails
+  lib/studio/labels.js                             INV_HE block + TRAY_HE.availability
+
+UNTOUCHED (verified byte-for-byte): Asset3DViewer.js, AssetPicker.js,
+AssetLibraryPanel.js, assetsStore.js, assetWorkflowBridge.js, workTray.js,
+designProjects.js, designDraft.js (accent label "אבנים נוספות" intact).
+
+────────────────────────────────────────────────────────
+SCOPE GUARANTEES
+  • No Airtable writes, no schema change (Airtable inventory stays read-only).
+  • No OCR / certificate parsing / Excel-CSV / supplier API.
+  • No pricing engine / quote / PDF / certificates.
+  • No auth / billing / CRM / Collection Builder / Render Brief.
+  • No 3D viewer changes (STL/OBJ hotfix preserved as-is).
+  • New local data lives in localStorage key: leshem_studio_inventory_items_v1
+    (separate from work tray, asset drafts, projects).
+  • Price/certificate fields on items are inert placeholders (manual entry only).
+
+DESIGN NOTE (role vs item-type)
+  Part 7 lists jewelryPart / chain among "roles". The canonical design-role
+  enum (centerStone / sideStone / accentStone=אבנים נוספות / pair / parcel /
+  component / referenceOnly) was NOT modified — changing it risks design
+  grouping/snapshot logic. jewelryPart / chain / melee / component are handled
+  as inventory ITEM TYPES instead. Role assignment in the tray is unchanged.
+
+────────────────────────────────────────────────────────
+ACCEPTANCE TESTS → where satisfied
+  1-2  Inventory page shows 4 sections: physical / supplier / client (LocalInventorySections)
+       + "טיוטות מלאי מנכסים" (InventoryDraftsPanel) + read-only physical catalog (Airtable).
+  3-7  Quick add "Oval Diamond 2ct" → ownedPhysical → optional stone data → add to tray;
+       title/image/source appear on the tray card.
+  8-10 Virtual supplier stone appears in its own section; add to tray.
+  11-12 Client-owned stone with client name; client context shows in Inventory and tray card.
+  13-16 Asset Inventory Draft shows under "טיוטות מלאי מנכסים" with the asset primary image; add to tray.
+  17-18 Multi-select across items → selection bar → "הוסף למגש עבודה".
+  19   Assign centerStone / sideStone / accentStone (אבנים נוספות) in the tray.
+  20   "התחל עיצוב מהבחירה" sends selection to tray and routes to /studio/design.
+  21-23 Asset Library / Asset Picker / STL-OBJ preview untouched → still work.
+  24   No Airtable records created (local store only).
+  25   Build: verified statically (offline) — syntax, brackets, 391 imports resolve,
+       import-name existence, style-key existence, label-key existence. A live
+       `next build` requires npm registry access (blocked in this sandbox);
+       no new dependencies were introduced, so the build surface is unchanged
+       apart from additive local JS/React.
+
+QA SUMMARY
+  node --check: pass on all changed/new pure-JS
+  brace/bracket/paren balance: pass on all changed/new JSX
+  import resolution: 391/391 resolve
+  inventory store logic: 16/16 assertions
+  inventory→tray bridge logic: 16/16 assertions
+  accent label preserved; no forbidden tokens in new code

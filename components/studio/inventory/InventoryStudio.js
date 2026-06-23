@@ -15,6 +15,7 @@ import { fetchInventory } from '../../../lib/studio/assets';
 import InventoryToolbar from './InventoryToolbar';
 import StoneCard from './StoneCard';
 import InventoryDraftsPanel from './InventoryDraftsPanel';
+import LocalInventorySections from './LocalInventorySections';
 import AssetDrawer from '../drawer/AssetDrawer';
 
 const EMPTY_FILTERS = {
@@ -107,9 +108,20 @@ export default function InventoryStudio() {
         </p>
       </header>
 
-      {/* Clean 4B.4b — local inventory drafts created from assets. Renders only
-          when drafts exist; the read-only Airtable inventory below is untouched. */}
+      {/* Clean 4C — local working inventory: physical / supplier / client
+          sections, quick-add, and multi-select → Work Tray. */}
+      <LocalInventorySections />
+
+      {/* Clean 4B.4b — local inventory drafts created from assets
+          ("טיוטות מלאי מנכסים"). Renders only when drafts exist. */}
       <InventoryDraftsPanel />
+
+      <div style={styles.airtableHead}>
+        <h2 style={styles.airtableTitle}>{'מלאי פיזי — קטלוג הסטודיו'}</h2>
+        <p style={styles.airtableCaption}>
+          {'קטלוג האבנים לקריאה בלבד. עיון, חיפוש וסינון; ושליחה למגש העבודה.'}
+        </p>
+      </div>
 
       {status === 'loading' && <LoadingState />}
 
@@ -196,6 +208,9 @@ const styles = {
     padding: '10px 14px',
     marginBottom: '18px',
   },
+  airtableHead: { margin: '8px 0 16px' },
+  airtableTitle: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '22px', color: tokens.color.charcoal, margin: 0 },
+  airtableCaption: { fontFamily: tokens.font.body, fontSize: '13px', lineHeight: 1.6, color: tokens.color.inkSoft, margin: '6px 0 0', maxWidth: '620px' },
   grid: {
     display: 'grid',
     gap: '18px',
