@@ -27,7 +27,7 @@ const EMPTY_FILTERS = {
   status: 'all',
 };
 
-export default function InventoryStudio() {
+export default function InventoryStudio({ initialAddOpen = false, initialAddSource = null } = {}) {
   const isMobile = useIsMobile(880);
 
   const [status, setStatus] = useState('loading'); // loading | ready | error
@@ -110,7 +110,10 @@ export default function InventoryStudio() {
 
       {/* Clean 4C — local working inventory: physical / supplier / client
           sections, quick-add, and multi-select → Work Tray. */}
-      <LocalInventorySections />
+      <LocalInventorySections
+        initialAddOpen={initialAddOpen}
+        initialAddSource={initialAddSource}
+      />
 
       {/* Clean 4B.4b — local inventory drafts created from assets
           ("טיוטות מלאי מנכסים"). Renders only when drafts exist. */}

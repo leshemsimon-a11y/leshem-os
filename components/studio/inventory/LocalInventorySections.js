@@ -33,7 +33,7 @@ const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
 const useActiveWork = createUseActiveWork(React);
 
-export default function LocalInventorySections() {
+export default function LocalInventorySections({ initialAddOpen = false, initialAddSource = null } = {}) {
   const router = useRouter();
   const inv = useInventory();
   const tray = useWorkTray();
@@ -119,7 +119,7 @@ export default function LocalInventorySections() {
   };
 
   if (!inv.hydrated) {
-    return <InventoryQuickAdd onAdd={inv.add} />;
+    return <InventoryQuickAdd onAdd={inv.add} initialOpen={initialAddOpen} initialSource={initialAddSource} />;
   }
 
   const physical = inv.items.filter((it) => it.ownershipType === INV_OWNERSHIP.OWNED_PHYSICAL);
@@ -165,7 +165,7 @@ export default function LocalInventorySections() {
 
   return (
     <div dir="rtl">
-      <InventoryQuickAdd onAdd={inv.add} />
+      <InventoryQuickAdd onAdd={inv.add} initialOpen={initialAddOpen} initialSource={initialAddSource} />
 
       {renderSection(INV_HE.sectionPhysical, INV_HE.physicalCaption, physical, INV_HE.emptyPhysical)}
       {renderSection(INV_HE.sectionSupplier, INV_HE.supplierCaption, supplier, INV_HE.emptySupplier)}
