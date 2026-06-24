@@ -1,0 +1,17 @@
+LESHEM.S OS — Clean 5A Export Hotfix
+
+Issue:
+Vercel build failed because DesignConceptPanel imports these exports from lib/studio/designBriefStore.js:
+- setConcepts
+- selectConcept
+- updateConceptNotes
+
+The previous Clean 5A patch did not include the updated designBriefStore.js file, so GitHub still had the old 4C.2 version.
+
+Upload contents of this hotfix to GitHub:
+- lib/studio/designBriefStore.js
+
+Commit message:
+Clean 5A design brief exports hotfix
+
+Then wait for Vercel to rebuild.
