@@ -1,0 +1,17 @@
+LESHEM.S OS — Clean 5B Final Patch
+
+Upload the CONTENTS of this folder to GitHub, not the ZIP itself.
+
+Commit message:
+Clean 5B design output layer
+
+QA focus after Vercel:
+1. Open /studio/design.
+2. Select/generate a design concept.
+3. Generate פלט עיצוב.
+4. Confirm client description, internal summary, materials/stones, render brief, production notes, assumptions and next steps appear.
+5. Confirm metal-only output works without stones.
+6. Confirm parcel/lot language does not imply full parcel consumption.
+7. Save/sync output to active work.
+8. Open /studio/projects and confirm output summary appears.
+9. Confirm inventory, tray, dashboard, assets and STL/OBJ still work.

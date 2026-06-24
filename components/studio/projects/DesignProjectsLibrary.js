@@ -17,11 +17,11 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { PROJECTS_HE, OPEN_STUDIO_HE, CONCEPT_HE } from '../../../lib/studio/labels';
+import { PROJECTS_HE, OPEN_STUDIO_HE, CONCEPT_HE, OUTPUT_HE } from '../../../lib/studio/labels';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
-import { getSelectedConcept } from '../../../lib/studio/designDraft';
+import { getSelectedConcept, getActiveOutput } from '../../../lib/studio/designDraft';
 import LinkedAssetsPanel from '../design/LinkedAssetsPanel';
 import OpenInStudioChooser from '../assets/OpenInStudioChooser';
 import { setActiveWorkId } from '../../../lib/studio/activeWorkStore';
@@ -65,6 +65,7 @@ function ProjectCard({ project, onOpenAssets, onOpen, onDuplicate, onRename, onA
   const archived = project.status === 'archived';
   const itemCount = Array.isArray(project.trayItems) ? project.trayItems.length : 0;
   const selectedConcept = getSelectedConcept(project.brief);
+  const activeOutput = getActiveOutput(project.brief);
 
   const commitRename = () => {
     onRename(project.id, name);
@@ -132,6 +133,25 @@ function ProjectCard({ project, onOpenAssets, onOpen, onDuplicate, onRename, onA
             <span style={styles.conceptStripName}>{selectedConcept.conceptName}</span>
             {selectedConcept.shortDescription ? (
               <span style={styles.conceptStripDesc}>{selectedConcept.shortDescription}</span>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {activeOutput && (
+        <div style={styles.outputStrip} dir="rtl">
+          <span style={styles.outputStripBadge}>{OUTPUT_HE.title}</span>
+          <div style={styles.outputStripText}>
+            <span style={styles.outputStripName}>
+              {activeOutput.clientFacingTitle || activeOutput.outputTitle}
+            </span>
+            {activeOutput.clientDescription ? (
+              <span style={styles.outputStripDesc}>{activeOutput.clientDescription}</span>
+            ) : null}
+            {activeOutput.updatedAt ? (
+              <span style={styles.outputStripMeta}>
+                {PROJECTS_HE.updatedAt} {fmtDate(activeOutput.updatedAt)}
+              </span>
             ) : null}
           </div>
         </div>
@@ -488,6 +508,50 @@ const styles = {
     fontSize: '12px',
     lineHeight: 1.55,
     color: tokens.color.inkSoft,
+  },
+  outputStrip: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    padding: '10px 12px',
+    background: tokens.color.sageFaint,
+    border: `1px solid ${tokens.color.sage}`,
+    borderRadius: tokens.radius.md,
+    marginTop: '8px',
+  },
+  outputStripBadge: {
+    fontFamily: tokens.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.sage}`,
+    borderRadius: '999px',
+    padding: '3px 10px',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  outputStripText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  outputStripName: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  outputStripDesc: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    lineHeight: 1.55,
+    color: tokens.color.inkSoft,
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+  },
+  outputStripMeta: {
+    fontFamily: tokens.font.body,
+    fontSize: '11px',
+    color: tokens.color.inkFaint,
   },
   actions: {
     display: 'flex',

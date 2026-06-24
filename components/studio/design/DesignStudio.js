@@ -26,7 +26,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE, ASSET_FLOW_HE, PICKER_HE, CONCEPT_HE } from '../../../lib/studio/labels';
+import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE, ASSET_FLOW_HE, PICKER_HE, CONCEPT_HE, OUTPUT_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import {
@@ -39,6 +39,7 @@ import RoleZone from './RoleZone';
 import DesignFutureRail from './DesignFutureRail';
 import DesignBriefPanel from './DesignBriefPanel';
 import DesignConceptPanel from './DesignConceptPanel';
+import DesignOutputPanel from './DesignOutputPanel';
 import DesignSnapshotPanel from './DesignSnapshotPanel';
 import SaveProjectPanel from '../projects/SaveProjectPanel';
 import LinkedAssetsPanel from './LinkedAssetsPanel';
@@ -156,6 +157,12 @@ export default function DesignStudio() {
               </div>
             )}
             <DesignConceptPanel />
+          </DesignBoardZone>
+
+          {/* ZONE — Design Output (Clean 5B). Practical output from the selected
+              concept: client preview, render brief, internal summary. */}
+          <DesignBoardZone title={OUTPUT_HE.title} caption={OUTPUT_HE.caption} glyph="✸">
+            <DesignOutputPanel />
           </DesignBoardZone>
 
           {/* ZONE — Stones / Work Tray (ACTIVE). Shown only when there are
