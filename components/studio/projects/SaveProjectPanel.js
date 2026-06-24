@@ -18,7 +18,8 @@ import { PROJECTS_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
-import { buildDesignSnapshot } from '../../../lib/studio/designDraft';
+import { buildDesignSnapshot, briefHasContent } from '../../../lib/studio/designDraft';
+import { setActiveWorkId } from '../../../lib/studio/activeWorkStore';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
@@ -36,9 +37,10 @@ export default function SaveProjectPanel() {
     return <div style={styles.loading}>טוען…</div>;
   }
 
-  const hasStones = tray.items.length > 0;
+  const canSaveWork = tray.items.length > 0 || briefHasContent(brief.brief);
 
   const handleSave = () => {
+    if (!canSaveWork) return;
     const snapshot = buildDesignSnapshot(tray.items, brief.brief);
     const project = projects.save({
       name,
@@ -46,6 +48,7 @@ export default function SaveProjectPanel() {
       brief: brief.brief,
       snapshot,
     });
+    if (project && project.id) setActiveWorkId(project.id);
     setSavedId(project ? project.id : null);
     setName('');
   };
@@ -69,8 +72,8 @@ export default function SaveProjectPanel() {
         <button
           type="button"
           onClick={handleSave}
-          disabled={!hasStones}
-          style={{ ...styles.saveBtn, ...(!hasStones ? styles.saveBtnDisabled : null) }}
+          disabled={!canSaveWork}
+          style={{ ...styles.saveBtn, ...(!canSaveWork ? styles.saveBtnDisabled : null) }}
         >
           {PROJECTS_HE.saveButton}
         </button>

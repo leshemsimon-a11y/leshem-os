@@ -1,0 +1,32 @@
+LESHEM.S OS — Clean 5A Final Patch
+
+Upload the CONTENTS of this patch folder to GitHub, not the ZIP itself.
+
+Includes:
+- Design Core panel in Design Studio
+- Local design concept generator
+- Product type + metal-only support
+- 3 local design concepts
+- Save selected concept into brief and active work when active work exists
+- Save Design Project from studio even with metal-only/no tray items
+- Design Projects read-only selected concept strip
+- package-lock verified for public npm registry
+
+Upload:
+- components/
+- lib/
+- package-lock.json
+
+Commit message:
+Clean 5A design core
+
+After Vercel is green, test:
+1. Open /studio/design.
+2. See Design Core / מה מעצבים.
+3. Select טבעת and generate 3 concepts with tray items.
+4. Select תכשיט ללא אבנים and generate concepts without tray items.
+5. Save one as selected direction.
+6. Save as Design Project.
+7. Open /studio/projects and confirm selected concept appears.
+8. Open project and confirm concept/tray/brief restore.
+9. Confirm Dashboard, Inventory, Work Tray, Asset Library, STL/OBJ still work.

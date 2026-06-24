@@ -26,7 +26,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE, ASSET_FLOW_HE, PICKER_HE } from '../../../lib/studio/labels';
+import { DESIGN_HE, SNAPSHOT_HE, PROJECTS_HE, ASSET_FLOW_HE, PICKER_HE, CONCEPT_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import {
@@ -38,6 +38,7 @@ import DesignBoardZone from './DesignBoardZone';
 import RoleZone from './RoleZone';
 import DesignFutureRail from './DesignFutureRail';
 import DesignBriefPanel from './DesignBriefPanel';
+import DesignConceptPanel from './DesignConceptPanel';
 import DesignSnapshotPanel from './DesignSnapshotPanel';
 import SaveProjectPanel from '../projects/SaveProjectPanel';
 import LinkedAssetsPanel from './LinkedAssetsPanel';
@@ -136,43 +137,55 @@ export default function DesignStudio() {
 
       {!tray.hydrated ? (
         <div style={styles.loading}>טוען את העיצוב…</div>
-      ) : !hasItems ? (
-        <div style={styles.empty}>
-          <div style={styles.emptyMark} aria-hidden="true">
-            ✦
-          </div>
-          <h2 style={styles.emptyTitle}>{DESIGN_HE.emptyTitle}</h2>
-          <p style={styles.emptyHint}>{DESIGN_HE.emptyHint}</p>
-          <div style={styles.emptyActions}>
-            <button type="button" onClick={goTray} style={styles.primaryBtn}>
-              {DESIGN_HE.goToTray}
-            </button>
-            <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickBtn}>
-              {PICKER_HE.openFromStudio}
-            </button>
-          </div>
-        </div>
       ) : (
         <div style={styles.board}>
-          {/* ZONE 1 — Stones / Work Tray (ACTIVE) */}
-          <DesignBoardZone title={Z.stones.title} caption={Z.stones.caption} glyph={Z.stones.glyph}>
-            <DraftHeader summary={summary} status={status} />
-            <div style={styles.roleZones}>
-              {groups.map((g) => (
-                <RoleZone key={g.id} group={g} />
-              ))}
-            </div>
-            <div style={styles.zone1Actions}>
-              <button type="button" onClick={goTray} style={styles.trayLink}>
-                {DESIGN_HE.status.backToTray}
-              </button>
-              <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickInline}>
-                {PICKER_HE.openFromStudio}
-              </button>
-            </div>
+          {/* PRIMARY ZONE — Design Core (Clean 5A). Always available, with or
+              without stones. This is the main working section of the studio. */}
+          <DesignBoardZone title={CONCEPT_HE.title} caption={CONCEPT_HE.caption} glyph="✦">
+            {!hasItems && (
+              <div style={styles.coreHint} dir="rtl">
+                <p style={styles.coreHintText}>{DESIGN_HE.emptyHint}</p>
+                <div style={styles.coreHintActions}>
+                  <button type="button" onClick={goTray} style={styles.trayLink}>
+                    {DESIGN_HE.goToTray}
+                  </button>
+                  <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickInline}>
+                    {PICKER_HE.openFromStudio}
+                  </button>
+                </div>
+              </div>
+            )}
+            <DesignConceptPanel />
           </DesignBoardZone>
 
-          {/* ZONE 2 — Design Direction (ACTIVE in Clean 3C — Jewelry Design Brief) */}
+          {/* ZONE — Stones / Work Tray (ACTIVE). Shown only when there are
+              items, so a metal-only design is never blocked or cluttered. */}
+          {hasItems && (
+            <DesignBoardZone title={Z.stones.title} caption={Z.stones.caption} glyph={Z.stones.glyph}>
+              <DraftHeader summary={summary} status={status} />
+              <div style={styles.roleZones}>
+                {groups.map((g) => (
+                  <RoleZone key={g.id} group={g} />
+                ))}
+              </div>
+              <div style={styles.zone1Actions}>
+                <button type="button" onClick={goTray} style={styles.trayLink}>
+                  {DESIGN_HE.status.backToTray}
+                </button>
+                <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickInline}>
+                  {PICKER_HE.openFromStudio}
+                </button>
+              </div>
+            </DesignBoardZone>
+          )}
+
+          {/* ZONE 2.7 — Save as Design Project / Active Work (ACTIVE in Clean 4A) */}
+          <DesignBoardZone title={PROJECTS_HE.saveTitle} caption={PROJECTS_HE.caption} glyph="❒">
+            <SaveProjectPanel />
+          </DesignBoardZone>
+
+          {/* SECONDARY — Design Direction brief (Clean 3C). Kept intact but
+              demoted below the Design Core to avoid duplication / overload. */}
           <DesignBoardZone title={Z.direction.title} caption={Z.direction.caption} glyph={Z.direction.glyph}>
             <DesignBriefPanel />
           </DesignBoardZone>
@@ -180,11 +193,6 @@ export default function DesignStudio() {
           {/* ZONE 2.5 — Design Snapshot (ACTIVE in Clean 3D — internal summary) */}
           <DesignBoardZone title={SNAPSHOT_HE.title} caption={SNAPSHOT_HE.caption} glyph="❒">
             <DesignSnapshotPanel />
-          </DesignBoardZone>
-
-          {/* ZONE 2.7 — Save as Design Project (ACTIVE in Clean 4A) */}
-          <DesignBoardZone title={PROJECTS_HE.saveTitle} caption={PROJECTS_HE.caption} glyph="❒">
-            <SaveProjectPanel />
           </DesignBoardZone>
 
           {/* ZONE 2.8 — Linked Assets for the open project (ACTIVE in Clean 4B.2) */}
@@ -305,6 +313,29 @@ const styles = {
   board: {
     display: 'flex',
     flexDirection: 'column',
+  },
+  // ---- Design Core empty-tray hint (Clean 5A) ----
+  coreHint: {
+    background: tokens.color.pearl,
+    border: `1px dashed ${tokens.color.goldFaint}`,
+    borderRadius: tokens.radius.md,
+    padding: '12px 14px',
+    marginBottom: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  coreHintText: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: tokens.color.inkSoft,
+    margin: 0,
+  },
+  coreHintActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
   },
   // ---- draft header (compact) ----
   draftHeader: {

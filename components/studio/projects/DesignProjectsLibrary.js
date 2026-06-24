@@ -17,10 +17,11 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { PROJECTS_HE, OPEN_STUDIO_HE } from '../../../lib/studio/labels';
+import { PROJECTS_HE, OPEN_STUDIO_HE, CONCEPT_HE } from '../../../lib/studio/labels';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
+import { getSelectedConcept } from '../../../lib/studio/designDraft';
 import LinkedAssetsPanel from '../design/LinkedAssetsPanel';
 import OpenInStudioChooser from '../assets/OpenInStudioChooser';
 import { setActiveWorkId } from '../../../lib/studio/activeWorkStore';
@@ -63,6 +64,7 @@ function ProjectCard({ project, onOpenAssets, onOpen, onDuplicate, onRename, onA
   const [name, setName] = useState(project.name);
   const archived = project.status === 'archived';
   const itemCount = Array.isArray(project.trayItems) ? project.trayItems.length : 0;
+  const selectedConcept = getSelectedConcept(project.brief);
 
   const commitRename = () => {
     onRename(project.id, name);
@@ -122,6 +124,18 @@ function ProjectCard({ project, onOpenAssets, onOpen, onDuplicate, onRename, onA
           compact
         />
       </div>
+
+      {selectedConcept && (
+        <div style={styles.conceptStrip} dir="rtl">
+          <span style={styles.conceptStripBadge}>{CONCEPT_HE.chosenBadge}</span>
+          <div style={styles.conceptStripText}>
+            <span style={styles.conceptStripName}>{selectedConcept.conceptName}</span>
+            {selectedConcept.shortDescription ? (
+              <span style={styles.conceptStripDesc}>{selectedConcept.shortDescription}</span>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       <div style={styles.actions}>
         {!archived && (
@@ -438,6 +452,41 @@ const styles = {
   linkedAssets: {
     fontFamily: tokens.font.body,
     fontSize: '12px',
+    color: tokens.color.inkSoft,
+  },
+  conceptStrip: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    padding: '10px 12px',
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`,
+    borderRadius: tokens.radius.md,
+    marginTop: '4px',
+  },
+  conceptStripBadge: {
+    fontFamily: tokens.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: '999px',
+    padding: '3px 10px',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  conceptStripText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  conceptStripName: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  conceptStripDesc: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    lineHeight: 1.55,
     color: tokens.color.inkSoft,
   },
   actions: {
