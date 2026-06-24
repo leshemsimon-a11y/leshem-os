@@ -23,11 +23,13 @@ const SOURCE_OPTIONS = [
   INV_SOURCE.CLIENT_OWNED,
 ];
 
-export default function InventoryQuickAdd({ onAdd }) {
-  const [open, setOpen] = useState(false);
+export default function InventoryQuickAdd({ onAdd, initialOpen = false, initialSource = null }) {
+  const [open, setOpen] = useState(!!initialOpen);
   const [title, setTitle] = useState('');
   const [itemType, setItemType] = useState('stone');
-  const [source, setSource] = useState(INV_SOURCE.MANUAL);
+  const [source, setSource] = useState(
+    initialSource === 'clientOwned' ? INV_SOURCE.CLIENT_OWNED : INV_SOURCE.MANUAL
+  );
   const [supplierName, setSupplierName] = useState('');
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
