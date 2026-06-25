@@ -19,8 +19,13 @@
 
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
-import { OUTPUT_HE } from '../../../lib/studio/labels';
-import { getSelectedConcept, getActiveOutput, buildDesignSnapshot } from '../../../lib/studio/designDraft';
+import { OUTPUT_HE, FLOW_HE } from '../../../lib/studio/labels';
+import {
+  getSelectedConcept,
+  getActiveOutput,
+  buildDesignSnapshot,
+  outputIsStale,
+} from '../../../lib/studio/designDraft';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   createUseDesignBrief,
@@ -101,7 +106,7 @@ function OutputView({ output }) {
   );
 }
 
-export default function DesignOutputPanel() {
+export default function DesignOutputPanel({ onToast } = {}) {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
 
@@ -112,6 +117,10 @@ export default function DesignOutputPanel() {
   const brief = briefStore.brief;
   const concept = getSelectedConcept(brief);
   const activeOutput = getActiveOutput(brief);
+  const stale = outputIsStale(brief, tray.items);
+  const toast = (m) => {
+    if (typeof onToast === 'function') onToast(m);
+  };
 
   // Keep the selected output in sync with the currently-open Active Work when
   // one exists. This mirrors DesignConceptPanel and avoids a subtle 5B issue:
@@ -151,6 +160,7 @@ export default function DesignOutputPanel() {
     if (!out) return;
     const nextBrief = persistOutput(out);
     syncActiveWork(nextBrief);
+    toast(FLOW_HE.toast.outputSaved);
   };
 
   const handleUpdateExisting = () => {
@@ -159,6 +169,7 @@ export default function DesignOutputPanel() {
     if (!body) return;
     const nextBrief = persistOutputUpdate(activeOutput.outputId, body);
     syncActiveWork(nextBrief);
+    toast(OUTPUT_HE.updatedToastCalm);
   };
 
   const handleOutputNotes = (outputId, notes) => {
@@ -168,6 +179,7 @@ export default function DesignOutputPanel() {
 
   const handleSaveToWork = () => {
     syncActiveWork(briefStore.brief);
+    toast(OUTPUT_HE.savedToastCalm);
   };
 
   const hasOutput = Boolean(activeOutput);
@@ -189,6 +201,18 @@ export default function DesignOutputPanel() {
           </button>
         )}
       </div>
+
+      {hasOutput && stale && (
+        <div style={styles.staleBanner} dir="rtl">
+          <div style={styles.staleText}>
+            <span style={styles.staleTitle}>{OUTPUT_HE.staleTitle}</span>
+            <span style={styles.staleBody}>{OUTPUT_HE.staleBody}</span>
+          </div>
+          <button type="button" onClick={handleUpdateExisting} style={styles.staleBtn}>
+            {OUTPUT_HE.updateOutput}
+          </button>
+        </div>
+      )}
 
       <div
         style={{
@@ -238,6 +262,43 @@ export default function DesignOutputPanel() {
 
 const styles = {
   wrap: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  staleBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '10px',
+    padding: '12px 14px',
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+  },
+  staleText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  staleTitle: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  staleBody: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.55,
+    color: tokens.color.inkSoft,
+  },
+  staleBtn: {
+    minHeight: '44px',
+    padding: '10px 18px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
   loading: {
     fontFamily: tokens.font.body,
     fontSize: '14px',

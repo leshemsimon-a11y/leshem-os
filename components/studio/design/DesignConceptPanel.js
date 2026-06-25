@@ -18,7 +18,7 @@
 
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
-import { CONCEPT_HE, BRIEF_HE } from '../../../lib/studio/labels';
+import { CONCEPT_HE, BRIEF_HE, FLOW_HE } from '../../../lib/studio/labels';
 import {
   PRODUCT_TYPE_VALUES,
   STONE_USAGE_VALUES,
@@ -26,6 +26,8 @@ import {
   METAL_PREFERENCE_VALUES,
   DESIGN_ROLE,
   trayItemTitle,
+  conceptsAreStale,
+  computeInputSignature,
 } from '../../../lib/studio/designDraft';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
@@ -171,7 +173,7 @@ function ConceptCard({ concept, chosen, onChoose, onNotes }) {
 
 // --- main panel ------------------------------------------------------------
 
-export default function DesignConceptPanel() {
+export default function DesignConceptPanel({ view = 'all', onToast } = {}) {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
 
@@ -183,6 +185,10 @@ export default function DesignConceptPanel() {
   const concepts = Array.isArray(brief.concepts) ? brief.concepts : [];
   const selectedId = brief.selectedConceptId || null;
   const inputs = describeInputs(tray.items, brief);
+  const stale = conceptsAreStale(brief, tray.items);
+  const toast = (m) => {
+    if (typeof onToast === 'function') onToast(m);
+  };
 
   const syncActiveWork = (nextBrief) => {
     try {
@@ -200,14 +206,24 @@ export default function DesignConceptPanel() {
 
   const handleGenerate = () => {
     const next = generateConcepts(tray.items, brief);
-    const nextBrief = persistConcepts(next);
+    // Clean 5B.1 — stamp the input signature so staleness can be detected.
+    const sig = computeInputSignature(brief, tray.items);
+    const nextBrief = persistConcepts(next, sig);
     syncActiveWork(nextBrief);
+    toast(FLOW_HE.toast.conceptsCreated);
   };
 
   const handleChoose = (conceptId) => {
     const nextId = conceptId === selectedId ? null : conceptId;
     const nextBrief = persistSelectedConcept(nextId);
     syncActiveWork(nextBrief);
+    toast(nextId ? FLOW_HE.toast.conceptChosen : FLOW_HE.toast.conceptCanceled);
+  };
+
+  const handleCancelSelected = () => {
+    const nextBrief = persistSelectedConcept(null);
+    syncActiveWork(nextBrief);
+    toast(FLOW_HE.toast.conceptCanceled);
   };
 
   const handleNotes = (conceptId, notes) => {
@@ -222,10 +238,9 @@ export default function DesignConceptPanel() {
     ? { t: CONCEPT_HE.status.generatedTitle, b: CONCEPT_HE.status.generatedBody, ready: false }
     : { t: CONCEPT_HE.status.emptyTitle, b: CONCEPT_HE.status.emptyBody, ready: false };
 
-  return (
-    <div style={styles.wrap} dir="rtl">
-      <p style={styles.localNote}>{CONCEPT_HE.localNote}</p>
-
+  // ----- Stage 1: direction (product/style/metal/usage/inputs/brief) -----
+  const directionView = (
+    <>
       {/* Part 1 — מה מעצבים? */}
       <ChipSelect
         label={CONCEPT_HE.productTypeLabel}
@@ -326,12 +341,35 @@ export default function DesignConceptPanel() {
           />
         </div>
       </div>
+    </>
+  );
 
-      {/* Part 4 — generate */}
+  // ----- Stage 2: concepts (generate + cards + reset/replace + stale) -----
+  const conceptsView = (
+    <>
+      {/* Stale banner — inputs changed since concepts were generated */}
+      {stale && (
+        <div style={styles.staleBanner} dir="rtl">
+          <div style={styles.staleText}>
+            <span style={styles.staleTitle}>{FLOW_HE.conceptsStaleTitle}</span>
+            <span style={styles.staleBody}>{FLOW_HE.conceptsStaleBody}</span>
+          </div>
+          <button type="button" onClick={handleGenerate} style={styles.staleBtn}>
+            {FLOW_HE.updateConcepts}
+          </button>
+        </div>
+      )}
+
+      {/* Generate / regenerate */}
       <div style={styles.generateRow}>
         <button type="button" onClick={handleGenerate} style={styles.generateBtn}>
-          {concepts.length ? CONCEPT_HE.regenerate : CONCEPT_HE.generate}
+          {concepts.length ? FLOW_HE.newConcepts : CONCEPT_HE.generate}
         </button>
+        {selectedId && (
+          <button type="button" onClick={handleCancelSelected} style={styles.ghostBtn}>
+            {FLOW_HE.cancelSelected}
+          </button>
+        )}
       </div>
 
       {/* status strip */}
@@ -354,10 +392,9 @@ export default function DesignConceptPanel() {
         </div>
       </div>
 
-      {/* Part 5 — concept cards */}
+      {/* concept cards */}
       {concepts.length > 0 && (
         <div style={styles.section}>
-          <span style={styles.sectionTitle}>{CONCEPT_HE.generatedTitle}</span>
           <p style={styles.inputsHint}>{CONCEPT_HE.generatedHint}</p>
           <div style={styles.conceptGrid}>
             {concepts.map((c) => (
@@ -372,6 +409,14 @@ export default function DesignConceptPanel() {
           </div>
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div style={styles.wrap} dir="rtl">
+      {view !== 'concepts' && <p style={styles.localNote}>{CONCEPT_HE.localNote}</p>}
+      {(view === 'all' || view === 'direction') && directionView}
+      {(view === 'all' || view === 'concepts') && conceptsView}
     </div>
   );
 }
@@ -396,6 +441,55 @@ const styles = {
     margin: 0,
   },
   section: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  staleBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '10px',
+    padding: '12px 14px',
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+  },
+  staleText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  staleTitle: {
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  staleBody: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.55,
+    color: tokens.color.inkSoft,
+  },
+  staleBtn: {
+    minHeight: '44px',
+    padding: '10px 18px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  ghostBtn: {
+    minHeight: '52px',
+    padding: '12px 22px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 600,
+    color: tokens.color.inkSoft,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
   sectionTitle: {
     fontFamily: tokens.font.display,
     fontWeight: 700,

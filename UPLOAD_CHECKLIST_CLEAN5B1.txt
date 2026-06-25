@@ -1,0 +1,30 @@
+LESHEM.S OS — Clean 5B.1 — Design Studio Flow + Client-Facing GUI
+
+Upload the CONTENTS of this folder to GitHub (not the ZIP itself).
+1:1 path mapping under components/ and lib/.
+
+Commit message:
+Clean 5B.1 design studio flow
+
+Files (8) — 7 modified, 1 new:
+  lib/studio/designDraft.js          (stale signatures + trend/signature fields)
+  lib/studio/designBriefStore.js     (setConcepts signature-aware)
+  lib/studio/designOutputs.js        (stamps outputSourceSignature)
+  lib/studio/labels.js               (FLOW_HE + stale/trend strings)
+  components/studio/design/DesignStudio.js        (mounts staged flow)
+  components/studio/design/DesignConceptPanel.js  (view-aware + cancel/replace + stale)
+  components/studio/design/DesignOutputPanel.js   (stale banner + premium feedback)
+  components/studio/design/DesignFlow.js          (NEW — 3-stage flow + next-step bar)
+
+After Vercel is green, QA:
+1. Open /studio/design — see 3-stage flow (בחירת כיוון / כיווני עיצוב / פלט עיצוב).
+2. One clear next-step bar action at all times.
+3. Generate concepts; select one; cancel it; select a different one.
+4. Change product type/style after generating -> "הבחירות השתנו" stale banner.
+5. Update concepts; generate output.
+6. Change selected concept -> output stale banner -> "עדכן פלט עיצוב".
+7. Save output to active work; refresh -> selected concept + output persist.
+8. Completed stages collapse to summaries; less scrolling.
+9. Metal-only + stone-based both work; parcel/lot wording stays partial.
+10. Inventory, Work Tray, Dashboard, Asset Library, STL/OBJ still work.
+11. No Airtable records created.
