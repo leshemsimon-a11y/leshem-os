@@ -173,7 +173,7 @@ function ConceptCard({ concept, chosen, onChoose, onNotes }) {
 
 // --- main panel ------------------------------------------------------------
 
-export default function DesignConceptPanel({ view = 'all', onToast } = {}) {
+export default function DesignConceptPanel({ view = 'all', onToast, suppressStaleBanner = false } = {}) {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
 
@@ -347,8 +347,10 @@ export default function DesignConceptPanel({ view = 'all', onToast } = {}) {
   // ----- Stage 2: concepts (generate + cards + reset/replace + stale) -----
   const conceptsView = (
     <>
-      {/* Stale banner — inputs changed since concepts were generated */}
-      {stale && (
+      {/* Stale banner — inputs changed since concepts were generated.
+          Clean 5B.2: can be suppressed when the workspace shows an
+          always-visible flow-level stale banner (avoids duplicate banners). */}
+      {stale && !suppressStaleBanner && (
         <div style={styles.staleBanner} dir="rtl">
           <div style={styles.staleText}>
             <span style={styles.staleTitle}>{FLOW_HE.conceptsStaleTitle}</span>

@@ -106,7 +106,7 @@ function OutputView({ output }) {
   );
 }
 
-export default function DesignOutputPanel({ onToast } = {}) {
+export default function DesignOutputPanel({ onToast, suppressStaleBanner = false } = {}) {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
 
@@ -202,7 +202,7 @@ export default function DesignOutputPanel({ onToast } = {}) {
         )}
       </div>
 
-      {hasOutput && stale && (
+      {hasOutput && stale && !suppressStaleBanner && (
         <div style={styles.staleBanner} dir="rtl">
           <div style={styles.staleText}>
             <span style={styles.staleTitle}>{OUTPUT_HE.staleTitle}</span>

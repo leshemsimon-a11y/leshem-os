@@ -1,0 +1,81 @@
+LESHEM.S OS — Clean 5B.2 — Compact Pro Studio UI + Stale Fix
+
+Upload the CONTENTS of this folder to GitHub (not the ZIP itself).
+1:1 path mapping under components/ and lib/.
+
+Commit message:
+Clean 5B.2 compact pro studio + stale fix
+
+Files (5) — all MODIFIED (additive-only), 0 new:
+  lib/studio/labels.js                              (additive FLOW_HE: statusBar / panel / flowStale)
+  components/studio/design/DesignFlow.js            (compact pro workspace + always-visible flow-level stale banners)
+  components/studio/design/DesignStudio.js          (slim shell; useful legacy zones moved into control panel, rest collapsed)
+  components/studio/design/DesignConceptPanel.js    (additive suppressStaleBanner prop; default behavior unchanged)
+  components/studio/design/DesignOutputPanel.js     (additive suppressStaleBanner prop; default behavior unchanged)
+
+NOT changed (verified byte-identical / untouched):
+  lib/studio/designDraft.js        — stale LOGIC already correct; UNCHANGED
+  lib/studio/designBriefStore.js   — store already correct; UNCHANGED
+  No Airtable routes, pricing, certificates, taxonomy, or other files touched.
+
+What 5B.2 does:
+  • STALE FIX (visibility): the stale logic was already correct, but the concept
+    stale banner only rendered inside the concepts stage, so changing
+    product type / style / metal (done in the direction stage) never showed it.
+    5B.2 lifts stale to the WORKSPACE level — a banner that is ALWAYS visible
+    regardless of which work view is open:
+       concepts stale → "הבחירות השתנו" + "עדכן כיווני עיצוב"
+       output stale   → "הפלט מבוסס על כיוון קודם" + "עדכן פלט עיצוב"
+    The two banners are INDEPENDENT: when concepts AND an existing output are
+    both stale (e.g. after a product/style/metal change), BOTH banners show,
+    stacked and visually distinct (concepts = gold, output = pearl). Output
+    stale is never hidden just because concepts are also stale.
+  • COMPACT PRO LAYOUT (Design Studio only): top status bar
+    (עבודה / מוצר / כיוון נבחר / מצב פלט / הצעד הבא) + right (RTL) control panel
+    (כיוון העיצוב summary + עריכת כיוון, אבני העבודה, שמירה לעבודה) + central
+    work/result area (direction | concepts | output tabs) + docked single
+    next-action bar. Collapsible sections; far less scrolling.
+  • Useful legacy zones relocated INTO the control panel (Save-to-Work, direction
+    summary, stones summary). Remaining panels (Snapshot, Linked Assets, future
+    rax zones) collapsed into closed, reopenable cards under "עוד בסטודיו".
+    Nothing deleted — every panel still mounts and works.
+  • Mobile: two columns stack to one; control panel becomes static accordions;
+    docked action stays sticky but slim.
+
+What 5B.2 does NOT do:
+  Layout Builder · trend engine · external AI · render/Stability · pricing · PDF ·
+  Airtable writes · inventory consumption · auth/billing/CRM · system-wide redesign.
+  No new packages. No new routes. /, /v2 untouched. No \uXXXX Hebrew. No commerce
+  language. No Airtable Record IDs in UI. No TypeScript.
+
+Offline QA performed (real next build only possible on Vercel):
+  • node --check on pure JS (labels, designDraft, designBriefStore) — pass
+  • Brace/bracket balance on all 4 JSX files — pass
+  • Additive-only proof (comm -23 on exported symbols) — no exports removed
+  • Import-resolution check on DesignFlow / DesignStudio — all resolve
+  • Forbidden-token scans (commerce / Airtable writes / pricing / Stability /
+    NEXT_PUBLIC / \uXXXX Hebrew / Record IDs / TypeScript) — clean
+  • Logic sandbox (designDraft.mjs): 8/8 stale assertions pass, covering
+    product/style/metal/tray-role change → concepts stale, regenerate clears it,
+    and selected-concept change → output stale.
+
+After Vercel is green, QA (acceptance tests):
+1.  Open /studio/design — compact pro workspace, NOT a long vertical page.
+2.  Status bar shows עבודה / מוצר / כיוון נבחר / מצב פלט / הצעד הבא.
+3.  Generate concepts (control panel → עריכת כיוון → צור כיווני עיצוב, or dock).
+4.  Change product type / style / metal after generating.
+5.  Stale banner appears at workspace level: "הבחירות השתנו".
+6.  Click "עדכן כיווני עיצוב" → concepts refresh, banner clears.
+7.  Select a concept.
+8.  Generate output (פלט עיצוב tab / dock).
+9.  Select a different concept.
+10. Output stale banner appears: "הפלט מבוסס על כיוון קודם".
+10a. With an output already saved, change product type / style / metal:
+     BOTH banners show together (concepts stale gold + output stale pearl);
+     output stale is NOT hidden by concepts stale.
+11. Click "עדכן פלט עיצוב" → output updates, banner clears.
+12. "שמור פלט לעבודה" / save to active work still works; refresh → persists.
+13. Desktop: most work above the fold, reduced scrolling.
+14. Mobile: panels stack cleanly; control panel accordions; usable.
+15. Vercel build passes; Inventory, Work Tray, Dashboard, Asset Library,
+    STL/OBJ preview, certificates all still work; no Airtable records created.
