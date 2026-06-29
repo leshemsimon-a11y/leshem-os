@@ -1,0 +1,89 @@
+LESHEM.S OS — Clean 5D.1 — Visual Refinement Pass
+=================================================
+
+Root-ready bundle. Upload the CONTENTS of this folder to GitHub at the same
+paths. A visual-only refinement of the Clean 5D shell — NO logic changed.
+
+Baseline: Clean 5D (Visual Studio Shell), which itself sits on 5B.3 + 5C.
+
+
+SCOPE
+-----
+Visual quality only. The shell STRUCTURE is unchanged (command bar, workflow
+rail, stones strip, central canvas, inspector drawer, bottom strip). No new
+modules, no dependencies, no logic, no concept generation, no stale logic, no
+render-brief logic touched.
+
+
+FILES CHANGED (8) — all presentation
+------------------------------------
+  components/studio/shared/tokens.js                     additive radius (pill, xl) + shadow (hairline, canvas, railGlow) tokens
+  components/studio/design/shell/StudioCommandBar.js     refined identity mark, spacing, status pill, letter-spacing
+  components/studio/design/shell/StudioWorkflowRail.js   refined active state (glow), icon wells, vertical rhythm
+  components/studio/design/shell/StudioStoneStrip.js     larger jewel-like thumbnails, refined chip proportions + label hierarchy
+  components/studio/design/shell/StudioCanvas.js         stronger presence (xl radius, deeper shadow), finer dual-grid blueprint, eyebrow header
+  components/studio/design/shell/StudioInspectorDrawer.js round icon wells, refined row + section typography/spacing
+  components/studio/design/shell/StudioBottomStrip.js     gradient gold primary, refined variant chips
+  components/studio/design/shell/StudioShell.js           tightened grid rhythm, calmer stale banners
+
+  components/studio/design/shell/StudioIcons.js          included unchanged for a complete shell folder (identical to 5D)
+
+
+WHAT WAS REFINED
+----------------
+• Spacing & proportions — more generous, consistent padding; tighter grid rhythm.
+• Typography — wider tracking on chrome labels, larger serif titles, smaller
+  all-caps eyebrows; clearer hierarchy with fewer competing weights.
+• Icon alignment — icons now sit in consistent round wells (rail, inspector),
+  vertically centered.
+• Card refinement — pill chips with hairline shadows; jewel-like radial thumbs.
+• Central canvas presence — larger radius, soft top-light, finer CAD dual-grid,
+  an eyebrow + serif title so it reads as a focus surface, not a panel.
+• Luxury/minimal feel — graphite gradients on chrome, soft-gold gradient on the
+  primary action, restrained icy-blue technical accents.
+• Text heaviness — reduced via eyebrows, tracking, and hierarchy (no copy added
+  or removed; this is styling only).
+
+
+WHAT WAS PRESERVED (verified)
+-----------------------------
+Logic/markup of every shell component was content-hashed against the 5D
+delivery: all UNCHANGED except StudioCanvas, whose only delta is a presentational
+eyebrow <span> (static label, no interactivity). The three logic sandboxes were
+re-run AFTER refinement and all pass:
+  5B.3 concept controls:        17/17
+  5C structured render brief:   16/16
+  5D shell stale-state mapping:  6/6
+Business logic, concept generation, stale logic, and render-brief logic are
+untouched (those files are not even in this bundle).
+
+
+HOW TO TEST
+-----------
+1. Open the Design Studio.
+2. Confirm a more premium, minimal, futuristic feel (spacing, typography, gold).
+3. Confirm the command bar, rail, stone strip, canvas, inspector, bottom strip
+   all still render and behave exactly as in 5D.
+4. Generate concepts, select, remove (calm confirm), refresh-one — unchanged.
+5. Prepare render brief — unchanged.
+6. Change product/style/metal — calm stale banners still appear.
+7. Stone-based and metal-only workflows — unchanged.
+8. Confirm no new modules/packages.
+
+
+KNOWN LIMITATIONS
+-----------------
+• No real next build offline (no node_modules, network disabled). Vercel green
+  is the final gate.
+• Visual-only pass: no behavior, copy, or data changes.
+• Canvas preview remains a styled surface (no real render — out of scope).
+
+OFFLINE QA PERFORMED
+--------------------
+• node --check (tokens) — pass
+• Brace/bracket balance on all 8 files — pass
+• Logic/markup content-hash vs 5D — unchanged (canvas eyebrow only)
+• Additive-only proof on tokens.js — no exports removed
+• Forbidden-token scans (commerce / external AI / new packages / \uXXXX Hebrew /
+  TypeScript) — clean
+• All three logic sandboxes re-run — 17/17 + 16/16 + 6/6 pass

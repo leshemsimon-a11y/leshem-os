@@ -247,7 +247,7 @@ function StaleBanner({ tone, title, body, action, onAction }) {
 }
 
 const styles = {
-  shell: { display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '12px' },
+  shell: { display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '14px' },
   loading: {
     fontFamily: tokens.font.body,
     fontSize: '15px',
@@ -257,8 +257,8 @@ const styles = {
   },
   body: {
     display: 'grid',
-    gridTemplateColumns: 'auto minmax(0, 1fr) minmax(260px, 340px)',
-    gap: '12px',
+    gridTemplateColumns: 'auto minmax(0, 1fr) minmax(280px, 360px)',
+    gap: '14px',
     alignItems: 'start',
   },
   bodyNarrow: {
@@ -267,9 +267,10 @@ const styles = {
   stale: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '12px 16px',
-    borderRadius: tokens.radius.md,
+    gap: '13px',
+    padding: '13px 18px',
+    borderRadius: tokens.radius.lg,
+    boxShadow: tokens.shadow.hairline,
   },
   staleConcepts: {
     background: tokens.color.goldFaint,

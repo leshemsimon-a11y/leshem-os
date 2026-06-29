@@ -55,10 +55,19 @@ export const tokens = {
     sm: '8px',
     md: '14px',
     lg: '22px',
+    // Clean 5D.1 — additive: a softer pill + a larger canvas radius for a more
+    // sculpted, premium feel. Existing keys untouched.
+    pill: '999px',
+    xl: '28px',
   },
   shadow: {
     soft: '0 1px 2px rgba(43,40,36,0.04), 0 8px 24px rgba(43,40,36,0.05)',
     lift: '0 2px 6px rgba(43,40,36,0.06), 0 16px 40px rgba(43,40,36,0.08)',
+    // Clean 5D.1 — additive depth cues (no logic).
+    hairline: '0 0 0 1px rgba(43,40,36,0.04)',
+    insetTop: 'inset 0 1px 0 rgba(255,255,255,0.5)',
+    canvas: '0 1px 2px rgba(43,40,36,0.05), 0 24px 60px rgba(43,40,36,0.07)',
+    railGlow: '0 8px 30px rgba(38,36,31,0.18)',
   },
 };
 
