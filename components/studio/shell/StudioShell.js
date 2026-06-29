@@ -31,6 +31,11 @@ export default function StudioShell({
   // rendered instead of the default section content. Navigating to another
   // section still falls back to the default content/future-state behavior.
   renderContent = null,
+  // Clean 5D-R (additive): when true, the desktop content area renders
+  // EDGE-TO-EDGE (no 960px centered column, no large page padding) so a page
+  // can present a full-viewport application surface. Scoped to the page that
+  // opts in — every other studio page keeps the centered column unchanged.
+  fullBleed = false,
 }) {
   const [active, setActive] = useState(initialSection);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -143,8 +148,12 @@ export default function StudioShell({
         <div style={styles.desktopRoot}>
           <NavRail active={active} onSelect={handleSelect} variant="desktop" />
           <main style={styles.desktopMain}>
-            <div style={styles.desktopContentWrap}>
-              <WorkTrayIndicator variant="desktop" />
+            <div
+              style={
+                fullBleed ? styles.desktopContentWrapFull : styles.desktopContentWrap
+              }
+            >
+              {!fullBleed && <WorkTrayIndicator variant="desktop" />}
               <Content />
             </div>
           </main>
@@ -196,6 +205,17 @@ const styles = {
     maxWidth: '960px',
     margin: '0 auto',
     padding: '48px 40px 80px',
+  },
+  // Clean 5D-R — edge-to-edge content for the full-viewport Design Studio.
+  // Fills the area beside the nav rail; the inner studio owns its own height
+  // and internal scrolling.
+  desktopContentWrapFull: {
+    width: '100%',
+    maxWidth: 'none',
+    margin: 0,
+    padding: 0,
+    height: '100vh',
+    overflow: 'hidden',
   },
 
   // Mobile

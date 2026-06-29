@@ -68,10 +68,12 @@ const styles = {
     flexDirection: 'column',
     gap: '4px',
     padding: '14px 9px',
+    height: '100%',
+    minHeight: 0,
     background: `linear-gradient(180deg, ${tokens.color.graphiteSoft} 0%, ${tokens.color.graphite} 100%)`,
     borderRadius: tokens.radius.lg,
     boxShadow: tokens.shadow.railGlow,
-    minWidth: '80px',
+    minWidth: '76px',
   },
   railHorizontal: {
     flexDirection: 'row',

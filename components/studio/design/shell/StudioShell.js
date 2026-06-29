@@ -1,32 +1,33 @@
 // components/studio/design/shell/StudioShell.js
 //
-// LESHEM.S OS — Clean 5D Visual Studio Shell (orchestrator).
+// LESHEM.S OS — Clean 5D-R Studio Workstation (North-Star reset).
 //
-// This is the layout brain of the visual workstation. It arranges the new
-// regions — command bar, left workflow rail, top stone strip, central canvas,
-// right inspector drawer, bottom variant/action strip — and threads them with
-// the EXISTING business logic, which is left untouched:
+// A FULL-VIEWPORT jewelry studio workstation, not a page. Structure follows the
+// approved North Star: a compact top bar + selected-stones strip, a slim left
+// icon workflow rail, a DOMINANT central canvas (render | blueprint split), a
+// right inspector drawer (≈340px) with a pinned gold CTA, and a compact bottom
+// variant/action strip.
 //
-//   • Direction inputs + concept cards (generate / select / remove / refresh)
-//     are still rendered by DesignConceptPanel (Clean 5B.3 logic).
-//   • Output + structured render brief are still rendered by DesignOutputPanel
-//     (Clean 5B + 5C logic), reached via the "הכן בריף הדמיה" primary action.
-//   • Stale detection uses the SAME conceptsAreStale / outputIsStale helpers;
-//     the shell only re-surfaces the warnings calmly and visually.
+// LOGIC IS PRESERVED. This file only arranges regions and threads them with the
+// existing business logic, untouched:
+//   • direction inputs + concept cards (generate / select / remove / refresh)
+//     are rendered by DesignConceptPanel (Clean 5B.3).
+//   • output + structured render brief by DesignOutputPanel (Clean 5B + 5C).
+//   • stale detection uses the SAME conceptsAreStale / outputIsStale helpers.
+// The shell performs NO generation and owns NO output mutations; the bottom
+// strip and stone strip read store data, and selection routes through the same
+// brief store the panels use (single source of truth).
 //
-// The shell reads store data for the chrome (stone strip, inspector, variants)
-// but performs NO generation and owns NO output mutations. Selection routing
-// through the bottom strip uses the same brief store the panels use, so there
-// is a single source of truth.
-//
-// Mobile-future-safe: regions are independent components and the grid collapses
-// to a single column on narrow viewports. Mobile flow itself is NOT built here.
+// Full-height with safe fallbacks: regions scroll INTERNALLY; if the viewport
+// is short the whole shell falls back to page scroll; on narrow widths the grid
+// stacks. Mobile flow itself is NOT built here but is not blocked either.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
+import { createUseDesignProjects } from '../../../../lib/studio/designProjects';
 import {
   getSelectedConcept,
   getActiveOutput,
@@ -36,6 +37,7 @@ import {
 
 import DesignConceptPanel from '../DesignConceptPanel';
 import DesignOutputPanel from '../DesignOutputPanel';
+import AssetPicker from '../../assets/AssetPicker';
 
 import StudioCommandBar from './StudioCommandBar';
 import StudioWorkflowRail from './StudioWorkflowRail';
@@ -47,34 +49,36 @@ import { AlertIcon } from './StudioIcons';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
+const useDesignProjects = createUseDesignProjects(React);
 
-function useIsNarrow(breakpoint = 980) {
-  const [narrow, setNarrow] = React.useState(false);
+function useViewport() {
+  const [vp, setVp] = React.useState({ narrow: false, short: false });
   React.useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const check = () => setNarrow(window.innerWidth < breakpoint);
+    const check = () =>
+      setVp({ narrow: window.innerWidth < 1040, short: window.innerHeight < 640 });
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, [breakpoint]);
-  return narrow;
+  }, []);
+  return vp;
 }
 
 function useActiveWork() {
-  const [has, setHas] = React.useState(false);
+  const [id, setId] = React.useState(null);
   React.useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
-        setHas(Boolean(window.localStorage.getItem('leshem_studio_current_project_v1')));
+        setId(window.localStorage.getItem('leshem_studio_current_project_v1'));
       }
     } catch (e) {
       /* non-fatal */
     }
   }, []);
-  return has;
+  return id;
 }
 
-// Map a workflow-rail step to the central view the canvas should show.
+// Workflow-rail step → central canvas view.
 const STEP_TO_VIEW = {
   stones: 'direction',
   product: 'direction',
@@ -85,10 +89,12 @@ const STEP_TO_VIEW = {
 export default function StudioShell() {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
-  const hasActiveWork = useActiveWork();
-  const isNarrow = useIsNarrow();
+  const projectsStore = useDesignProjects();
+  const activeWorkId = useActiveWork();
+  const { narrow, short } = useViewport();
 
   const [activeStep, setActiveStep] = React.useState('design');
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
 
@@ -116,11 +122,11 @@ export default function StudioShell() {
   const output = getActiveOutput(brief);
   const conceptsStale = conceptsAreStale(brief, tray.items);
   const outStale = outputIsStale(brief, tray.items);
-
   const outputState = output ? (outStale ? 'stale' : 'ready') : 'none';
+
   const view = STEP_TO_VIEW[activeStep] || 'concepts';
 
-  // Bottom-strip primary action: one obvious next step from flow state.
+  // One obvious primary action (bottom strip + drawer CTA share this).
   let primaryLabel = STUDIO_5D_HE.primaryGenerateConcepts;
   let primaryDisabled = false;
   let onPrimary = () => setActiveStep('design');
@@ -142,37 +148,24 @@ export default function StudioShell() {
     onPrimary = () => setActiveStep('brief');
   }
 
-  // Variant selection goes straight to the shared brief store (same store the
-  // concept panel uses), so selecting from the strip and the cards is identical.
-  const onSelectVariant = (conceptId) => {
-    briefStore.selectConcept(conceptId);
-  };
+  const onSelectVariant = (conceptId) => briefStore.selectConcept(conceptId);
 
-  // Canvas content per active view. The existing panels own all logic.
-  let canvasTitle = STUDIO_5D_HE.rail.design;
-  let canvasCaption = '';
+  // Canvas content per view; existing panels own all logic.
+  let canvasMode = 'concepts';
   let canvasBody = null;
   if (view === 'direction') {
-    canvasTitle = STUDIO_5D_HE.rail.product;
+    canvasMode = 'direction';
     canvasBody = <DesignConceptPanel view="direction" onToast={showToast} />;
   } else if (view === 'output') {
-    canvasTitle = STUDIO_5D_HE.rail.brief;
+    canvasMode = 'output';
     canvasBody = <DesignOutputPanel onToast={showToast} suppressStaleBanner />;
   } else {
-    canvasTitle = selected
-      ? `${STUDIO_5D_HE.canvasSelectedPrefix}: ${selected.conceptName}`
-      : STUDIO_5D_HE.canvasPickDirection;
-    canvasCaption = hasConcepts ? '' : STUDIO_5D_HE.canvasNoConcepts;
+    canvasMode = selected ? 'selected' : 'concepts';
     canvasBody = <DesignConceptPanel view="concepts" onToast={showToast} suppressStaleBanner />;
   }
 
-  return (
-    <div style={styles.shell} dir="rtl">
-      <StudioCommandBar hasActiveWork={hasActiveWork} outputState={outputState} />
-
-      <StudioStoneStrip trayItems={tray.items} />
-
-      {/* Calm, visual stale banners (preserved logic, re-surfaced at shell level). */}
+  const staleBanners = (
+    <>
       {conceptsStale && (
         <StaleBanner
           tone="concepts"
@@ -191,22 +184,61 @@ export default function StudioShell() {
           onAction={() => setActiveStep('brief')}
         />
       )}
+    </>
+  );
 
-      <div style={{ ...styles.body, ...(isNarrow ? styles.bodyNarrow : null) }}>
-        {!isNarrow && (
-          <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} />
-        )}
-        {isNarrow && (
-          <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} horizontal />
-        )}
-
-        <StudioCanvas title={canvasTitle} caption={canvasCaption} accent={Boolean(selected)}>
-          {canvasBody}
-        </StudioCanvas>
-
-        <StudioInspectorDrawer concept={selected} output={output} />
+  return (
+    <div
+      style={{
+        ...styles.shell,
+        ...(short ? styles.shellShort : null),
+      }}
+      dir="rtl"
+    >
+      {/* TOP: command bar + stone strip on one compact row */}
+      <div style={styles.topRow}>
+        <StudioCommandBar
+          hasActiveWork={Boolean(activeWorkId)}
+          outputState={outputState}
+          compact
+        />
+        <StudioStoneStrip trayItems={tray.items} onAddStones={() => setPickerOpen(true)} />
       </div>
 
+      {/* MIDDLE: rail | canvas | inspector */}
+      <div
+        style={{
+          ...styles.middle,
+          ...(narrow ? styles.middleNarrow : null),
+        }}
+      >
+        <StudioWorkflowRail
+          active={activeStep}
+          onSelect={setActiveStep}
+          horizontal={narrow}
+        />
+
+        <div style={styles.canvasColumn}>
+          {staleBanners}
+          <StudioCanvas
+            mode={canvasMode}
+            selected={selected}
+            hasConcepts={hasConcepts}
+          >
+            {canvasBody}
+          </StudioCanvas>
+        </div>
+
+        <StudioInspectorDrawer
+          concept={selected}
+          output={output}
+          primaryLabel={primaryLabel}
+          primaryDisabled={primaryDisabled}
+          onPrimary={onPrimary}
+        />
+      </div>
+
+      {/* BOTTOM: variant strip + echoed primary action */}
       <StudioBottomStrip
         concepts={concepts}
         selectedId={brief.selectedConceptId}
@@ -214,6 +246,14 @@ export default function StudioShell() {
         primaryLabel={primaryLabel}
         primaryDisabled={primaryDisabled}
         onPrimary={onPrimary}
+      />
+
+      <AssetPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        tray={tray}
+        projectsStore={projectsStore}
+        currentProjectId={activeWorkId}
       />
 
       {toast && (
@@ -233,7 +273,7 @@ function StaleBanner({ tone, title, body, action, onAction }) {
       role="status"
     >
       <span style={styles.staleIcon} aria-hidden="true">
-        <AlertIcon size={18} />
+        <AlertIcon size={16} />
       </span>
       <div style={styles.staleText}>
         <span style={styles.staleTitle}>{title}</span>
@@ -246,58 +286,84 @@ function StaleBanner({ tone, title, body, action, onAction }) {
   );
 }
 
+const GAP = '10px';
+
 const styles = {
-  shell: { display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '14px' },
+  shell: {
+    display: 'grid',
+    gridTemplateRows: 'auto minmax(0, 1fr) auto',
+    gap: GAP,
+    height: '100vh',
+    padding: GAP,
+    boxSizing: 'border-box',
+    background: tokens.color.ivory,
+    overflow: 'hidden',
+  },
+  // Short viewports: let the whole shell scroll instead of clipping.
+  shellShort: {
+    height: 'auto',
+    minHeight: '100vh',
+    overflow: 'visible',
+  },
   loading: {
     fontFamily: tokens.font.body,
     fontSize: '15px',
     color: tokens.color.inkFaint,
-    padding: '40px 0',
+    padding: '60px 0',
     textAlign: 'center',
   },
-  body: {
+
+  topRow: {
     display: 'grid',
-    gridTemplateColumns: 'auto minmax(0, 1fr) minmax(280px, 360px)',
-    gap: '14px',
-    alignItems: 'start',
+    gridTemplateColumns: 'minmax(220px, 300px) minmax(0, 1fr)',
+    gap: GAP,
+    alignItems: 'stretch',
   },
-  bodyNarrow: {
+
+  middle: {
+    display: 'grid',
+    gridTemplateColumns: '76px minmax(0, 1fr) minmax(320px, 360px)',
+    gap: GAP,
+    minHeight: 0,
+  },
+  middleNarrow: {
     gridTemplateColumns: '1fr',
+    gridAutoRows: 'min-content',
   },
+
+  canvasColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: GAP,
+    minWidth: 0,
+    minHeight: 0,
+  },
+
+  // Stale banners (calm, slim).
   stale: {
     display: 'flex',
     alignItems: 'center',
-    gap: '13px',
-    padding: '13px 18px',
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.hairline,
+    gap: '10px',
+    padding: '9px 14px',
+    borderRadius: tokens.radius.md,
+    flexShrink: 0,
   },
-  staleConcepts: {
-    background: tokens.color.goldFaint,
-    border: `1px solid ${tokens.color.gold}`,
-  },
-  staleOutput: {
-    background: tokens.color.iceFaint,
-    border: `1px solid ${tokens.color.ice}`,
-  },
+  staleConcepts: { background: tokens.color.goldFaint, border: `1px solid ${tokens.color.gold}` },
+  staleOutput: { background: tokens.color.iceFaint, border: `1px solid ${tokens.color.ice}` },
   staleIcon: { display: 'inline-flex', color: tokens.color.charcoal, flexShrink: 0 },
-  staleText: { display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0, flex: '1 1 auto' },
+  staleText: { display: 'flex', flexDirection: 'column', gap: '0px', minWidth: 0, flex: '1 1 auto' },
   staleTitle: {
     fontFamily: tokens.font.body,
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 700,
     color: tokens.color.charcoal,
   },
-  staleBody: {
+  staleBody: { fontFamily: tokens.font.body, fontSize: '11.5px', color: tokens.color.inkSoft },
+  staleBtn: {
+    minHeight: '36px',
+    padding: '8px 16px',
     fontFamily: tokens.font.body,
     fontSize: '12.5px',
-    color: tokens.color.inkSoft,
-  },
-  staleBtn: {
-    minHeight: '42px',
-    padding: '10px 18px',
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
     fontWeight: 700,
     color: tokens.color.ivory,
     background: tokens.color.charcoal,
@@ -307,6 +373,7 @@ const styles = {
     whiteSpace: 'nowrap',
     flexShrink: 0,
   },
+
   toast: {
     position: 'fixed',
     left: '50%',

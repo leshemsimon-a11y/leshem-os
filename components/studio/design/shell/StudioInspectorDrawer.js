@@ -72,14 +72,32 @@ function Section({ title, body, items, defaultOpen = false }) {
   );
 }
 
-export default function StudioInspectorDrawer({ concept, output }) {
+export default function StudioInspectorDrawer({
+  concept,
+  output,
+  primaryLabel,
+  primaryDisabled,
+  onPrimary,
+}) {
   const L = STUDIO_5D_HE;
 
   if (!concept) {
     return (
       <aside style={styles.drawer} dir="rtl">
-        <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
-        <p style={styles.empty}>{L.inspectorEmpty}</p>
+        <div style={styles.scroll}>
+          <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
+          <p style={styles.empty}>{L.inspectorEmpty}</p>
+        </div>
+        {primaryLabel ? (
+          <button
+            type="button"
+            onClick={onPrimary}
+            disabled={primaryDisabled}
+            style={{ ...styles.cta, ...(primaryDisabled ? styles.ctaDisabled : null) }}
+          >
+            {primaryLabel}
+          </button>
+        ) : null}
       </aside>
     );
   }
@@ -94,38 +112,51 @@ export default function StudioInspectorDrawer({ concept, output }) {
 
   return (
     <aside style={styles.drawer} dir="rtl">
-      <div style={styles.head}>
-        <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
-        <span style={styles.conceptName}>{concept.conceptName}</span>
-        {concept.shortDescription ? (
-          <p style={styles.preview}>{concept.shortDescription}</p>
-        ) : null}
+      <div style={styles.scroll}>
+        <div style={styles.head}>
+          <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
+          <span style={styles.conceptName}>{concept.conceptName}</span>
+          {concept.shortDescription ? (
+            <p style={styles.preview}>{concept.shortDescription}</p>
+          ) : null}
+        </div>
+
+        <div style={styles.rows}>
+          <Row Icon={CenterStoneIcon} label={L.rows.centerStone} value={centerVal} />
+          <Row Icon={SideStoneIcon} label={L.rows.sideStones} value={output ? output.stoneSummary : null} />
+          <Row Icon={MetalIcon} label={L.rows.metal} value={metalVal} />
+          <Row Icon={SettingIcon} label={L.rows.setting} value={settingVal} />
+          <Row Icon={StyleIcon} label={L.rows.style} value={styleVal} />
+          <Row Icon={FeasibilityIcon} label={L.rows.feasibility} value={feasibilityVal} />
+        </div>
+
+        {output ? (
+          <div style={styles.sections}>
+            <Section title={L.sections.designLogic} body={output.internalDesignSummary} />
+            <Section title={L.sections.stoneUsage} body={output.stoneSummary} />
+            <Section title={L.sections.materials} body={output.materialsSummary} />
+            <Section title={L.sections.production} body={output.productionNotes} />
+            <Section title={L.sections.assumptions} items={output.assumptions} />
+            <Section title={L.sections.nextSteps} items={output.nextSteps} />
+          </div>
+        ) : (
+          <div style={styles.sections}>
+            <Section title={L.sections.designLogic} body={concept.designStructure} />
+            <Section title={L.sections.stoneUsage} body={concept.stoneLayout} />
+          </div>
+        )}
       </div>
 
-      <div style={styles.rows}>
-        <Row Icon={CenterStoneIcon} label={L.rows.centerStone} value={centerVal} />
-        <Row Icon={SideStoneIcon} label={L.rows.sideStones} value={output ? output.stoneSummary : null} />
-        <Row Icon={MetalIcon} label={L.rows.metal} value={metalVal} />
-        <Row Icon={SettingIcon} label={L.rows.setting} value={settingVal} />
-        <Row Icon={StyleIcon} label={L.rows.style} value={styleVal} />
-        <Row Icon={FeasibilityIcon} label={L.rows.feasibility} value={feasibilityVal} />
-      </div>
-
-      {output ? (
-        <div style={styles.sections}>
-          <Section title={L.sections.designLogic} body={output.internalDesignSummary} />
-          <Section title={L.sections.stoneUsage} body={output.stoneSummary} />
-          <Section title={L.sections.materials} body={output.materialsSummary} />
-          <Section title={L.sections.production} body={output.productionNotes} />
-          <Section title={L.sections.assumptions} items={output.assumptions} />
-          <Section title={L.sections.nextSteps} items={output.nextSteps} />
-        </div>
-      ) : (
-        <div style={styles.sections}>
-          <Section title={L.sections.designLogic} body={concept.designStructure} />
-          <Section title={L.sections.stoneUsage} body={concept.stoneLayout} />
-        </div>
-      )}
+      {primaryLabel ? (
+        <button
+          type="button"
+          onClick={onPrimary}
+          disabled={primaryDisabled}
+          style={{ ...styles.cta, ...(primaryDisabled ? styles.ctaDisabled : null) }}
+        >
+          {primaryLabel}
+        </button>
+      ) : null}
     </aside>
   );
 }
@@ -134,13 +165,45 @@ const styles = {
   drawer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
     background: tokens.color.canvas,
     border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.xl,
+    borderRadius: tokens.radius.lg,
     boxShadow: tokens.shadow.canvas,
-    padding: '18px',
     minWidth: 0,
+    height: '100%',
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  scroll: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    padding: '18px',
+    overflowY: 'auto',
+    flex: 1,
+    minHeight: 0,
+  },
+  cta: {
+    margin: '0 14px 14px',
+    minHeight: '50px',
+    padding: '13px 24px',
+    fontFamily: tokens.font.body,
+    fontSize: '15px',
+    fontWeight: 700,
+    letterSpacing: '0.02em',
+    color: tokens.color.graphite,
+    background: `linear-gradient(180deg, ${tokens.color.goldSoft} 0%, ${tokens.color.gold} 100%)`,
+    border: 'none',
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+    boxShadow: '0 6px 18px rgba(184,151,90,0.26)',
+    flexShrink: 0,
+  },
+  ctaDisabled: {
+    background: tokens.color.platinumSoft,
+    color: tokens.color.inkFaint,
+    cursor: 'not-allowed',
+    boxShadow: 'none',
   },
   head: { display: 'flex', flexDirection: 'column', gap: '5px' },
   drawerTitle: {

@@ -9,13 +9,14 @@
 // Airtable, no new packages.
 
 import StudioShell from '../../components/studio/shell/StudioShell';
-import DesignStudio from '../../components/studio/design/DesignStudio';
+import StudioWorkstation from '../../components/studio/design/shell/StudioShell';
 
 export default function StudioDesignPage() {
   return (
     <StudioShell
       initialSection="builder"
-      renderContent={() => <DesignStudio />}
+      fullBleed
+      renderContent={() => <StudioWorkstation />}
     />
   );
 }

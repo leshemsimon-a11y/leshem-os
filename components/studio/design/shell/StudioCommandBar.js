@@ -1,12 +1,12 @@
 // components/studio/design/shell/StudioCommandBar.js
 //
-// Clean 5D — top command bar. Compact studio identity + a calm status dot.
-// Presentation only; status is derived from props, no logic here.
+// Clean 5D-R — compact command bar (top-left cell). Studio identity + a calm
+// status pill. Presentation only; status derived from props.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
-import { DotIcon, SparkIcon } from './StudioIcons';
+import { DotIcon } from './StudioIcons';
 
 export default function StudioCommandBar({ hasActiveWork, outputState }) {
   const L = STUDIO_5D_HE;
@@ -29,13 +29,14 @@ export default function StudioCommandBar({ hasActiveWork, outputState }) {
     <header style={styles.bar} dir="rtl">
       <div style={styles.identity}>
         <span style={styles.mark} aria-hidden="true">
-          <SparkIcon size={18} />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
+            <path d="M6 3h12l3 6-9 12L3 9l3-6z" />
+          </svg>
         </span>
         <span style={styles.name}>{L.appName}</span>
-        <span style={styles.tag}>{L.studioTag}</span>
       </div>
       <div style={styles.status}>
-        <DotIcon size={8} color={dot} />
+        <DotIcon size={7} color={dot} />
         <span style={styles.statusText}>{statusText}</span>
       </div>
     </header>
@@ -47,57 +48,52 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '12px',
-    padding: '13px 20px',
+    gap: '10px',
+    padding: '0 16px',
+    height: '100%',
+    minHeight: '52px',
     background: `linear-gradient(180deg, ${tokens.color.graphiteSoft} 0%, ${tokens.color.graphite} 100%)`,
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.railGlow,
+    borderRadius: tokens.radius.md,
     color: tokens.color.platinum,
+    boxShadow: tokens.shadow.railGlow,
   },
-  identity: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 },
+  identity: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 },
   mark: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '30px',
-    height: '30px',
+    width: '26px',
+    height: '26px',
     borderRadius: '50%',
     color: tokens.color.goldSoft,
     background: 'rgba(184,151,90,0.10)',
     border: '1px solid rgba(205,185,136,0.28)',
+    flexShrink: 0,
   },
   name: {
     fontFamily: tokens.font.body,
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 700,
-    letterSpacing: '0.14em',
+    letterSpacing: '0.12em',
     color: tokens.color.platinumSoft,
-  },
-  tag: {
-    fontFamily: tokens.font.body,
-    fontSize: '10.5px',
-    fontWeight: 500,
-    letterSpacing: '0.16em',
-    color: tokens.color.goldSoft,
-    paddingInlineStart: '12px',
-    marginInlineStart: '2px',
-    borderInlineStart: '1px solid rgba(205,185,136,0.22)',
+    whiteSpace: 'nowrap',
   },
   status: {
     display: 'flex',
     alignItems: 'center',
-    gap: '9px',
+    gap: '7px',
     flexShrink: 0,
-    padding: '6px 13px',
-    borderRadius: tokens.radius.pill,
+    padding: '5px 11px',
+    borderRadius: '999px',
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(233,230,223,0.10)',
   },
   statusText: {
     fontFamily: tokens.font.body,
-    fontSize: '11.5px',
+    fontSize: '11px',
     fontWeight: 600,
-    letterSpacing: '0.04em',
+    letterSpacing: '0.03em',
     color: tokens.color.platinum,
+    whiteSpace: 'nowrap',
   },
 };

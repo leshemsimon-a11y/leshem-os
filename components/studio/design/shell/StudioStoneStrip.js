@@ -58,7 +58,7 @@ function StoneChip({ item }) {
   );
 }
 
-export default function StudioStoneStrip({ trayItems }) {
+export default function StudioStoneStrip({ trayItems, onAddStones }) {
   const items = Array.isArray(trayItems) ? trayItems : [];
 
   if (items.length === 0) {
@@ -69,6 +69,13 @@ export default function StudioStoneStrip({ trayItems }) {
           <span style={styles.emptyDot} aria-hidden="true" />
           <span style={styles.emptyText}>{STUDIO_5D_HE.stonesEmpty}</span>
         </div>
+        {typeof onAddStones === 'function' && (
+          <button type="button" onClick={onAddStones} style={styles.addBtn} title={STUDIO_5D_HE.addStones}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        )}
       </div>
     );
   }
@@ -81,6 +88,13 @@ export default function StudioStoneStrip({ trayItems }) {
           <StoneChip key={it.id} item={it} />
         ))}
       </div>
+      {typeof onAddStones === 'function' && (
+        <button type="button" onClick={onAddStones} style={styles.addBtn} title={STUDIO_5D_HE.addStones}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -90,10 +104,12 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
-    padding: '12px 16px',
+    padding: '8px 16px',
+    height: '100%',
+    minHeight: '52px',
     background: tokens.color.canvas,
     border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.md,
     boxShadow: tokens.shadow.soft,
   },
   stripLabel: {
@@ -189,5 +205,19 @@ const styles = {
     fontWeight: 600,
     color: tokens.color.inkSoft,
     letterSpacing: '0.02em',
+  },
+  addBtn: {
+    marginInlineStart: 'auto',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '34px',
+    height: '34px',
+    flexShrink: 0,
+    color: tokens.color.gold,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`,
+    borderRadius: '50%',
+    cursor: 'pointer',
   },
 };

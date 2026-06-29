@@ -1,0 +1,161 @@
+LESHEM.S OS — Clean 5D-R — Studio UI Reset to North Star
+========================================================
+
+Root-ready bundle. Upload the CONTENTS of this folder to GitHub at the same
+paths. A STRUCTURAL visual reset of the Design Studio shell to the approved
+North Star. No business logic changed. No feature expansion.
+
+Baseline preserved: 5B.3 logic + 5C render brief / "Create Jewelry From Stones"
++ 5D functional shell wiring.
+
+
+WHAT VISUAL DIRECTION WAS REJECTED
+----------------------------------
+The previous 5D.1 look was a NARROW 960px CENTERED COLUMN with charcoal panels
+floating in large empty side margins — it read like an admin page, not a studio.
+Root cause: the outer app shell wraps content in
+  desktopContentWrap { maxWidth: 960px; margin: 0 auto; padding: 48px 40px 80px }
+so the Design Studio could never fill the viewport. That centered-page direction
+is rejected and replaced.
+
+
+WHAT WAS REBUILT (North Star)
+-----------------------------
+A FULL-VIEWPORT studio workstation that fills the area beside the app nav rail:
+
+  ┌───────────────────────────────────────────────────────────┐
+  │ command bar      │ selected-stones strip (thumbnail chips) │  ← compact top
+  ├──────┬──────────────────────────────────┬─────────────────┤
+  │ RAIL │ CENTRAL CANVAS (dominant)         │ INSPECTOR (≈340)│
+  │ 76px │  selected → SPLIT:               │ icon rows +     │
+  │ icon │   left = jewelry preview         │ collapsed       │
+  │ steps│   right = CAD/blueprint sketch   │ disclosures +   │
+  │      │  else → 3 concept cards          │ pinned gold CTA │
+  ├──────┴──────────────────────────────────┴─────────────────┤
+  │ BOTTOM STRIP — variant thumbnails + primary CTA            │  ← compact
+  └───────────────────────────────────────────────────────────┘
+
+Key moves:
+  • Scoped full-bleed: an additive `fullBleed` prop on the OUTER shell
+    (components/studio/shell/StudioShell.js) makes ONLY /studio/design render
+    edge-to-edge (height:100vh, no centered column). Every other studio page
+    keeps the 960px centered column unchanged — verified none set fullBleed.
+  • Full-height regions with internal scroll (true app feel). Safe fallbacks:
+    on short viewports the shell switches to page scroll; on narrow widths the
+    middle grid stacks and the rail becomes horizontal. Mobile not built, not blocked.
+  • Central canvas is dominant: when a direction is selected it shows the
+    North-Star SPLIT — a jewelry preview (inline CSS/SVG jewel mark, no asset,
+    no render generation) beside a CAD/blueprint sketch. No real render is
+    produced (out of scope); the preview is a styled placeholder.
+  • Inspector drawer: 4–6 compact icon rows + closed-by-default disclosures
+    (Design Logic / Stone Usage / Materials / Production / Assumptions / Next),
+    with the soft-gold "הכן בריף הדמיה" CTA pinned at the bottom.
+  • Stone strip: thumbnail/chip style with an "+" add affordance (opens the
+    existing AssetPicker); one/many/parcel/metal-only states.
+  • Text reduced aggressively: icons, chips, thumbnails, short labels, drawers.
+
+FILES CHANGED
+-------------
+  components/studio/shell/StudioShell.js          additive `fullBleed` prop + edge-to-edge content frame (other pages untouched)
+  pages/studio/design.js                          mounts the inner workstation shell with fullBleed
+  components/studio/design/shell/StudioShell.js   REBUILT: North-Star full-viewport grid orchestrator
+  components/studio/design/shell/StudioCommandBar.js   rebuilt compact (top-left cell)
+  components/studio/design/shell/StudioStoneStrip.js   fills top strip + add affordance
+  components/studio/design/shell/StudioCanvas.js       REBUILT: dominant canvas + render|blueprint split
+  components/studio/design/shell/StudioInspectorDrawer.js  full-height scroll body + pinned gold CTA
+  components/studio/design/shell/StudioWorkflowRail.js fills rail column height
+  components/studio/design/shell/StudioBottomStrip.js  (carried; variant strip + primary)
+  components/studio/design/shell/StudioIcons.js        (carried; inline SVG icon set — no new packages)
+  components/studio/shared/tokens.js              (carried; additive graphite/platinum/ice/canvas tokens)
+  lib/studio/labels.js                            additive STUDIO_5D_HE strings (addStones, canvas split tags)
+
+NOTE: DesignStudio.js and DesignFlow.js are NO LONGER on the /studio/design path
+(the page now mounts the workstation shell directly). They remain in the repo,
+unused, retained for safety — they can be removed in a later cleanup.
+
+
+WHAT LOGIC WAS PRESERVED
+------------------------
+All business logic lives in the existing panels/stores and was NOT touched. The
+shell only arranges regions and threads them via the same props + brief store:
+  • concept generation, select, remove-with-confirm, refresh-one — DesignConceptPanel (5B.3)
+  • output + structured render brief (Hebrew labels, English copy prompt) — DesignOutputPanel (5B + 5C)
+  • stale warnings — SAME conceptsAreStale / outputIsStale helpers
+  • stone-based + metal-only workflows; Work Tray / Active Work sync
+Proof:
+  • designConcepts.js byte-identical to baseline.
+  • The four stale functions content-hashed → UNCHANGED.
+  • Logic sandboxes re-run after the reset: 17/17 (5B.3) + 16/16 (5C) + 6/6 (shell state).
+
+
+HOW STALE WARNINGS WERE PRESERVED
+---------------------------------
+The shell calls the unchanged conceptsAreStale() / outputIsStale() and surfaces
+two calm, slim banners above the canvas (concepts = gold, output = ice-blue),
+each with its update action. The command-bar status pill also reflects output
+state (ready = gold, stale = ice). Independent — both can show together.
+
+
+HOW CONCEPT CONTROLS WERE PRESERVED
+-----------------------------------
+Concept cards are still rendered by DesignConceptPanel (view="concepts") inside
+the canvas. Select / refresh-one / remove-with-confirm are the exact 5B.3
+handlers — untouched. The bottom-strip variant chips call the same
+briefStore.selectConcept() the cards use (single source of truth).
+
+
+THE 3-SECOND TEST
+-----------------
+The layout answers, at a glance:
+  1. What stones?      → top stone strip (thumbnail chips).
+  2. Which direction?  → dominant canvas (selected concept large) + inspector title.
+  3. Next action?      → one soft-gold CTA ("הכן בריף הדמיה"), pinned in the inspector
+                          and echoed in the bottom strip.
+
+
+HOW TO TEST (QA checklist)
+--------------------------
+1.  Open /studio/design.
+2.  Confirm it uses the FULL app viewport (no narrow centered column).
+3.  Confirm it does not look like a page/form.
+4.  Confirm the central canvas is dominant.
+5.  Confirm selected stones are visual chips/thumbnails (top strip).
+6.  Confirm the slim left icon rail exists (Design active).
+7.  Confirm the right inspector drawer exists with a pinned gold CTA.
+8.  Confirm the bottom variant/action strip exists.
+9.  Confirm very little visible text.
+10. Generate concepts (Design step) → 3 cards in the canvas.
+11. Select a direction → canvas switches to the render|blueprint SPLIT; inspector fills.
+12. Remove a direction → inline calm confirm.
+13. Refresh only one direction → only that card changes.
+14. Prepare render brief (Brief step / CTA) → structured brief (Hebrew labels + English prompt).
+15. Change product/style/metal/stones → calm stale banners appear.
+16. Stone-based workflow works (chips, center/side in inspector).
+17. Metal-only workflow works (empty strip → "מתכת בלבד").
+18. No forbidden modules/packages added.
+19. Confirm OTHER pages (inventory/tray/projects/assets) still use the normal
+    centered layout (fullBleed is scoped to the design page only).
+
+
+KNOWN LIMITATIONS
+-----------------
+• No real next build offline (no node_modules, network disabled). Vercel green
+  is the final gate before marking 5D-R stable.
+• The canvas jewelry preview is a styled CSS/SVG placeholder — no real render is
+  generated (render generation is explicitly out of scope).
+• Full-height app layout is desktop-first. It degrades to page-scroll on short
+  viewports and stacks on narrow widths, but a dedicated mobile/voice client
+  flow is NOT built (kept structurally possible for later).
+• DesignStudio.js / DesignFlow.js are retained but no longer on the design path.
+
+OFFLINE QA PERFORMED
+--------------------
+• node --check (labels) — pass
+• Brace/bracket balance on all touched files — pass
+• Import resolution across the shell — all resolve
+• Additive-only proof (outer shell, labels, page) — no exports removed
+• Other pages confirmed NOT full-bleed (scoped change)
+• designConcepts.js identical to baseline; stale functions content-hashed UNCHANGED
+• Forbidden-token scans (commerce / external AI / new packages / lucide /
+  \uXXXX Hebrew / TypeScript) — clean
+• Logic sandboxes re-run — 17/17 + 16/16 + 6/6 pass
