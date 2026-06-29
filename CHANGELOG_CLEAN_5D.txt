@@ -1,0 +1,149 @@
+LESHEM.S OS — Clean 5D — Visual Studio Shell
+============================================
+
+Root-ready bundle. Upload the CONTENTS of this folder to GitHub at the same
+paths (components/… and lib/… at the repo root). No parent wrapper.
+
+Baseline: Clean 5B.3 Stable + the (previously unconfirmed) Clean 5C edits, which
+were inspected and kept because they are working and in-scope:
+  • structured, copy-ready render brief (English prompt, Hebrew field labels)
+  • "צור תכשיט מאבנים" entry actions (Dashboard card + Work Tray primary CTA)
+5C was treated as scratch: verified, stabilized, NOT expanded.
+
+
+WHAT CHANGED (files)
+--------------------
+NEW — visual shell sub-components (presentation/layout only):
+  components/studio/design/shell/StudioShell.js          orchestrator: composes all regions, threads existing logic
+  components/studio/design/shell/StudioCommandBar.js     top command bar + status dot
+  components/studio/design/shell/StudioWorkflowRail.js   left icon workflow rail (Stones/Product/Design/Brief/Production)
+  components/studio/design/shell/StudioStoneStrip.js     selected-stones visual chips (one/many/parcel/metal-only)
+  components/studio/design/shell/StudioCanvas.js         central canvas with CSS blueprint cues (no assets)
+  components/studio/design/shell/StudioInspectorDrawer.js right inspector: icon rows + collapsed sections
+  components/studio/design/shell/StudioBottomStrip.js    bottom variant strip + one primary action
+  components/studio/design/shell/StudioIcons.js          inline SVG icon set (no new packages)
+
+MODIFIED (additive):
+  components/studio/design/DesignStudio.js   renders <StudioShell/> as the primary workspace (was <DesignFlow/>)
+  components/studio/shared/tokens.js         additive 5D tokens: graphite/platinum/ice/blueprint
+  lib/studio/labels.js                       additive STUDIO_5D_HE label block (rail, rows, sections, stale)
+
+UNCHANGED but included for a clean root-ready tree (carry 5B.3 + 5C work):
+  components/studio/design/DesignFlow.js          (kept; no longer the primary shell, retained, not deleted)
+  components/studio/design/DesignConceptPanel.js  (5B.3 concept controls + 5C; logic untouched by 5D)
+  components/studio/design/DesignOutputPanel.js   (5B + 5C render brief; logic untouched by 5D)
+  components/studio/tray/WorkTray.js              (5C "צור תכשיט מאבנים" CTA)
+  components/studio/shell/UnifiedDashboard.js     (5C "צור תכשיט מאבנים" card)
+  lib/studio/designDraft.js                       (5C structured-brief field; stale logic byte-identical)
+  lib/studio/designOutputs.js                     (5C structured render brief)
+  lib/studio/designBriefStore.js                  (5B.3 removeConcept/replaceConcept)
+
+
+LAYOUT EXPLANATION
+------------------
+The Design Studio is now a workstation, not a page:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │ COMMAND BAR — LESHEM.S OS · סטודיו · status dot            │
+  ├──────────────────────────────────────────────────────────┤
+  │ STONE STRIP — selected stones as visual chips             │
+  ├──────────────────────────────────────────────────────────┤
+  │ (calm stale banners appear here when inputs changed)      │
+  ├───────┬───────────────────────────────┬──────────────────┤
+  │ RAIL  │ CENTRAL CANVAS                │ INSPECTOR DRAWER │
+  │ icons │ direction inputs / concept    │ icon rows +      │
+  │ steps │ cards / selected preview on a │ collapsed detail │
+  │       │ subtle blueprint surface      │ sections         │
+  ├───────┴───────────────────────────────┴──────────────────┤
+  │ BOTTOM STRIP — variant thumbnails + ONE primary action    │
+  │                primary = "הכן בריף הדמיה"                  │
+  └──────────────────────────────────────────────────────────┘
+
+Iceberg: only the current decision is visible. Direction secondary fields,
+inspector detail sections, and legacy panels are all collapsed by default.
+The left rail maps to canvas views (Stones/Product → direction inputs,
+Design → concept cards, Brief → output/render brief). Production is an honest
+disabled future step. On narrow viewports the grid collapses to one column and
+the rail becomes a horizontal strip (mobile-future-safe; mobile NOT built).
+
+
+WHAT WAS PRESERVED
+------------------
+All business logic stayed inside the existing panels — the shell only arranges
+them. Concretely:
+  • product/style/metal selection, stone-led + metal-only — DesignConceptPanel direction view
+  • concept generation, select, remove (calm inline confirm), refresh-one — DesignConceptPanel (5B.3), unchanged
+  • output generation + structured render brief + client desc/materials/notes/
+    assumptions/next steps — DesignOutputPanel (5B + 5C), unchanged
+  • Work Tray / Active Work sync — unchanged store calls
+Verified by re-running the 5B.3 and 5C logic sandboxes after the refactor:
+  5B.3 concept-controls sandbox: 17/17 pass
+  5C structured-render-brief sandbox: 16/16 pass
+
+
+HOW STALE WARNINGS WERE PRESERVED
+---------------------------------
+The shell calls the SAME helpers — conceptsAreStale() and outputIsStale() from
+designDraft.js (byte-identical to baseline; the four stale functions were
+content-hashed and confirmed unchanged). It surfaces two independent, calm,
+visual banners at shell level:
+  • concepts stale  → "הבחירות השתנו" + "עדכן כיוונים"
+  • output stale    → "הפלט מבוסס על כיוון קודם" + "עדכן פלט"
+Both can show together. The command-bar status dot also reflects output state
+(ready = gold, stale = ice-blue). A 6/6 shell-state sandbox confirmed the
+mapping fires on product/style/metal/stone/concept change.
+
+
+HOW CONCEPT CONTROLS WERE PRESERVED
+-----------------------------------
+The concept cards are still rendered by DesignConceptPanel (view="concepts")
+inside the canvas. Select / refresh-one / remove-with-confirm are the exact
+5B.3 handlers — untouched. The bottom strip's variant chips call the same
+briefStore.selectConcept() the cards use, so selection is one source of truth.
+
+
+HOW TO TEST (QA checklist)
+--------------------------
+1.  Open the Design Studio (/studio/design).
+2.  Confirm it no longer feels like a long form — it's a workstation.
+3.  Confirm the visual jewelry-studio feel (command bar, rail, canvas, drawer, strip).
+4.  Confirm selected stones appear as visual chips in the top strip.
+5.  Confirm the left icon workflow rail exists (Design active).
+6.  Confirm the central canvas / design focus exists (blueprint surface).
+7.  Confirm the right inspector drawer exists.
+8.  Confirm the bottom variant/action strip exists.
+9.  Generate concepts → 3 directions appear in the canvas.
+10. Select a direction → inspector fills, command-bar/status updates.
+11. Remove a direction → inline calm confirm "הסר כיוון? / אישור".
+12. Refresh only one direction → only that card changes.
+13. Click "הכן בריף הדמיה" (bottom strip) → brief view; generate output →
+    structured render brief with Hebrew labels + English copy-ready prompt.
+14. Change product type / style / metal after generating.
+15. Confirm calm stale banners appear (concepts and/or output).
+16. Confirm stone-based workflow works (chips, center/side in inspector).
+17. Confirm metal-only workflow works (empty stone strip → "מתכת בלבד").
+18. Confirm no new forbidden modules/packages were added.
+
+
+KNOWN LIMITATIONS
+-----------------
+• No real next build offline (no node_modules, network disabled). Vercel green
+  is the final gate before marking 5D stable.
+• No actual render/image is generated — the canvas preview area is a styled
+  placeholder and the render brief is text only (by design / scope).
+• Production rail step is intentionally a disabled future affordance.
+• Mobile layout collapses cleanly but the dedicated mobile/voice client flow is
+  NOT built (kept structurally possible for later).
+• DesignFlow.js is retained but no longer the primary shell; it can be removed
+  in a later cleanup once 5D is confirmed stable.
+
+OFFLINE QA PERFORMED
+--------------------
+• node --check on all touched pure-JS modules — pass
+• Brace/bracket balance on all new + changed files — pass
+• Import-resolution across all shell files — all resolve
+• Additive-only proof (comm -23 on exported symbols) — no exports removed
+• Forbidden-token scans (commerce / Airtable writes / pricing / external AI /
+  Stability/Gemini/etc / new packages / \uXXXX Hebrew / Record IDs / TypeScript) — clean
+• Stale functions content-hashed vs baseline — unchanged
+• Logic sandboxes re-run after refactor — 17/17 + 16/16 + 6/6 pass

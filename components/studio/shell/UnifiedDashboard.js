@@ -33,7 +33,8 @@ const D = DASH_ACTIONS_HE;
 // Guided action cards. `tone: 'gold'` marks the primary (design) card; the
 // collection card is disabled (future). Routes use query hints for quick-add.
 const GUIDED = [
-  { key: 'design', route: '/studio/inventory', tone: 'gold' },
+  { key: 'createJewelry', route: '/studio/design', tone: 'gold' },
+  { key: 'design', route: '/studio/inventory' },
   { key: 'addGoods', route: '/studio/inventory?add=1' },
   { key: 'clientStone', route: '/studio/inventory?add=client' },
   { key: 'continueWork', route: '/studio/projects' },

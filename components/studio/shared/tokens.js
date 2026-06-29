@@ -35,6 +35,17 @@ export const tokens = {
     // States
     disabledText: '#B4AC9D',
     focusRing: '#B8975A',
+
+    // ---- Clean 5D — Visual Studio Shell (additive) ----
+    // Graphite / platinum surfaces for the workstation chrome, plus a restrained
+    // icy-blue technical accent for CAD/blueprint cues. Palette only — no logic.
+    graphite: '#26241F',
+    graphiteSoft: '#34302A',
+    platinum: '#E9E6DF',
+    platinumSoft: '#F1EEE8',
+    ice: '#7FA8B8',
+    iceFaint: '#E4EEF1',
+    blueprintLine: 'rgba(127,168,184,0.16)',
   },
   font: {
     display: '"Merriweather", "Times New Roman", serif',

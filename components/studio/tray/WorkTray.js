@@ -227,7 +227,7 @@ export default function WorkTray() {
                   {readyToBegin ? TRAY_HE.readyHint : TRAY_HE.notReadyHint}
                 </span>
                 <button type="button" onClick={goDesign} style={styles.primaryBtn}>
-                  {TRAY_HE.openDesign}
+                  {TRAY_HE.createJewelry}
                 </button>
               </div>
             </div>

@@ -30,7 +30,7 @@ import { createUseWorkTray } from '../../../lib/studio/workTray';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import { summarizeDraft } from '../../../lib/studio/designDraft';
 import DesignFutureRail from './DesignFutureRail';
-import DesignFlow from './DesignFlow';
+import StudioShell from './shell/StudioShell';
 import DesignSnapshotPanel from './DesignSnapshotPanel';
 import LinkedAssetsPanel from './LinkedAssetsPanel';
 import AssetPicker from '../assets/AssetPicker';
@@ -114,9 +114,9 @@ export default function DesignStudio() {
             </div>
           )}
 
-          {/* PRIMARY — the compact pro workspace (status / control / work /
-              actions). Dominant and above the fold. */}
-          <DesignFlow />
+          {/* PRIMARY — Clean 5D Visual Studio Shell (status / rail / stones /
+              canvas / inspector / actions). Replaces the long workspace. */}
+          <StudioShell />
 
           {/* Quick tray access kept available without crowding the workspace. */}
           {hasItems && (

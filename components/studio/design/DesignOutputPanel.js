@@ -106,9 +106,86 @@ function OutputView({ output }) {
   );
 }
 
+// Clean 5C — structured, copy-ready render brief (Iceberg: revealed on demand).
+// Hebrew field labels for the user; the copy box holds an English prompt that
+// performs better in AI visualization tools. Local only — no image generation.
+function RenderBriefBlock({ output, onCopied }) {
+  const rb = output.renderBriefStructured;
+  const text = output.renderBriefText || output.renderBrief || '';
+  const L = OUTPUT_HE.renderBriefFields;
+  const rows = rb
+    ? [
+        { k: 'jewelryType', v: rb.jewelryType },
+        { k: 'stonePlacement', v: rb.stonePlacement },
+        { k: 'metal', v: rb.metal },
+        { k: 'settingStyle', v: rb.settingStyle },
+        { k: 'proportions', v: rb.proportions },
+        { k: 'cameraAngle', v: rb.cameraAngle },
+        { k: 'lighting', v: rb.lighting },
+        { k: 'background', v: rb.background },
+        { k: 'styleDescriptor', v: rb.styleDescriptor },
+      ].filter((r) => r.v && r.v.trim())
+    : [];
+
+  const copy = () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          () => onCopied && onCopied(),
+          () => onCopied && onCopied() // best-effort; box stays selectable as fallback
+        );
+        return;
+      }
+    } catch (e) {
+      /* fall through to selectable box */
+    }
+    if (onCopied) onCopied();
+  };
+
+  return (
+    <div style={styles.briefCard} dir="rtl">
+      <div style={styles.briefHead}>
+        <span style={styles.briefTitle}>{OUTPUT_HE.renderBriefReadyTitle}</span>
+        <span style={styles.briefHint}>{OUTPUT_HE.renderBriefReadyHint}</span>
+      </div>
+
+      {rows.length > 0 && (
+        <dl style={styles.briefRows}>
+          {rows.map((r) => (
+            <div key={r.k} style={styles.briefRow}>
+              <dt style={styles.briefRowLabel}>{L[r.k]}</dt>
+              <dd style={styles.briefRowValue} dir="auto">
+                {r.v}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      <div style={styles.briefPromptWrap}>
+        <div style={styles.briefPromptHead}>
+          <span style={styles.briefPromptLabel}>{OUTPUT_HE.renderBriefPromptLabel}</span>
+          <button type="button" onClick={copy} style={styles.briefCopyBtn}>
+            {OUTPUT_HE.renderBriefCopy}
+          </button>
+        </div>
+        <textarea
+          readOnly
+          value={text}
+          style={styles.briefPrompt}
+          rows={5}
+          dir="ltr"
+          onFocus={(e) => e.target.select()}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function DesignOutputPanel({ onToast, suppressStaleBanner = false } = {}) {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
+  const [showBrief, setShowBrief] = React.useState(false);
 
   if (!tray.hydrated || !briefStore.hydrated) {
     return <div style={styles.loading}>טוען פלט עיצוב…</div>;
@@ -237,6 +314,25 @@ export default function DesignOutputPanel({ onToast, suppressStaleBanner = false
         <>
           <OutputView output={activeOutput} />
 
+          {/* Clean 5C — one obvious primary action to surface the copy-ready
+              render brief (Iceberg: hidden until asked for). */}
+          <div style={styles.actionsTop}>
+            <button
+              type="button"
+              onClick={() => setShowBrief((v) => !v)}
+              style={styles.briefActionBtn}
+            >
+              {OUTPUT_HE.prepareRenderBrief}
+            </button>
+          </div>
+
+          {showBrief && (
+            <RenderBriefBlock
+              output={activeOutput}
+              onCopied={() => toast(OUTPUT_HE.renderBriefCopied)}
+            />
+          )}
+
           <div style={styles.field}>
             <span style={styles.fieldLabel}>{OUTPUT_HE.notesLabel}</span>
             <textarea
@@ -353,6 +449,106 @@ const styles = {
     border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
+  },
+  // ---- Clean 5C — render brief action + structured copy-ready block ----
+  briefActionBtn: {
+    minHeight: '48px',
+    padding: '12px 24px',
+    fontFamily: tokens.font.body,
+    fontSize: '15px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
+  briefCard: {
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.goldSoft}`,
+    borderRadius: tokens.radius.md,
+    boxShadow: tokens.shadow.soft,
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  briefHead: { display: 'flex', flexDirection: 'column', gap: '2px' },
+  briefTitle: {
+    fontFamily: tokens.font.display,
+    fontWeight: 700,
+    fontSize: '17px',
+    color: tokens.color.charcoal,
+  },
+  briefHint: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    color: tokens.color.inkSoft,
+  },
+  briefRows: { display: 'flex', flexDirection: 'column', gap: '8px', margin: 0 },
+  briefRow: {
+    display: 'grid',
+    gridTemplateColumns: '110px 1fr',
+    gap: '10px',
+    alignItems: 'baseline',
+  },
+  briefRowLabel: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 700,
+    color: tokens.color.gold,
+    margin: 0,
+  },
+  briefRowValue: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    lineHeight: 1.5,
+    color: tokens.color.charcoal,
+    margin: 0,
+  },
+  briefPromptWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    borderTop: `1px solid ${tokens.color.cardEdge}`,
+    paddingTop: '12px',
+  },
+  briefPromptHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+  },
+  briefPromptLabel: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 700,
+    color: tokens.color.inkSoft,
+  },
+  briefCopyBtn: {
+    minHeight: '38px',
+    padding: '8px 18px',
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 700,
+    color: tokens.color.ivory,
+    background: tokens.color.charcoal,
+    border: 'none',
+    borderRadius: tokens.radius.sm,
+    cursor: 'pointer',
+  },
+  briefPrompt: {
+    width: '100%',
+    boxSizing: 'border-box',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontSize: '12.5px',
+    lineHeight: 1.55,
+    color: tokens.color.ink,
+    background: tokens.color.pearl,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.sm,
+    padding: '10px 12px',
+    resize: 'vertical',
   },
   statusStrip: {
     display: 'flex',
