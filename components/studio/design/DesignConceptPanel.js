@@ -35,6 +35,8 @@ import {
   setConcepts as persistConcepts,
   selectConcept as persistSelectedConcept,
   updateConceptNotes as persistConceptNotes,
+  removeConcept as persistRemoveConcept,
+  replaceConcept as persistReplaceConcept,
 } from '../../../lib/studio/designBriefStore';
 import { generateConcepts, describeInputs } from '../../../lib/studio/designConcepts';
 import { getActiveWorkId } from '../../../lib/studio/activeWorkStore';
@@ -75,6 +77,28 @@ function ChipSelect({ label, options, labelMap, value, onChange }) {
   );
 }
 
+// Clean 5B.3 — a quiet collapsible disclosure (iceberg). Secondary inputs and
+// detail live here, closed by default, so the surface stays calm. All children
+// remain mounted only while open, but the underlying brief fields are written
+// to the same store, so nothing is lost when collapsed.
+function Disclosure({ title, defaultOpen = false, children }) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return (
+    <div style={styles.disclosure} dir="rtl">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={styles.disclosureToggle}
+        aria-expanded={open}
+      >
+        <span>{title}</span>
+        <span aria-hidden="true">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && <div style={styles.disclosureBody}>{children}</div>}
+    </div>
+  );
+}
+
 // Input summary row — one tray item.
 function InputItemRow({ item }) {
   const s = (item && item.snapshot) || {};
@@ -106,9 +130,14 @@ function InputItemRow({ item }) {
   );
 }
 
-// One generated concept card.
-function ConceptCard({ concept, chosen, onChoose, onNotes }) {
+// One generated concept card. Clean 5B.3: technical detail is tucked under a
+// "פרטי הכיוון" disclosure (iceberg — hidden until asked for); each card gains
+// an in-place refresh and an inline (non-modal) remove confirmation.
+function ConceptCard({ concept, chosen, onChoose, onNotes, onRemove, onRefresh }) {
   const F = CONCEPT_HE.field;
+  const [showDetails, setShowDetails] = React.useState(false);
+  const [confirmingRemove, setConfirmingRemove] = React.useState(false);
+
   const rows = [
     { k: 'metalSuggestion', v: concept.metalSuggestion },
     { k: 'stoneLayout', v: concept.stoneLayout },
@@ -129,20 +158,36 @@ function ConceptCard({ concept, chosen, onChoose, onNotes }) {
         <p style={styles.conceptDesc}>{concept.shortDescription}</p>
       ) : null}
 
-      <dl style={styles.conceptRows}>
-        {rows.map((r) => (
-          <div key={r.k} style={styles.conceptRow}>
-            <dt style={styles.conceptRowLabel}>{F[r.k]}</dt>
-            <dd style={styles.conceptRowValue}>{r.v}</dd>
-          </div>
-        ))}
-      </dl>
-
-      {/* Placeholders — clearly inert, later milestones */}
-      <div style={styles.placeholderRow}>
-        <span style={styles.placeholderTag}>{F.productionNotes}: בקרוב</span>
-        <span style={styles.placeholderTag}>{F.renderBriefText}: בקרוב</span>
-      </div>
+      {/* ICEBERG: technical detail + inert future placeholders live under a
+          quiet disclosure rather than always on the surface. */}
+      {rows.length > 0 && (
+        <div style={styles.detailsWrap}>
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            style={styles.detailsToggle}
+            aria-expanded={showDetails}
+          >
+            {CONCEPT_HE.conceptDetails} {showDetails ? '▴' : '▾'}
+          </button>
+          {showDetails && (
+            <>
+              <dl style={styles.conceptRows}>
+                {rows.map((r) => (
+                  <div key={r.k} style={styles.conceptRow}>
+                    <dt style={styles.conceptRowLabel}>{F[r.k]}</dt>
+                    <dd style={styles.conceptRowValue}>{r.v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div style={styles.placeholderRow}>
+                <span style={styles.placeholderTag}>{F.productionNotes}: בקרוב</span>
+                <span style={styles.placeholderTag}>{F.renderBriefText}: בקרוב</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {chosen && (
         <div style={styles.field}>
@@ -166,6 +211,50 @@ function ConceptCard({ concept, chosen, onChoose, onNotes }) {
         >
           {chosen ? CONCEPT_HE.chosen : CONCEPT_HE.selectAsChosen}
         </button>
+
+        {typeof onRefresh === 'function' && (
+          <button
+            type="button"
+            onClick={() => onRefresh(concept.conceptId)}
+            style={styles.cardGhostBtn}
+          >
+            {CONCEPT_HE.refreshConcept}
+          </button>
+        )}
+
+        {/* Inline, calm remove — no modal. A small confirm state prevents
+            accidental deletion without feeling stressful. */}
+        {typeof onRemove === 'function' &&
+          (confirmingRemove ? (
+            <span style={styles.confirmInline}>
+              <span style={styles.confirmText}>{CONCEPT_HE.removeConfirmQuestion}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingRemove(false);
+                  onRemove(concept.conceptId);
+                }}
+                style={styles.confirmYes}
+              >
+                {CONCEPT_HE.removeConfirmYes}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingRemove(false)}
+                style={styles.confirmNo}
+              >
+                {CONCEPT_HE.removeConfirmNo}
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingRemove(true)}
+              style={styles.cardRemoveBtn}
+            >
+              {CONCEPT_HE.removeConcept}
+            </button>
+          ))}
       </div>
     </div>
   );
@@ -231,6 +320,35 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
     syncActiveWork(nextBrief);
   };
 
+  // Clean 5B.3 — remove ONE direction (called after the card's inline confirm).
+  const handleRemoveConcept = (conceptId) => {
+    const nextBrief = persistRemoveConcept(conceptId);
+    syncActiveWork(nextBrief);
+    toast(CONCEPT_HE.toastConceptRemoved);
+  };
+
+  // Clean 5B.3 — refresh ONLY this one direction, in place, leaving the others
+  // unchanged. Uses the existing local generator (no new module): regenerate
+  // the set and pick a candidate whose name differs from the directions already
+  // on the board; if none differs, fall back to a fresh-id copy of the matching
+  // candidate so it is still an honest in-place refresh. conceptsSignature is
+  // preserved by replaceConcept, so stale state is unaffected.
+  const handleRefreshConcept = (conceptId) => {
+    const existing = Array.isArray(brief.concepts) ? brief.concepts : [];
+    const otherNames = existing
+      .filter((c) => c && c.conceptId !== conceptId)
+      .map((c) => c.conceptName);
+    const candidates = generateConcepts(tray.items, brief) || [];
+    let replacement =
+      candidates.find((c) => c && !otherNames.includes(c.conceptName)) || candidates[0];
+    if (!replacement) return; // nothing to refresh with — leave as-is
+    // Ensure a distinct identity so React + persistence treat it as refreshed.
+    replacement = { ...replacement };
+    const nextBrief = persistReplaceConcept(conceptId, replacement);
+    syncActiveWork(nextBrief);
+    toast(CONCEPT_HE.toastConceptRefreshed);
+  };
+
   // Status copy.
   const statusCopy = selectedId
     ? { t: CONCEPT_HE.status.chosenTitle, b: CONCEPT_HE.status.chosenBody, ready: true }
@@ -250,9 +368,8 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
         onChange={(v) => briefStore.update({ productType: v })}
       />
 
-      {/* Part 2 — עם מה עובדים? */}
-      <div style={styles.section}>
-        <span style={styles.sectionTitle}>{CONCEPT_HE.inputsTitle}</span>
+      {/* Part 2 — עם מה עובדים? (iceberg: collapsed by default) */}
+      <Disclosure title={CONCEPT_HE.workingWith}>
         {tray.items.length === 0 ? (
           <p style={styles.inputsEmpty}>{CONCEPT_HE.inputsEmpty}</p>
         ) : (
@@ -265,9 +382,10 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
             <p style={styles.inputsHint}>{CONCEPT_HE.inputsHint}</p>
           </>
         )}
-      </div>
+      </Disclosure>
 
-      {/* Part 3 — כיוון עיצוב */}
+      {/* Part 3 — כיוון עיצוב. Core controls stay on the surface; secondary
+          fields drop into a quiet "פרטים נוספים" disclosure (iceberg). */}
       <div style={styles.section}>
         <span style={styles.sectionTitle}>{CONCEPT_HE.directionTitle}</span>
 
@@ -307,39 +425,41 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
           onChange={(v) => briefStore.update({ stoneUsage: v })}
         />
 
-        <div style={styles.field}>
-          <span style={styles.fieldLabel}>{CONCEPT_HE.targetClientLabel}</span>
-          <input
-            value={brief.targetClient}
-            onChange={(e) => briefStore.update({ targetClient: e.target.value })}
-            placeholder={CONCEPT_HE.targetClientPlaceholder}
-            style={styles.input}
-            dir="rtl"
-          />
-        </div>
+        <Disclosure title={CONCEPT_HE.moreDirectionFields}>
+          <div style={styles.field}>
+            <span style={styles.fieldLabel}>{CONCEPT_HE.targetClientLabel}</span>
+            <input
+              value={brief.targetClient}
+              onChange={(e) => briefStore.update({ targetClient: e.target.value })}
+              placeholder={CONCEPT_HE.targetClientPlaceholder}
+              style={styles.input}
+              dir="rtl"
+            />
+          </div>
 
-        <div style={styles.field}>
-          <span style={styles.fieldLabel}>{CONCEPT_HE.budgetLevelLabel}</span>
-          <input
-            value={brief.budgetLevel}
-            onChange={(e) => briefStore.update({ budgetLevel: e.target.value })}
-            placeholder={CONCEPT_HE.budgetLevelPlaceholder}
-            style={styles.input}
-            dir="rtl"
-          />
-        </div>
+          <div style={styles.field}>
+            <span style={styles.fieldLabel}>{CONCEPT_HE.budgetLevelLabel}</span>
+            <input
+              value={brief.budgetLevel}
+              onChange={(e) => briefStore.update({ budgetLevel: e.target.value })}
+              placeholder={CONCEPT_HE.budgetLevelPlaceholder}
+              style={styles.input}
+              dir="rtl"
+            />
+          </div>
 
-        <div style={styles.field}>
-          <span style={styles.fieldLabel}>{CONCEPT_HE.notesLabel}</span>
-          <textarea
-            value={brief.notes}
-            onChange={(e) => briefStore.update({ notes: e.target.value })}
-            placeholder={CONCEPT_HE.notesPlaceholder}
-            style={styles.textarea}
-            rows={2}
-            dir="rtl"
-          />
-        </div>
+          <div style={styles.field}>
+            <span style={styles.fieldLabel}>{CONCEPT_HE.notesLabel}</span>
+            <textarea
+              value={brief.notes}
+              onChange={(e) => briefStore.update({ notes: e.target.value })}
+              placeholder={CONCEPT_HE.notesPlaceholder}
+              style={styles.textarea}
+              rows={2}
+              dir="rtl"
+            />
+          </div>
+        </Disclosure>
       </div>
     </>
   );
@@ -406,6 +526,8 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
                 chosen={c.conceptId === selectedId}
                 onChoose={handleChoose}
                 onNotes={handleNotes}
+                onRemove={handleRemoveConcept}
+                onRefresh={handleRefreshConcept}
               />
             ))}
           </div>
@@ -740,5 +862,112 @@ const styles = {
     color: tokens.color.charcoal,
     background: tokens.color.canvas,
     border: `1px solid ${tokens.color.gold}`,
+  },
+
+  // ---- Clean 5B.3 — iceberg disclosure + per-card controls ----
+  disclosure: {
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    background: tokens.color.canvas,
+    overflow: 'hidden',
+  },
+  disclosureToggle: {
+    width: '100%',
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    padding: '12px 14px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 600,
+    color: tokens.color.charcoal,
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'right',
+  },
+  disclosureBody: {
+    padding: '4px 14px 14px',
+    borderTop: `1px solid ${tokens.color.cardEdge}`,
+  },
+  detailsWrap: {
+    borderTop: `1px solid ${tokens.color.cardEdge}`,
+    paddingTop: '8px',
+    marginTop: '2px',
+  },
+  detailsToggle: {
+    padding: '6px 0',
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 600,
+    color: tokens.color.gold,
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  cardGhostBtn: {
+    minHeight: '46px',
+    padding: '11px 18px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 600,
+    color: tokens.color.charcoal,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
+  cardRemoveBtn: {
+    minHeight: '46px',
+    padding: '11px 18px',
+    fontFamily: tokens.font.body,
+    fontSize: '14px',
+    fontWeight: 600,
+    color: tokens.color.inkSoft,
+    background: 'transparent',
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    cursor: 'pointer',
+  },
+  confirmInline: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '6px 10px',
+    background: tokens.color.pearl,
+    border: `1px solid ${tokens.color.goldFaint}`,
+    borderRadius: tokens.radius.md,
+  },
+  confirmText: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 600,
+    color: tokens.color.charcoal,
+  },
+  confirmYes: {
+    minHeight: '38px',
+    padding: '8px 16px',
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 700,
+    color: tokens.color.ivory,
+    background: tokens.color.charcoal,
+    border: 'none',
+    borderRadius: tokens.radius.sm,
+    cursor: 'pointer',
+  },
+  confirmNo: {
+    minHeight: '38px',
+    padding: '8px 14px',
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 600,
+    color: tokens.color.inkSoft,
+    background: 'transparent',
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.sm,
+    cursor: 'pointer',
   },
 };

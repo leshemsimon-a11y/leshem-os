@@ -1,0 +1,83 @@
+LESHEM.S OS — Clean 5B.3 — Iceberg Studio Cleanup + Concept Controls
+
+Upload the CONTENTS of this folder to GitHub (not the ZIP itself).
+1:1 path mapping under components/ and lib/.
+
+Commit message:
+Clean 5B.3 iceberg cleanup + concept controls
+
+Files (3) — all MODIFIED (additive-only), 0 new:
+  lib/studio/designBriefStore.js          (additive removeConcept + replaceConcept + hook exposure)
+  lib/studio/labels.js                    (additive CONCEPT_HE control + disclosure strings)
+  components/studio/design/DesignConceptPanel.js
+                                          (iceberg disclosures + per-card refresh/remove with inline confirm)
+
+NOT changed (verified byte-identical to 5B.2 baseline):
+  lib/studio/designDraft.js        — stale LOGIC untouched; UNCHANGED
+  lib/studio/designConcepts.js     — generator untouched; UNCHANGED
+  components/studio/design/DesignFlow.js / DesignStudio.js / DesignOutputPanel.js — UNCHANGED
+  No Airtable routes, pricing, certificates, taxonomy, or other files touched.
+
+What 5B.3 does:
+  ICEBERG SURFACING (hide complexity, remove nothing):
+   • Direction view now shows only the core controls on the surface —
+     product type, design goal, style, metal, stone usage. Secondary detail is
+     tucked into quiet collapsible disclosures, closed by default:
+        "עם מה עובדים"  → the per-item input list
+        "פרטים נוספים"  → target client, budget level, free notes
+   • Concept cards show name + short description + actions by default; the
+     technical rows (metal suggestion / stone layout / design structure /
+     recommended use) and the inert "בקרוב" future placeholders live under a
+     per-card "פרטי הכיוון" disclosure.
+   • All fields stay mounted and write to the same brief store — collapsing is
+     presentational only; nothing is lost.
+
+  CONCEPT DIRECTION CONTROLS (the functional gap, now filled):
+   • Remove a direction — per-card, with a small INLINE calm confirm
+     ("הסר כיוון? / אישור / ביטול"), no heavy modal. If the removed direction
+     was the selected one, selection clears.
+   • Refresh a direction — regenerates ONLY that one card in place, leaving the
+     other directions unchanged. Uses the existing local generator (no new
+     module); picks a candidate whose name differs from the directions already
+     on the board, else an honest in-place refresh of the same. If the refreshed
+     card was selected, selection follows the replacement.
+   • Select / replace selected direction — unchanged, still works.
+   • Stale warnings — UNCHANGED. removeConcept and replaceConcept both PRESERVE
+     conceptsSignature, so curation never falsely marks concepts stale, and the
+     5B.2 flow-level stale banners still fire on product/style/metal/tray change.
+
+What 5B.3 does NOT do:
+  No new modules. No system-wide redesign. No chat, voice, camera, pricing, PDF,
+  trends, render generation, inventory consumption. No Airtable writes. No
+  taxonomy/pricing/certificate changes. No new packages. /, /v2 untouched.
+  No \uXXXX Hebrew. No commerce language. No Airtable Record IDs in UI. No TypeScript.
+
+Offline QA performed (real next build only possible on Vercel):
+  • node --check on pure JS (designBriefStore, labels) — pass
+  • Brace/bracket balance on all changed files — pass
+  • Additive-only proof (comm -23 on exported symbols) — no exports removed
+  • Forbidden-token scans (commerce / Airtable writes / pricing / Stability /
+    NEXT_PUBLIC / \uXXXX Hebrew / Record IDs / TypeScript) — clean
+  • designDraft.js + designConcepts.js confirmed byte-identical to baseline
+  • Logic sandbox (designBriefStore.mjs + designDraft.mjs): 17/17 pass —
+    remove (selected + non-selected), replace-in-place (selection follows
+    replacement, order preserved, others untouched), and signature preserved →
+    stale unaffected in every case.
+
+After Vercel is green, QA (acceptance tests):
+1.  Open /studio/design — calmer surface: direction shows ~5 core controls;
+    "עם מה עובדים" and "פרטים נוספים" are collapsed.
+2.  Generate concepts → cards show name + description + actions; technical detail
+    is hidden behind "פרטי הכיוון" per card.
+3.  Select a direction; replace by selecting another — still works.
+4.  Click "הסר כיוון" on a card → inline confirm "הסר כיוון?" appears →
+    "אישור" removes it; "ביטול" cancels. If it was selected, selection clears.
+5.  Click "רענן כיוון" on one card → only that card changes; others stay.
+6.  Change product type / style / metal after generating → stale banner(s)
+    still appear (concepts + output independently, from 5B.2).
+7.  Expand "עם מה עובדים", "פרטים נוספים", "פרטי הכיוון" → all original
+    fields/detail present and editable.
+8.  Save to active work still works; refresh persists selection + concepts.
+9.  Mobile still usable; no new modules; Vercel build passes; Inventory, Work
+    Tray, Dashboard, Asset Library, STL/OBJ preview, certificates still work;
+    no Airtable records created.
