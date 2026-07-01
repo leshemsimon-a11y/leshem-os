@@ -6,10 +6,23 @@
 //
 // Handles one stone, many stones, parcels/lots, and the metal-only empty state.
 // Reads tray item snapshots only; no logic, no mutation.
+//
+// Clean 5D-R3: this panel was already on the light ivory chrome direction —
+// only comfort/accessibility polish here (larger add-stones target, explicit
+// aria-label, slightly calmer empty-state wording emphasis). No logic touched.
+//
+// Clean 5D-R3 + Starter Asset Pack v1: when a tray item has NO real
+// snapshot.primaryImage, the chip now falls back to a best-effort demo
+// illustration from the Starter Asset Pack (getStoneThumbFallback) instead
+// of the generic line icon. A small gold "אילוסטרציה" dot marks these as
+// non-final demo art — never mistaken for the real item photo. If nothing
+// in the pack matches the item's shape/type text, the original generic icon
+// fallback is used exactly as before (zero regression).
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { getStoneThumbFallback } from '../../../../lib/studio/assetPack';
 
 const PARCEL_ROLES = new Set(['parcel']);
 
@@ -30,7 +43,9 @@ function StoneChip({ item }) {
   const parcel = isParcel(item);
   const carat = typeof s.caratWeight === 'number' ? `${s.caratWeight}${STUDIO_5D_HE.caratSuffix}` : '';
   const color = typeof s.color === 'string' && s.color.trim() ? s.color.trim() : '';
-  const img = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
+  const realImg = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
+  const demoImg = !realImg ? getStoneThumbFallback(item) : null;
+  const img = realImg || demoImg;
 
   return (
     <div style={styles.chip} dir="rtl">
@@ -47,6 +62,13 @@ function StoneChip({ item }) {
           </span>
         )}
         {parcel ? <span style={styles.parcelBadge}>{STUDIO_5D_HE.parcelChip}</span> : null}
+        {demoImg ? (
+          <span
+            style={styles.demoBadge}
+            title={STUDIO_5D_HE.demoThumbBadge}
+            aria-label={STUDIO_5D_HE.demoThumbBadge}
+          />
+        ) : null}
       </span>
       <span style={styles.meta}>
         <span style={styles.title}>{chipTitle(item)}</span>
@@ -70,7 +92,13 @@ export default function StudioStoneStrip({ trayItems, onAddStones }) {
           <span style={styles.emptyText}>{STUDIO_5D_HE.stonesEmpty}</span>
         </div>
         {typeof onAddStones === 'function' && (
-          <button type="button" onClick={onAddStones} style={styles.addBtn} title={STUDIO_5D_HE.addStones}>
+          <button
+            type="button"
+            onClick={onAddStones}
+            style={styles.addBtn}
+            title={STUDIO_5D_HE.addStones}
+            aria-label={STUDIO_5D_HE.aria.addStones}
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
@@ -89,7 +117,13 @@ export default function StudioStoneStrip({ trayItems, onAddStones }) {
         ))}
       </div>
       {typeof onAddStones === 'function' && (
-        <button type="button" onClick={onAddStones} style={styles.addBtn} title={STUDIO_5D_HE.addStones}>
+        <button
+          type="button"
+          onClick={onAddStones}
+          style={styles.addBtn}
+          title={STUDIO_5D_HE.addStones}
+          aria-label={STUDIO_5D_HE.aria.addStones}
+        >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
@@ -167,6 +201,16 @@ const styles = {
     background: tokens.color.ice,
     lineHeight: '12px',
   },
+  demoBadge: {
+    position: 'absolute',
+    top: '1px',
+    insetInlineEnd: '1px',
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    background: tokens.color.gold,
+    border: `1px solid ${tokens.color.ivory}`,
+  },
   meta: { display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 },
   title: {
     fontFamily: tokens.font.body,
@@ -211,8 +255,8 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '34px',
-    height: '34px',
+    width: '40px',
+    height: '40px',
     flexShrink: 0,
     color: tokens.color.gold,
     background: tokens.color.goldFaint,

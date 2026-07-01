@@ -18,11 +18,20 @@
 // strip and stone strip read store data, and selection routes through the same
 // brief store the panels use (single source of truth).
 //
+// Clean 5D-R3 (additive, UI-only): a local `heroDismissed` flag gates a new
+// guided empty/start state (State A) on the canvas — shown only when there
+// are zero tray stones AND zero concepts AND the user hasn't engaged with a
+// start choice yet. It is pure presentation: it never reads or writes the
+// brief/tray/projects stores, and every store-derived variable used below
+// (brief, concepts, selected, output, conceptsStale, outStale) is computed
+// exactly as in 5D-R2.
+//
 // Full-height with safe fallbacks: regions scroll INTERNALLY; if the viewport
 // is short the whole shell falls back to page scroll; on narrow widths the grid
 // stacks. Mobile flow itself is NOT built here but is not blocked either.
 
 import * as React from 'react';
+import { useRouter } from 'next/router';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
@@ -92,11 +101,16 @@ export default function StudioShell() {
   const projectsStore = useDesignProjects();
   const activeWorkId = useActiveWork();
   const { narrow, short } = useViewport();
+  const router = useRouter();
 
   const [activeStep, setActiveStep] = React.useState('design');
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
+
+  // Clean 5D-R3 — local UI-only gate for the guided empty/start state
+  // (State A). Never persisted, never read by any store or panel.
+  const [heroDismissed, setHeroDismissed] = React.useState(false);
 
   const showToast = React.useCallback((msg) => {
     if (!msg) return;
@@ -118,6 +132,7 @@ export default function StudioShell() {
   const brief = briefStore.brief;
   const concepts = Array.isArray(brief.concepts) ? brief.concepts : [];
   const hasConcepts = concepts.length > 0;
+  const hasStones = tray.items.length > 0;
   const selected = getSelectedConcept(brief);
   const output = getActiveOutput(brief);
   const conceptsStale = conceptsAreStale(brief, tray.items);
@@ -125,6 +140,11 @@ export default function StudioShell() {
   const outputState = output ? (outStale ? 'stale' : 'ready') : 'none';
 
   const view = STEP_TO_VIEW[activeStep] || 'concepts';
+
+  // Once real stones exist or concepts have been generated, the guided start
+  // state is moot regardless of the dismissed flag (kept in sync, never a
+  // trap the user can get stuck behind or in front of).
+  const heroActive = !hasStones && !hasConcepts && !heroDismissed;
 
   // One obvious primary action (bottom strip + drawer CTA share this).
   let primaryLabel = STUDIO_5D_HE.primaryGenerateConcepts;
@@ -160,9 +180,23 @@ export default function StudioShell() {
     canvasMode = 'output';
     canvasBody = <DesignOutputPanel onToast={showToast} suppressStaleBanner />;
   } else {
-    canvasMode = selected ? 'selected' : 'concepts';
+    canvasMode = heroActive ? 'hero' : selected ? 'selected' : 'concepts';
     canvasBody = <DesignConceptPanel view="concepts" onToast={showToast} suppressStaleBanner />;
   }
+
+  // Clean 5D-R3 — guided-start actions. Pure UI: open the existing picker,
+  // dismiss the hero to reveal the existing metal-only starter/input flow, or
+  // navigate to the existing Work Tray route. No new stores, no new routes.
+  const onHeroChooseStones = () => {
+    setHeroDismissed(true);
+    setPickerOpen(true);
+  };
+  const onHeroChooseNoStones = () => {
+    setHeroDismissed(true);
+  };
+  const onHeroOpenTray = () => {
+    router.push('/studio/tray');
+  };
 
   const staleBanners = (
     <>
@@ -215,15 +249,20 @@ export default function StudioShell() {
         <StudioWorkflowRail
           active={activeStep}
           onSelect={setActiveStep}
+          onExit={() => router.push('/studio')}
           horizontal={narrow}
         />
 
         <div style={styles.canvasColumn}>
-          {staleBanners}
+          {!heroActive && staleBanners}
           <StudioCanvas
             mode={canvasMode}
             selected={selected}
             hasConcepts={hasConcepts}
+            hasStones={hasStones}
+            onChooseStones={onHeroChooseStones}
+            onChooseNoStones={onHeroChooseNoStones}
+            onOpenTray={onHeroOpenTray}
           >
             {canvasBody}
           </StudioCanvas>
@@ -232,9 +271,6 @@ export default function StudioShell() {
         <StudioInspectorDrawer
           concept={selected}
           output={output}
-          primaryLabel={primaryLabel}
-          primaryDisabled={primaryDisabled}
-          onPrimary={onPrimary}
         />
       </div>
 
@@ -322,7 +358,7 @@ const styles = {
 
   middle: {
     display: 'grid',
-    gridTemplateColumns: '76px minmax(0, 1fr) minmax(320px, 360px)',
+    gridTemplateColumns: '78px minmax(0, 1fr) minmax(320px, 360px)',
     gap: GAP,
     minHeight: 0,
   },
@@ -344,7 +380,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    padding: '9px 14px',
+    padding: '10px 14px',
     borderRadius: tokens.radius.md,
     flexShrink: 0,
   },
@@ -360,7 +396,7 @@ const styles = {
   },
   staleBody: { fontFamily: tokens.font.body, fontSize: '11.5px', color: tokens.color.inkSoft },
   staleBtn: {
-    minHeight: '36px',
+    minHeight: '38px',
     padding: '8px 16px',
     fontFamily: tokens.font.body,
     fontSize: '12.5px',

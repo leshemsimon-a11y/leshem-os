@@ -2,6 +2,12 @@
 //
 // Clean 5D-R — compact command bar (top-left cell). Studio identity + a calm
 // status pill. Presentation only; status derived from props.
+//
+// Clean 5D-R3: relit to the light ivory/platinum chrome direction. The bar is
+// no longer a heavy dark surface — it reads as a calm card, matching the
+// canvas and inspector. Graphite/dark tones are used only as small text
+// contrast (e.g. inside the identity mark), never as a full-width surface.
+// No logic changed — status text/dot mapping is identical to 5D-R2.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -49,25 +55,26 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '10px',
-    padding: '0 16px',
+    padding: '0 18px',
     height: '100%',
     minHeight: '52px',
-    background: `linear-gradient(180deg, ${tokens.color.graphiteSoft} 0%, ${tokens.color.graphite} 100%)`,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.md,
-    color: tokens.color.platinum,
-    boxShadow: tokens.shadow.railGlow,
+    color: tokens.color.charcoal,
+    boxShadow: tokens.shadow.soft,
   },
   identity: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 },
   mark: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '26px',
-    height: '26px',
+    width: '28px',
+    height: '28px',
     borderRadius: '50%',
-    color: tokens.color.goldSoft,
-    background: 'rgba(184,151,90,0.10)',
-    border: '1px solid rgba(205,185,136,0.28)',
+    color: tokens.color.gold,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`,
     flexShrink: 0,
   },
   name: {
@@ -75,7 +82,7 @@ const styles = {
     fontSize: '13px',
     fontWeight: 700,
     letterSpacing: '0.12em',
-    color: tokens.color.platinumSoft,
+    color: tokens.color.charcoal,
     whiteSpace: 'nowrap',
   },
   status: {
@@ -83,17 +90,17 @@ const styles = {
     alignItems: 'center',
     gap: '7px',
     flexShrink: 0,
-    padding: '5px 11px',
+    padding: '6px 12px',
     borderRadius: '999px',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(233,230,223,0.10)',
+    background: tokens.color.platinumSoft,
+    border: `1px solid ${tokens.color.cardEdge}`,
   },
   statusText: {
     fontFamily: tokens.font.body,
     fontSize: '11px',
     fontWeight: 600,
     letterSpacing: '0.03em',
-    color: tokens.color.platinum,
+    color: tokens.color.inkSoft,
     whiteSpace: 'nowrap',
   },
 };

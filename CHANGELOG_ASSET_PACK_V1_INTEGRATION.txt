@@ -1,0 +1,199 @@
+LESHEM.S OS — Starter Asset Pack v1 (First 20) — Design Studio Integration
+=============================================================================
+
+Root-ready bundle. Upload the CONTENTS of this folder to GitHub at the same
+paths. Additive, visual-only integration on top of Clean 5D-R3 — no business
+logic changed, no new dependencies, no Airtable/schema changes.
+
+
+WHAT THIS DOES
+-----------------
+Wires the uploaded 20-asset starter pack into the Design Studio, following
+your stated priority order:
+
+  1. Design Studio selected-stones strip   → DONE (fallback demo thumbnail)
+  2. Empty / start state                   → DONE (real hero illustration)
+  3. Concept / canvas placeholders          → DONE (preview + blueprint panes)
+  4. Material swatches                      → DEFERRED (assets staged, not
+                                               wired — no swatch UI exists in
+                                               the files this milestone owns)
+  5. Render brief preview placeholders       → DEFERRED (assets staged, not
+                                               wired — DesignOutputPanel is
+                                               out of scope for this pass)
+
+Per your instruction ("if you need to defer wider use, just add the assets
+and use them in the Design Studio first"), items 4–5 were intentionally NOT
+wired into any UI this pass — wiring them would require touching
+DesignOutputPanel / a new material-swatch picker, which are outside the
+files this milestone is scoped to. The files are staged and registered in
+lib/studio/assetPack.js, ready for a future explicitly-scoped milestone.
+
+
+ASSET PREP (why the files differ from your upload)
+------------------------------------------------------
+All 20 source PNGs were 1024×1024 (~400–650KB each, ~10.7MB total) with a
+thin 8–10px contact-sheet border artifact on every image. For web use I:
+  • cropped the border artifact (10px each side)
+  • resized per intended display context:
+      - stone thumbnails (01_stones/**)              → 240×240
+      - jewelry preview placeholders (02_...)         → 480×480
+      - metal swatches (03_materials/metal_swatches)  → 160×160
+      - empty-state illustration (05_empty_states)    → 640×640
+      - blueprint (06_blueprints)                     → 640×640
+  • re-saved as optimized PNG (no format change, no new dependency — Pillow
+    was used only in this offline sandbox to prepare the static files;
+    nothing in the shipped app performs image processing)
+
+Total footprint: 10.7MB → 2.5MB (20 files). Filenames and subfolder
+structure are UNCHANGED from your upload — same names, same relative paths
+under public/assets/leshems/starter-pack-v1/ — so future asset-pack batches
+can drop into the same structure without renaming anything already wired.
+
+The manifest (asset_manifest.csv) and usage notes (asset_usage_notes.txt)
+are copied alongside the assets under 08_manifest/ for provenance.
+
+
+NEW FILES
+-------------
+  public/assets/leshems/starter-pack-v1/**            20 optimized PNGs +
+                                                        manifest/notes
+                                                        (exact structure from
+                                                        your upload)
+  lib/studio/assetPack.js                              NEW — small, pure
+                                                        presentation-only
+                                                        module. Maps the pack
+                                                        to named studio slots
+                                                        + 4 tiny pure lookup
+                                                        functions. Reads NO
+                                                        store, Airtable,
+                                                        localStorage, or
+                                                        IndexedDB. Writes
+                                                        nothing.
+
+
+FILES CHANGED
+-----------------
+  components/studio/design/shell/StudioCanvas.js
+    • Hero (State A): the ring-silhouette icon is replaced by the real
+      "empty_studio_start_stones_to_jewelry" illustration inside a soft
+      ivory frame — a genuine visual upgrade for the very first thing a
+      jeweler sees.
+    • Selected split (State D): the preview pane now shows the
+      "jewel_ring_solitaire" preview photo (a single calm default — mapping
+      a specific concept to one of the 5 jewelry images would need a
+      canonical product-type field not available in this bundle, so this is
+      intentionally a generic placeholder, consistent with the existing
+      "תצוגת הדמיה — שלב עתידי" wording that already tells the user this is
+      not final). The blueprint pane now shows the real
+      "blueprint_ring_solitaire_top_side_light" technical illustration in
+      place of the inline SVG sketch.
+    • Every new image has an automatic fallback: if a static asset ever
+      fails to load (404, deploy hiccup), the component silently reverts to
+      the original inline SVG placeholder from 5D-R3 — the canvas can never
+      show a broken image icon or go blank.
+    • Starter (State B) was left UNCHANGED — not in your priority list for
+      this pass, and changing it wasn't needed to hit priorities 1–3.
+
+  components/studio/design/shell/StudioStoneStrip.js
+    • When a tray item has a real snapshot.primaryImage, nothing changes —
+      the real photo is always shown, exactly as in 5D-R2/5D-R3.
+    • When a tray item has NO real image (the common case for demo/empty
+      inventories), the chip now shows a best-effort matching demo stone
+      photo from the asset pack (matched against the same Hebrew
+      shapeHe/stoneTypeHe text already used elsewhere for the chip title —
+      no new/internal fields read, nothing written back). A small gold dot
+      marks it "אילוסטרציה" (illustration) via title/aria-label, so it is
+      never mistaken for a real item photo, per your instruction that these
+      assets are demo-only. If no keyword matches, the original generic
+      line-icon fallback is used exactly as before — zero regression.
+
+  lib/studio/labels.js
+    • ONE additive key: `demoThumbBadge: 'אילוסטרציה'`. No existing keys
+      touched, removed, or renamed.
+
+
+WHAT WAS NOT TOUCHED
+-------------------------
+  • No business logic anywhere (concept generation, stale detection, render
+    brief, stores) — this pass only ever reads existing display strings and
+    renders static image files.
+  • No Airtable fields, no schema, no write routes.
+  • components/studio/design/shell/StudioShell.js, StudioBottomStrip.js,
+    StudioCommandBar.js, StudioWorkflowRail.js, StudioInspectorDrawer.js,
+    StudioIcons.js — UNCHANGED from the delivered Clean 5D-R3 bundle.
+  • DesignConceptPanel, DesignOutputPanel, designDraft.js,
+    designBriefStore.js, workTray.js, designProjects.js, AssetPicker — not
+    touched, not part of this bundle.
+  • Work Tray page, Inventory page — not touched (assets are staged for a
+    future pass; the usage notes mention these as eventual targets, but
+    wiring them was not in this milestone's approved priority list).
+  • No new npm packages. No new build steps. Pillow was used only to
+    prepare the static PNGs in this sandbox — it is not a runtime
+    dependency of the app.
+
+
+HOW TO TEST
+--------------
+1.  Open /studio/design with an empty tray and no concepts. Confirm the
+    hero (State A) now shows the real illustration (stone tray + ring
+    blueprint sketch) instead of the plain ring-silhouette icon.
+2.  Add a stone via the AssetPicker that has NO real photo attached in
+    Airtable (a common case for draft/demo inventory). Confirm the stone
+    strip shows a matching demo photo (e.g. a round diamond image for a
+    round stone) with a small gold dot in the corner; hover/inspect it to
+    see the "אילוסטרציה" label.
+3.  Add a stone that DOES have a real snapshot.primaryImage. Confirm it
+    shows the real photo with NO gold dot — unchanged from 5D-R2/5D-R3.
+4.  Generate concepts, select a direction. Confirm the split view now shows
+    a real ring photo on the preview side and a real technical blueprint
+    illustration on the blueprint side, both inside the same soft ivory
+    frames as before.
+5.  Temporarily rename or remove one of the PNG files under
+    public/assets/leshems/starter-pack-v1/ in a local branch and reload —
+    confirm the affected component silently falls back to the original
+    inline SVG placeholder with no console error surfaced to the user and
+    no broken-image icon. (Optional robustness check — not required for
+    every deploy, just confirms the fallback path works.)
+6.  Confirm every other Studio state (starter, concepts list, stale
+    banners, bottom strip, rail, inspector) is pixel-identical to the
+    delivered Clean 5D-R3 build — this pass touches only the specific
+    elements listed above.
+7.  Confirm Inventory, Work Tray, and Projects pages are completely
+    unaffected — no files under those pages were touched.
+
+
+KNOWN LIMITATIONS
+--------------------
+• Material swatches and Render Brief placeholders are staged
+  (public/assets + assetPack.js) but NOT wired into any UI yet — deferred
+  per your explicit instruction, since wiring them touches files outside
+  this milestone's scope (a swatch picker doesn't exist yet; DesignOutputPanel
+  isn't part of this bundle).
+• The jewelry preview image in the selected-direction split view is a
+  single generic default (solitaire ring), not matched per concept/product
+  type — flagged in-code as a deliberate simplification, not a bug.
+• The stone-thumbnail fallback match (StudioStoneStrip) is a best-effort
+  heuristic against Hebrew display text, not authoritative — worst case is
+  a visually-close-but-not-exact demo photo, never a data or business
+  impact, and always visually marked as an illustration.
+• No real `next build` offline in this sandbox — Vercel green remains the
+  final gate, as with every prior milestone.
+
+
+OFFLINE QA PERFORMED
+------------------------
+• Brace/bracket balance (curly + square) on all touched/added JS files —
+  0/0 diff on every file, PASS.
+• node --check on the two plain-JS files (labels.js, assetPack.js) — PASS.
+• Additive-only proof (`comm -23` on exported symbols) vs. the previously
+  delivered 5D-R3 build for every touched file — zero exports removed.
+• Cross-reference check: every function imported from assetPack.js in
+  StudioCanvas.js/StudioStoneStrip.js confirmed to exist as an export in
+  assetPack.js; every one of the 20 asset paths referenced in
+  assetPack.js confirmed present on disk at the exact path used.
+• Forbidden-token scan (commerce language, external icon libs, AI/render
+  API calls) — clean.
+• Full recursive diff against the previously delivered 5D-R3 bundle
+  confirms exactly the intended files changed (StudioCanvas.js,
+  StudioStoneStrip.js, labels.js) and exactly the intended new files were
+  added (assetPack.js, public/**) — nothing else moved.

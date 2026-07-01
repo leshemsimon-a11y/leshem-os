@@ -169,4 +169,54 @@ export const DotIcon = ({ size = 10, color = 'currentColor' }) => (
   </svg>
 );
 
+// ---- Clean 5D-R2 — visual placeholders (decorative; no logic) ----
+
+// An elegant ring silhouette used as the empty/preview jewelry placeholder.
+export const RingSilhouette = ({ size = 140, stroke = 1.4 }) => (
+  <svg width={size} height={size} viewBox="0 0 160 160" fill="none" aria-hidden="true">
+    <circle cx="80" cy="96" r="46" stroke="currentColor" strokeWidth={stroke} />
+    <circle cx="80" cy="96" r="34" stroke="currentColor" strokeWidth={stroke} opacity="0.5" />
+    <path
+      d="M80 50l9 14H71l9-14z"
+      fill="currentColor"
+      opacity="0.18"
+      stroke="currentColor"
+      strokeWidth={stroke}
+      strokeLinejoin="round"
+    />
+    <path d="M71 64h18M76 50h8" stroke="currentColor" strokeWidth={stroke} opacity="0.6" />
+  </svg>
+);
+
+// A faceted stone placeholder for chips/slots.
+export const StoneFacets = ({ size = 40, stroke = 1.3 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <path d="M12 8h24l8 12-20 22L4 20l8-12z" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" />
+    <path d="M4 20h40M18 8l-6 12 12 22 12-22-6-12M24 8v34" stroke="currentColor" strokeWidth={stroke} opacity="0.55" strokeLinejoin="round" />
+  </svg>
+);
+
+export const PlusIcon = (p) => (
+  <Icon {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const HomeIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 11l8-7 8 7M6 10v9h12v-9" />
+  </Icon>
+);
+
+// ---- Clean 5D-R3 — guided start-state icon (additive) ----
+
+// A simple open work-tray glyph for the "פתח מגש עבודה" start choice.
+export const TrayIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 13h4l2 3h4l2-3h4" />
+    <path d="M5 13l1.6-7h10.8L19 13" />
+    <path d="M4 13v5.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V13" />
+  </Icon>
+);
+
 export default Icon;

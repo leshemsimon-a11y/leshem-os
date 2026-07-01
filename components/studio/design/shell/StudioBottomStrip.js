@@ -6,6 +6,11 @@
 // It owns no logic: variant selection and the primary action are passed in as
 // callbacks from the shell (which wires them to the existing concept/output
 // handlers). The primary label/intent is computed by the shell from flow state.
+//
+// Clean 5D-R3: relit to the light ivory/platinum chrome direction (was dark
+// graphite). Selected variant uses the same soft-gold recipe as the rest of
+// the studio (goldFaint fill + gold border). The single gold CTA is
+// unchanged — it remains the one dominant action in the whole workstation.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -22,14 +27,25 @@ function Variant({ concept, selected, onSelect }) {
       title={concept.conceptName}
     >
       <span style={styles.variantThumb} aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" style={{ color: tokens.color.goldSoft }}>
+          <path d="M6 3h12l3 6-9 12L3 9l3-6z" />
+        </svg>
         {selected ? (
           <span style={styles.selDot}>
-            <CheckIcon size={14} />
+            <CheckIcon size={13} />
           </span>
         ) : null}
       </span>
       <span style={styles.variantName}>{concept.conceptName}</span>
     </button>
+  );
+}
+
+function EmptySlot() {
+  return (
+    <span style={styles.slot} aria-hidden="true">
+      <span style={styles.slotDot} />
+    </span>
   );
 }
 
@@ -47,18 +63,16 @@ export default function StudioBottomStrip({
       <div style={styles.variants}>
         <span style={styles.variantsLabel}>{STUDIO_5D_HE.variantsTitle}</span>
         <div style={styles.variantScroller}>
-          {list.length === 0 ? (
-            <span style={styles.noVariants}>{STUDIO_5D_HE.canvasNoConcepts}</span>
-          ) : (
-            list.map((c) => (
-              <Variant
-                key={c.conceptId}
-                concept={c}
-                selected={c.conceptId === selectedId}
-                onSelect={onSelectVariant}
-              />
-            ))
-          )}
+          {list.length === 0
+            ? [0, 1, 2].map((i) => <EmptySlot key={i} />)
+            : list.map((c) => (
+                <Variant
+                  key={c.conceptId}
+                  concept={c}
+                  selected={c.conceptId === selectedId}
+                  onSelect={onSelectVariant}
+                />
+              ))}
         </div>
       </div>
 
@@ -81,10 +95,11 @@ const styles = {
     justifyContent: 'space-between',
     gap: '18px',
     flexWrap: 'wrap',
-    padding: '13px 18px',
-    background: `linear-gradient(180deg, ${tokens.color.graphiteSoft} 0%, ${tokens.color.graphite} 100%)`,
+    padding: '14px 18px',
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.railGlow,
+    boxShadow: tokens.shadow.soft,
   },
   variants: { display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: '1 1 auto' },
   variantsLabel: {
@@ -92,57 +107,67 @@ const styles = {
     fontSize: '10px',
     fontWeight: 700,
     letterSpacing: '0.12em',
-    color: tokens.color.goldSoft,
+    color: tokens.color.gold,
     flexShrink: 0,
   },
-  variantScroller: { display: 'flex', gap: '8px', overflowX: 'auto', minWidth: 0 },
-  noVariants: {
-    fontFamily: tokens.font.body,
-    fontSize: '12px',
-    color: tokens.color.platinum,
-    opacity: 0.65,
-    whiteSpace: 'nowrap',
-    letterSpacing: '0.02em',
-  },
+  variantScroller: { display: 'flex', gap: '8px', overflowX: 'auto', minWidth: 0, padding: '2px' },
   variant: {
     display: 'flex',
     alignItems: 'center',
     gap: '9px',
-    padding: '5px 14px 5px 6px',
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(233,230,223,0.08)',
+    minHeight: '44px',
+    padding: '6px 16px 6px 6px',
+    background: tokens.color.ivory,
+    border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.pill,
     cursor: 'pointer',
     flexShrink: 0,
-    transition: 'border 140ms, background 140ms',
+    transition: 'border-color 140ms, background 140ms',
   },
   variantSelected: {
     border: `1px solid ${tokens.color.gold}`,
-    background: 'rgba(184,151,90,0.12)',
+    background: tokens.color.goldFaint,
   },
   variantThumb: {
     position: 'relative',
-    width: '26px',
-    height: '26px',
+    width: '28px',
+    height: '28px',
     borderRadius: '50%',
-    background: `radial-gradient(circle at 35% 30%, ${tokens.color.graphiteSoft}, ${tokens.color.graphite})`,
-    border: '1px solid rgba(127,168,184,0.30)',
+    background: `radial-gradient(circle at 35% 30%, ${tokens.color.platinumSoft}, ${tokens.color.iceFaint})`,
+    border: `1px solid ${tokens.color.cardEdge}`,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  selDot: { color: tokens.color.gold, display: 'inline-flex' },
+  selDot: { color: tokens.color.gold, display: 'inline-flex', position: 'absolute', insetInlineEnd: '-3px', top: '-3px' },
+  slot: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '44px',
+    height: '32px',
+    borderRadius: '999px',
+    border: `1px dashed ${tokens.color.goldFaint}`,
+    background: 'rgba(255,255,255,0.5)',
+    flexShrink: 0,
+  },
+  slotDot: {
+    width: '5px',
+    height: '5px',
+    borderRadius: '50%',
+    background: tokens.color.goldSoft,
+  },
   variantName: {
     fontFamily: tokens.font.body,
-    fontSize: '12px',
+    fontSize: '12.5px',
     fontWeight: 600,
-    color: tokens.color.platinum,
+    color: tokens.color.charcoal,
     whiteSpace: 'nowrap',
     letterSpacing: '0.02em',
   },
   primary: {
-    minHeight: '48px',
-    padding: '13px 30px',
+    minHeight: '50px',
+    padding: '13px 32px',
     fontFamily: tokens.font.body,
     fontSize: '15px',
     fontWeight: 700,
@@ -154,11 +179,12 @@ const styles = {
     cursor: 'pointer',
     flexShrink: 0,
     boxShadow: '0 6px 18px rgba(184,151,90,0.28)',
+    transition: 'transform 140ms, box-shadow 140ms',
   },
   primaryDisabled: {
-    background: 'rgba(255,255,255,0.05)',
-    color: tokens.color.platinum,
-    opacity: 0.45,
+    background: tokens.color.platinumSoft,
+    color: tokens.color.inkFaint,
+    opacity: 0.8,
     cursor: 'not-allowed',
     boxShadow: 'none',
   },

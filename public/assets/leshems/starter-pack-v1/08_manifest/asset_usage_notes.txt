@@ -1,0 +1,15 @@
+LESHEM.S OS Starter Asset Pack v1 — First 20
+
+These are UI/demo/default visual assets cropped from the Gemini/Nano Banana contact sheet.
+Use them as default placeholders, demo thumbnails, chips, concept previews, and empty-state visuals.
+Do not treat them as final client renders or exact inventory photos.
+
+Recommended app path:
+public/assets/leshems/starter-pack-v1/
+
+Use in:
+- Design Studio
+- Work Tray
+- Stone Inventory
+- Render Brief
+- Empty / starter states

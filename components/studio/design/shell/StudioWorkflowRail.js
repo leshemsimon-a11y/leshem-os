@@ -4,8 +4,11 @@
 // Stones → Product → Design → Brief → Production. Icon + very short label.
 // "Production" is an honest future/disabled affordance.
 //
-// Presentation + navigation only. Selecting a step calls onSelect(step); the
-// shell maps that to the existing canvas view. No business logic here.
+// Clean 5D-R3: relit to the light ivory/platinum chrome direction (was dark
+// graphite). Selected state now reads via a soft gold chip + charcoal text
+// (graphite reserved for small text contrast, not the whole rail surface).
+// Targets enlarged for comfort; aria-label added for the icon-only exit
+// control. Presentation + navigation only — no business logic changed.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -16,6 +19,7 @@ import {
   DesignIcon,
   BriefIcon,
   ProductionIcon,
+  HomeIcon,
 } from './StudioIcons';
 
 const STEPS = [
@@ -26,13 +30,13 @@ const STEPS = [
   { key: 'production', Icon: ProductionIcon, future: true },
 ];
 
-export default function StudioWorkflowRail({ active, onSelect, horizontal = false }) {
+export default function StudioWorkflowRail({ active, onSelect, onExit, horizontal = false }) {
   const L = STUDIO_5D_HE.rail;
   return (
     <nav
       style={{ ...styles.rail, ...(horizontal ? styles.railHorizontal : null) }}
       dir="rtl"
-      aria-label="workflow"
+      aria-label={STUDIO_5D_HE.aria.workflowNav}
     >
       {STEPS.map(({ key, Icon, future }) => {
         const isActive = active === key;
@@ -58,6 +62,21 @@ export default function StudioWorkflowRail({ active, onSelect, horizontal = fals
           </button>
         );
       })}
+
+      {typeof onExit === 'function' && (
+        <button
+          type="button"
+          onClick={onExit}
+          title={STUDIO_5D_HE.exitStudio}
+          aria-label={STUDIO_5D_HE.aria.exitStudio}
+          style={{ ...styles.step, ...styles.exitStep }}
+        >
+          <span style={styles.iconWrap}>
+            <HomeIcon size={20} />
+          </span>
+          <span style={styles.label}>{STUDIO_5D_HE.exitShort}</span>
+        </button>
+      )}
     </nav>
   );
 }
@@ -66,14 +85,15 @@ const styles = {
   rail: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
-    padding: '14px 9px',
+    gap: '6px',
+    padding: '16px 9px',
     height: '100%',
     minHeight: 0,
-    background: `linear-gradient(180deg, ${tokens.color.graphiteSoft} 0%, ${tokens.color.graphite} 100%)`,
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.railGlow,
-    minWidth: '76px',
+    boxShadow: tokens.shadow.soft,
+    minWidth: '78px',
   },
   railHorizontal: {
     flexDirection: 'row',
@@ -88,23 +108,30 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '6px',
+    minHeight: '52px',
     padding: '12px 6px',
     background: 'transparent',
     border: '1px solid transparent',
     borderRadius: tokens.radius.md,
     cursor: 'pointer',
-    color: tokens.color.platinum,
-    opacity: 0.62,
+    color: tokens.color.inkSoft,
     flex: '1 1 auto',
-    transition: 'opacity 140ms, background 140ms',
+    transition: 'background 140ms, border-color 140ms, color 140ms',
   },
   stepActive: {
-    background: 'rgba(184,151,90,0.12)',
-    border: '1px solid rgba(205,185,136,0.30)',
-    color: tokens.color.goldSoft,
-    opacity: 1,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.goldSoft}`,
+    color: tokens.color.charcoal,
   },
-  stepFuture: { opacity: 0.28, cursor: 'not-allowed' },
+  stepFuture: { color: tokens.color.platinumSoft, opacity: 0.7, cursor: 'not-allowed' },
+  exitStep: {
+    marginTop: 'auto',
+    color: tokens.color.inkFaint,
+    borderTop: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: 0,
+    paddingTop: '16px',
+    minHeight: '48px',
+  },
   iconWrap: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -121,11 +148,10 @@ const styles = {
   activeBar: {
     position: 'absolute',
     insetInlineStart: '3px',
-    top: '24%',
-    bottom: '24%',
+    top: '22%',
+    bottom: '22%',
     width: '3px',
     borderRadius: '3px',
     background: `linear-gradient(180deg, ${tokens.color.gold}, ${tokens.color.goldSoft})`,
-    boxShadow: '0 0 8px rgba(184,151,90,0.5)',
   },
 };

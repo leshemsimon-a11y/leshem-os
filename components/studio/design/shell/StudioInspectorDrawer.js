@@ -7,6 +7,12 @@
 // Read-only. It reads the already-computed selected concept and (when present)
 // the generated output. It performs NO generation and owns NO mutations — all
 // of that stays in the existing panels. Closed-by-default sections keep it calm.
+//
+// Clean 5D-R3: this panel was already on the light ivory chrome direction —
+// only comfort/readability polish here (larger section-toggle targets, more
+// breathing room, bigger row icons). No logic, no data shape, no CTA behavior
+// changed — the CTA remains OPTIONAL/omitted so the single dominant action
+// stays in the bottom strip only.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -48,6 +54,7 @@ function Section({ title, body, items, defaultOpen = false }) {
         onClick={() => setOpen((v) => !v)}
         style={styles.sectionHead}
         aria-expanded={open}
+        aria-label={open ? STUDIO_5D_HE.aria.closeSection : STUDIO_5D_HE.aria.openSection}
       >
         <span style={styles.sectionTitle}>{title}</span>
         <span style={{ ...styles.chev, transform: open ? 'rotate(90deg)' : 'rotate(-90deg)' }}>
@@ -177,14 +184,14 @@ const styles = {
   scroll: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
-    padding: '18px',
+    gap: '18px',
+    padding: '20px',
     overflowY: 'auto',
     flex: 1,
     minHeight: 0,
   },
   cta: {
-    margin: '0 14px 14px',
+    margin: '0 16px 16px',
     minHeight: '50px',
     padding: '13px 24px',
     fontFamily: tokens.font.body,
@@ -205,7 +212,7 @@ const styles = {
     cursor: 'not-allowed',
     boxShadow: 'none',
   },
-  head: { display: 'flex', flexDirection: 'column', gap: '5px' },
+  head: { display: 'flex', flexDirection: 'column', gap: '6px' },
   drawerTitle: {
     fontFamily: tokens.font.body,
     fontSize: '10px',
@@ -238,23 +245,23 @@ const styles = {
   rows: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '3px',
+    gap: '4px',
     borderTop: `1px solid ${tokens.color.cardEdge}`,
-    paddingTop: '14px',
+    paddingTop: '16px',
   },
-  row: { display: 'flex', alignItems: 'flex-start', gap: '11px', padding: '8px 0' },
+  row: { display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '9px 0' },
   rowIcon: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '30px',
-    height: '30px',
+    width: '32px',
+    height: '32px',
     borderRadius: '50%',
     background: tokens.color.iceFaint,
     color: tokens.color.ice,
     flexShrink: 0,
   },
-  rowText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, paddingTop: '1px' },
+  rowText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, paddingTop: '2px' },
   rowLabel: {
     fontFamily: tokens.font.body,
     fontSize: '10px',
@@ -271,9 +278,9 @@ const styles = {
   sections: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: '8px',
     borderTop: `1px solid ${tokens.color.cardEdge}`,
-    paddingTop: '12px',
+    paddingTop: '14px',
   },
   section: {
     border: `1px solid ${tokens.color.cardEdge}`,
@@ -283,11 +290,12 @@ const styles = {
   sectionHead: {
     width: '100%',
     boxSizing: 'border-box',
+    minHeight: '44px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '8px',
-    padding: '10px 12px',
+    padding: '12px 14px',
     background: 'transparent',
     border: 'none',
     cursor: 'pointer',
@@ -301,7 +309,7 @@ const styles = {
   },
   chev: { display: 'inline-flex', color: tokens.color.inkFaint, transition: 'transform 120ms' },
   sectionBody: {
-    padding: '2px 12px 12px',
+    padding: '2px 14px 14px',
     borderTop: `1px solid ${tokens.color.cardEdge}`,
   },
   sectionText: {
