@@ -23,6 +23,7 @@ import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { getStoneThumbFallback } from '../../../../lib/studio/assetPack';
+import { getGemstoneThumbFallback } from '../../../../lib/studio/demoGemstoneAssets';
 
 const PARCEL_ROLES = new Set(['parcel']);
 
@@ -44,7 +45,7 @@ function StoneChip({ item }) {
   const carat = typeof s.caratWeight === 'number' ? `${s.caratWeight}${STUDIO_5D_HE.caratSuffix}` : '';
   const color = typeof s.color === 'string' && s.color.trim() ? s.color.trim() : '';
   const realImg = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
-  const demoImg = !realImg ? getStoneThumbFallback(item) : null;
+  const demoImg = !realImg ? getGemstoneThumbFallback(item, 'box') || getStoneThumbFallback(item) : null;
   const img = realImg || demoImg;
 
   return (

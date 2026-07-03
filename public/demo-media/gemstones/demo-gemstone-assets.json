@@ -1,0 +1,362 @@
+[
+  {
+    "id": "box-round-brilliant-diamond",
+    "displayName": "Round Brilliant Diamond",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Round Brilliant",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/box-view/round-brilliant-diamond-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/round-brilliant-diamond-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-pear-diamond",
+    "displayName": "Pear Diamond",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Pear",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/box-view/pear-diamond-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/pear-diamond-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-emerald-cut-diamond",
+    "displayName": "Emerald-Cut Diamond",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Emerald Cut",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/box-view/emerald-cut-diamond-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/emerald-cut-diamond-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-cushion-diamond",
+    "displayName": "Cushion Diamond",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Cushion",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/box-view/cushion-diamond-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/cushion-diamond-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-oval-blue-sapphire",
+    "displayName": "Oval Blue Sapphire",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Corundum",
+    "variety": "Blue Sapphire",
+    "shape": "Oval",
+    "color": "Royal Blue",
+    "imageUrl": "/demo-media/gemstones/box-view/oval-blue-sapphire-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/oval-blue-sapphire-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-oval-emerald",
+    "displayName": "Oval Emerald",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Beryl",
+    "variety": "Emerald",
+    "shape": "Oval",
+    "color": "Vivid Green",
+    "imageUrl": "/demo-media/gemstones/box-view/oval-emerald-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/oval-emerald-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-emerald-cut-emerald",
+    "displayName": "Emerald-Cut Emerald",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Beryl",
+    "variety": "Emerald",
+    "shape": "Emerald Cut",
+    "color": "Vivid Green",
+    "imageUrl": "/demo-media/gemstones/box-view/emerald-cut-emerald-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/emerald-cut-emerald-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-cushion-ruby",
+    "displayName": "Cushion Ruby",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Corundum",
+    "variety": "Ruby",
+    "shape": "Cushion",
+    "color": "Deep Red",
+    "imageUrl": "/demo-media/gemstones/box-view/cushion-ruby-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/cushion-ruby-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "box-oval-paraiba-tourmaline",
+    "displayName": "Oval Paraiba Tourmaline",
+    "view": "box",
+    "category": "loose-gemstone-demo-media",
+    "species": "Tourmaline",
+    "variety": "Paraiba Tourmaline",
+    "shape": "Oval",
+    "color": "Neon Blue-Green",
+    "imageUrl": "/demo-media/gemstones/box-view/oval-paraiba-tourmaline-box.webp",
+    "thumbUrl": "/demo-media/gemstones/box-view/oval-paraiba-tourmaline-box-thumb.webp",
+    "usage": [
+      "inventory_card",
+      "work_tray",
+      "asset_library"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-round-brilliant-diamond",
+    "displayName": "Round Brilliant Diamond",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Round Brilliant",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/round-brilliant-diamond-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/round-brilliant-diamond-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-oval-diamond",
+    "displayName": "Oval Diamond",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Oval",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/oval-diamond-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/oval-diamond-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-pear-diamond",
+    "displayName": "Pear Diamond",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Pear",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/pear-diamond-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/pear-diamond-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-emerald-cut-diamond",
+    "displayName": "Emerald-Cut Diamond",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Emerald Cut",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/emerald-cut-diamond-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/emerald-cut-diamond-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-cushion-diamond",
+    "displayName": "Cushion Diamond",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Diamond",
+    "variety": "White Diamond",
+    "shape": "Cushion",
+    "color": "Colorless / White",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/cushion-diamond-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/cushion-diamond-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-oval-blue-sapphire",
+    "displayName": "Oval Blue Sapphire",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Corundum",
+    "variety": "Blue Sapphire",
+    "shape": "Oval",
+    "color": "Royal Blue",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/oval-blue-sapphire-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/oval-blue-sapphire-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-cushion-ruby",
+    "displayName": "Cushion Ruby",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Corundum",
+    "variety": "Ruby",
+    "shape": "Cushion",
+    "color": "Deep Red",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/cushion-ruby-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/cushion-ruby-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-oval-paraiba-tourmaline",
+    "displayName": "Oval Paraiba Tourmaline",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Tourmaline",
+    "variety": "Paraiba Tourmaline",
+    "shape": "Oval",
+    "color": "Neon Blue-Green",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/oval-paraiba-tourmaline-tweezer.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/oval-paraiba-tourmaline-tweezer-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  },
+  {
+    "id": "tweezer-cushion-emerald-alt",
+    "displayName": "Cushion Emerald - Alt",
+    "view": "tweezer",
+    "category": "loose-gemstone-demo-media",
+    "species": "Beryl",
+    "variety": "Emerald",
+    "shape": "Cushion / Rectangular Cushion",
+    "color": "Vivid Green",
+    "imageUrl": "/demo-media/gemstones/tweezer-view/cushion-emerald-tweezer-alt.webp",
+    "thumbUrl": "/demo-media/gemstones/tweezer-view/cushion-emerald-tweezer-alt-thumb.webp",
+    "usage": [
+      "inspect_view",
+      "selected_state",
+      "asset_detail"
+    ],
+    "temporaryOnly": true,
+    "source": "Gemini / Nano Banana temporary AI demo asset",
+    "notes": "Temporary UI/product-development media. Contains visible Gemini-style mark in lower-right on some images; do not treat as final inventory photography."
+  }
+]

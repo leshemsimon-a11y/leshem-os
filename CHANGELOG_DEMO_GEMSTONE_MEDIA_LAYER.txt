@@ -1,0 +1,223 @@
+LESHEM.S OS — Temporary Demo Gemstone Media Layer (Design Studio)
+=====================================================================
+
+Root-ready bundle. Upload the CONTENTS of this folder to GitHub at the same
+paths. Additive, visual-only, temporary demo layer — no business logic
+changed, no Airtable/schema changes, no new npm packages, no TypeScript.
+
+
+GOAL (restated)
+-------------------
+Integrate the supplied gemstone demo media pack as a lightweight, clearly-
+marked temporary Demo Activity Layer: box-view images for card/grid
+contexts, tweezer-view images for selected/inspect contexts — without
+rebuilding the media system or touching real upload/inventory logic.
+
+
+IMPORTANT — SCOPE THIS PASS COULD SAFELY COVER
+----------------------------------------------------
+This session only has visibility into the Design Studio shell files I have
+previously built and delivered (components/studio/design/shell/** and
+lib/studio/**). I do NOT have the current Inventory page, Asset Library
+page, or Work Tray page source in this session — those were never uploaded
+here, and Golden Rules #1 ("inspect files first") and #10 ("do not touch
+unrelated files") mean I cannot safely edit files I have not inspected.
+
+So, per your own fallback instruction pattern from the previous asset-pack
+task ("if you need to defer wider use, just add the assets and use them in
+the Design Studio first"), this delivery:
+  ✅ Wires box-view demo images into the ONE card-style surface I own and
+     fully understand: the Design Studio's selected-stones strip
+     (StudioStoneStrip.js) — this is the on-screen מגש עבודה (Work Tray)
+     representation inside the Design Studio.
+  ⏸️  Does NOT touch the standalone Inventory page, Asset Library page, or
+     Work Tray page — I don't have those files. All 36 media files + the
+     full data module are added to the project regardless, so they're ready
+     the moment you share those files (or a fresh project ZIP) for a
+     follow-up pass.
+  ⏸️  Does NOT add a tweezer-view "selected/inspect" UI, because no such
+     single-stone detail view currently exists in the files I own — the
+     Design Studio's only "selected" state (StudioCanvas split view) is
+     about the finished jewelry concept, not a single loose stone, so
+     putting a tweezer photo there would misrepresent it. Building a new
+     inspect panel just to use the tweezer images would be inventing a
+     feature that wasn't requested, so I did not do that (Golden Rules #1,
+     #2). The tweezer-view assets and their URLs ARE registered and ready
+     in lib/studio/demoGemstoneAssets.js for whichever real "selected
+     item / inspect" surface you point me to next (e.g. AssetPicker's
+     stone-detail state, or an Inventory item detail panel).
+
+If you'd like the Inventory / Asset Library / Work Tray pages wired too,
+please share those file(s) (or a current project ZIP) and I'll do the same
+inspect-first, plan-first process for them.
+
+
+WHAT I BUILT
+----------------
+1. Copied the media pack as-is into public/demo-media/gemstones/ — same
+   folder names, same filenames as supplied (box-view/, tweezer-view/,
+   demo-gemstone-assets.json). Already-optimized WEBP (36 files, 928KB
+   total) — no re-encoding needed this time.
+2. NEW lib/studio/demoGemstoneAssets.js — the supplied
+   src/data/demoGemstoneAssets.ts adapted to plain JavaScript (this project
+   uses no TypeScript) and relocated to lib/studio/ to match where
+   labels.js and assetPack.js already live (per "adapt it to the existing
+   project structure"). Content/schema is identical to your JSON manifest.
+   Every record keeps its original `temporaryOnly: true` flag exactly as
+   supplied. Includes:
+     • the provided `findDemoGemstoneAsset()` helper, adapted 1:1 (matches
+       by canonical English variety/shape — ready for future use once a
+       screen has canonical fields available)
+     • one small additional helper, `getGemstoneThumbFallback(item, view)`
+       — matches the Design Studio's existing Hebrew display text
+       (shapeHe/stoneTypeHe, the same fields StudioStoneStrip.js already
+       reads for the chip title) using the same keyword-matching pattern
+       already used by lib/studio/assetPack.js from the previous milestone.
+       Pure function, no store access, no mutation.
+3. StudioStoneStrip.js — when a tray item has NO real snapshot.primaryImage,
+   the chip now tries, in order:
+     a. a matching box-view demo photo from THIS pack (richer variety —
+        diamond round/pear/emerald-cut/cushion, sapphire, emerald, ruby,
+        paraiba tourmaline)
+     b. if no match, the existing fallback from the previous Starter Asset
+        Pack v1 (unchanged, e.g. its own oval-diamond photo, which this new
+        pack doesn't include in box-view)
+     c. if neither matches, the original generic line-icon — exactly as
+        before, zero regression
+   The small gold "אילוסטרציה" (illustration) marker from the previous
+   milestone is reused as-is — no new label needed, no existing label
+   touched.
+
+
+WHAT I DID NOT BUILD
+-------------------------
+  • No changes to Inventory, Asset Library, or Work Tray pages (files not
+    available in this session — see scope note above).
+  • No new "selected item / inspect" detail panel or modal — none exists in
+    the files I own, and inventing one wasn't requested.
+  • No changes to AssetPicker, designDraft.js, designBriefStore.js,
+    workTray.js, designProjects.js, DesignConceptPanel, DesignOutputPanel —
+    real upload/inventory/business logic untouched, exactly as instructed.
+  • No Airtable field/schema changes, no new API routes, no new npm
+    packages, no TypeScript files (the supplied .ts was adapted to .js).
+  • No changes to pricing, certificates, or report templates.
+  • No demo scripts, admin APIs, or helper tools beyond the pure data
+    module requested.
+
+
+FILES CHANGED (exactly 1)
+------------------------------
+  components/studio/design/shell/StudioStoneStrip.js
+    + import getGemstoneThumbFallback from the new module
+    + fallback resolution order updated: real photo → new pack (box) →
+      previous pack → generic icon (was: real photo → previous pack →
+      generic icon)
+    No other line touched; no export removed.
+
+
+FILES ADDED (37)
+---------------------
+  lib/studio/demoGemstoneAssets.js                         (1 file — NEW)
+  public/demo-media/gemstones/box-view/*.webp               (18 files)
+  public/demo-media/gemstones/tweezer-view/*.webp           (18 files)
+  public/demo-media/gemstones/demo-gemstone-assets.json     (1 file — kept
+                                                              for reference/
+                                                              provenance;
+                                                              the app reads
+                                                              from
+                                                              demoGemstoneAssets.js,
+                                                              not this JSON,
+                                                              to avoid a
+                                                              runtime fetch
+                                                              for static data)
+
+
+FILES NOT TOUCHED
+----------------------
+  Every other file in components/studio/design/shell/ and lib/studio/ from
+  the previously delivered milestones (StudioShell.js, StudioCanvas.js,
+  StudioBottomStrip.js, StudioCommandBar.js, StudioWorkflowRail.js,
+  StudioInspectorDrawer.js, StudioIcons.js, labels.js, assetPack.js) —
+  UNCHANGED.
+
+
+WHERE THE DEMO MEDIA APPEARS IN THE UI
+-------------------------------------------
+  • Design Studio (/studio/design) → top selected-stones strip
+    (StudioStoneStrip.js): any tray item WITHOUT a real inventory photo now
+    shows a matching box-view demo gemstone thumbnail (round/pear/emerald-
+    cut/cushion diamond, oval sapphire, oval/emerald-cut emerald, cushion
+    ruby, oval paraiba tourmaline) instead of the plain line-icon. A small
+    gold dot in the corner marks it as an illustration (hover/inspect for
+    the "אילוסטרציה" label). Items WITH a real photo are unaffected.
+  • Nowhere else yet — see the scope note above for why, and what's needed
+    to extend this to Inventory / Asset Library / Work Tray / an inspect
+    view.
+
+
+RISKS
+---------
+  • Low risk: this pass only adds static files and one pure data module,
+    and changes a single fallback-resolution line in one already-owned
+    component. No store, Airtable, or business-logic code path is touched.
+  • The Hebrew-keyword matching in getGemstoneThumbFallback is a best-
+    effort heuristic (same pattern as the previous milestone's
+    getStoneThumbFallback) — worst case is a visually-close-but-not-exact
+    demo photo, always marked as an illustration, never a data or business
+    impact.
+  • demo-gemstone-assets.json is included under public/ for provenance/
+    reference but is NOT imported anywhere by the app (the app uses the .js
+    module) — flagging this so it's not mistaken for a live data source.
+  • Scope gap (disclosed above, not a risk to what was built): Inventory /
+    Asset Library / Work Tray pages are not yet wired, pending those files.
+
+
+UPLOAD CHECKLIST
+---------------------
+  [ ] Add lib/studio/demoGemstoneAssets.js (new file)
+  [ ] Add public/demo-media/gemstones/box-view/ (18 .webp files)
+  [ ] Add public/demo-media/gemstones/tweezer-view/ (18 .webp files)
+  [ ] Add public/demo-media/gemstones/demo-gemstone-assets.json (reference
+      only — not imported by the app)
+  [ ] Replace components/studio/design/shell/StudioStoneStrip.js with the
+      updated version in this bundle
+  [ ] Do NOT touch any other file — none else were changed
+  [ ] Deploy to Vercel and confirm build passes
+  [ ] Open /studio/design with a tray item that has no real photo and
+      confirm a box-view demo thumbnail with the gold "illustration" dot
+      appears
+  [ ] Confirm tray items WITH a real photo still show that real photo,
+      unchanged
+  [ ] Confirm calculator, certificates, and all Airtable read/create flows
+      are unaffected (nothing in this bundle touches those code paths)
+
+
+ACCEPTANCE CHECK
+---------------------
+  • Vercel build: not run in this offline sandbox (no network/build
+    toolchain here) — this remains the final gate, as with every prior
+    milestone. Offline QA below is the substitute.
+  • Existing calculator: untouched — no file in that path was modified.
+  • Existing certificates: untouched — no file in that path was modified.
+  • Existing Airtable read/create flows: untouched — no API route or store
+    file was modified.
+  • No unrelated regressions: full diff against the previously delivered
+    build confirms exactly 1 file changed + 37 files added, nothing else.
+
+
+OFFLINE QA PERFORMED
+-------------------------
+• Brace/bracket balance on all touched/added JS files — 0/0 diff, PASS.
+• node --check on all 3 plain-JS data files (labels.js, assetPack.js,
+  demoGemstoneAssets.js) — PASS.
+• Additive-only proof (comm -23 on exported symbols) for
+  StudioStoneStrip.js vs. the previously delivered build — zero exports
+  removed.
+• Cross-reference check: every one of the 36 asset paths referenced in
+  demoGemstoneAssets.js confirmed present on disk at the exact path used.
+• Forbidden-token scan (commerce language, external icon libraries,
+  Stripe/OpenAI calls) — clean.
+• Full recursive diff against the previously delivered build confirms
+  exactly the intended file changed (StudioStoneStrip.js) and exactly the
+  intended new files were added (demoGemstoneAssets.js, public/demo-media/**)
+  — nothing else moved.
