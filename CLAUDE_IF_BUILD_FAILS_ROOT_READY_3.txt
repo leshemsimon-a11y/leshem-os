@@ -1,0 +1,14 @@
+Claude, the attached package adds a temporary Demo Inventory Operating Layer.
+
+If build fails:
+1. Inspect the actual project structure first.
+2. Do not rebuild the app.
+3. Do not change Airtable schema or upload logic.
+4. Keep the same feature intent:
+   - demo inventory records for the gemstone media
+   - clean /studio/inventory or /studio/inventory-demo page
+   - localStorage-only customization
+   - demo selected stones shown in Design Studio when real Work Tray is empty
+5. Adapt imports/paths only as needed.
+6. Preserve all demo data as temporaryOnly / isDemoAsset.
+7. After fixing, list exactly what changed.

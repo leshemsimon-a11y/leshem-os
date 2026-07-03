@@ -56,10 +56,10 @@ import StudioInspectorDrawer from './StudioInspectorDrawer';
 import StudioBottomStrip from './StudioBottomStrip';
 import { AlertIcon } from './StudioIcons';
 import {
-  ENABLE_DEMO_GEMSTONE_LAYER,
+  ENABLE_DEMO_OPERATING_LAYER,
   getDemoStudioTrayItems,
   getDemoInspectStoneFromTrayItem,
-} from '../../../../lib/studio/demoGemstoneAssets';
+} from '../../../../lib/studio/demoInventoryLayer';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
@@ -118,10 +118,22 @@ export default function StudioShell() {
   const [heroDismissed, setHeroDismissed] = React.useState(false);
 
   // Temporary Demo Operating Layer: when the real Work Tray is empty, show
-  // a visible demo tray so the studio no longer feels blank. This is display-only
-  // and never writes to the real tray, inventory, Airtable, projects, or uploads.
-  const demoTrayItems = React.useMemo(() => getDemoStudioTrayItems(6), []);
+  // selected stones from the demo inventory. The demo inventory screen writes
+  // only to localStorage, never to real inventory/Airtable/uploads.
+  const [demoTrayItems, setDemoTrayItems] = React.useState(() => getDemoStudioTrayItems(6));
   const [selectedDemoTrayItemId, setSelectedDemoTrayItemId] = React.useState(null);
+
+  React.useEffect(() => {
+    const refreshDemoTray = () => setDemoTrayItems(getDemoStudioTrayItems(6));
+    refreshDemoTray();
+    if (typeof window === 'undefined') return undefined;
+    window.addEventListener('storage', refreshDemoTray);
+    window.addEventListener('focus', refreshDemoTray);
+    return () => {
+      window.removeEventListener('storage', refreshDemoTray);
+      window.removeEventListener('focus', refreshDemoTray);
+    };
+  }, []);
 
   const showToast = React.useCallback((msg) => {
     if (!msg) return;
@@ -144,7 +156,7 @@ export default function StudioShell() {
   const concepts = Array.isArray(brief.concepts) ? brief.concepts : [];
   const hasConcepts = concepts.length > 0;
   const realTrayItems = Array.isArray(tray.items) ? tray.items : [];
-  const showDemoLayer = ENABLE_DEMO_GEMSTONE_LAYER && realTrayItems.length === 0;
+  const showDemoLayer = ENABLE_DEMO_OPERATING_LAYER && realTrayItems.length === 0;
   const displayTrayItems = showDemoLayer ? demoTrayItems : realTrayItems;
   const hasStones = displayTrayItems.length > 0;
   const selectedDemoTrayItem = showDemoLayer

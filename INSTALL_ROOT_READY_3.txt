@@ -1,0 +1,41 @@
+LESHEM.S OS — Demo Inventory Operating Layer ROOT READY 3
+
+WHAT THIS PACKAGE DOES
+- Adds a clean temporary demo inventory screen.
+- Creates 10 demo gemstone inventory records with realistic data.
+- Lets you select/remove demo stones from a demo Work Tray.
+- Lets you edit demo carat/color/clarity/treatment/source/status/price.
+- Saves demo edits only in browser localStorage.
+- Connects the Design Studio demo strip to the demo inventory selection when the real Work Tray is empty.
+
+INSTALL
+1. Open this ZIP.
+2. Copy the CONTENTS of the ZIP into the root of the GitHub project.
+3. Commit and wait for Vercel build.
+4. Open:
+   /studio/inventory
+   or:
+   /studio/inventory-demo
+5. Select/customize stones.
+6. Click “פתח Design Studio” and open /studio/design.
+
+IMPORTANT
+- This does not touch Airtable.
+- This does not create real inventory records.
+- This does not change upload logic.
+- This is temporary demo UI/data only.
+- If your project already has a real pages/studio/inventory.js, back it up before replacing it.
+
+DISABLE DEMO LAYER
+Open:
+lib/studio/demoInventoryLayer.js
+Set:
+ENABLE_DEMO_OPERATING_LAYER = false
+
+REMOVE DEMO LAYER LATER
+Delete:
+- lib/studio/demoInventoryLayer.js
+- components/studio/demo/DemoInventoryWorkspace.js
+- pages/studio/inventory-demo.js
+- public/demo-media/gemstones/ if no longer needed
+Then revert the StudioShell import/use of demoInventoryLayer.
