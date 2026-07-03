@@ -1,0 +1,34 @@
+LESHEM.S OS — Demo Operating Layer ROOT READY
+
+What this package does:
+1. Adds demo gemstone media under /public/demo-media/gemstones
+2. Adds visible demo Work Tray fallback inside Design Studio when the real Work Tray is empty
+3. Adds clickable stone chips in the Design Studio top strip
+4. Adds a demo Inspect panel on the right drawer when no real design concept is selected
+5. Adds a standalone debug page: /studio/demo-gemstones
+
+How to install:
+- Copy the CONTENTS of this zip into the root of the GitHub project.
+- Let files merge/replace existing paths.
+- Commit and deploy to Vercel.
+
+Where to check:
+- /studio/design  => should show demo stones in the selected-stones strip immediately if the real Work Tray is empty.
+- /studio/demo-gemstones => debug page that shows all demo assets directly.
+
+How to disable later:
+- Open lib/studio/demoGemstoneAssets.js
+- Change: export const ENABLE_DEMO_GEMSTONE_LAYER = true;
+- To:     export const ENABLE_DEMO_GEMSTONE_LAYER = false;
+
+What it does NOT do:
+- Does not write to Airtable
+- Does not change schema
+- Does not replace upload/inventory logic
+- Does not save demo stones into real Work Tray
+- Does not touch certificates/reports/calculator logic
+
+If /studio/demo-gemstones works but /studio/design does not:
+- The media is installed correctly.
+- The active Design Studio route is probably not using components/studio/design/shell/StudioShell.js.
+- Search the project for the actual component used by /studio/design and connect the same demo helpers there.

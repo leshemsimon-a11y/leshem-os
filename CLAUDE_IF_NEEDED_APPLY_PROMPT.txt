@@ -1,0 +1,18 @@
+Apply this zip as a root-ready patch.
+
+Important:
+- Copy the contents into the root of the repo.
+- Preserve existing project structure.
+- Replace matching files only where the zip has the same path.
+- Do not rebuild the app.
+- Do not change Airtable, upload, inventory, certificate, calculator, or report logic.
+
+Expected result:
+- /studio/design shows demo gemstone chips in the top selected-stones strip when the real Work Tray is empty.
+- Selecting a demo chip updates the right Inspector drawer with the large tweezer-view image and gem data.
+- /studio/demo-gemstones shows a standalone debug gallery of all demo assets.
+
+After applying:
+- Run build.
+- Report exact files changed.
+- Report any build errors verbatim.

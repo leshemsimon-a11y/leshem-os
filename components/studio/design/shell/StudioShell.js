@@ -55,6 +55,11 @@ import StudioCanvas from './StudioCanvas';
 import StudioInspectorDrawer from './StudioInspectorDrawer';
 import StudioBottomStrip from './StudioBottomStrip';
 import { AlertIcon } from './StudioIcons';
+import {
+  ENABLE_DEMO_GEMSTONE_LAYER,
+  getDemoStudioTrayItems,
+  getDemoInspectStoneFromTrayItem,
+} from '../../../../lib/studio/demoGemstoneAssets';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
@@ -112,6 +117,12 @@ export default function StudioShell() {
   // (State A). Never persisted, never read by any store or panel.
   const [heroDismissed, setHeroDismissed] = React.useState(false);
 
+  // Temporary Demo Operating Layer: when the real Work Tray is empty, show
+  // a visible demo tray so the studio no longer feels blank. This is display-only
+  // and never writes to the real tray, inventory, Airtable, projects, or uploads.
+  const demoTrayItems = React.useMemo(() => getDemoStudioTrayItems(6), []);
+  const [selectedDemoTrayItemId, setSelectedDemoTrayItemId] = React.useState(null);
+
   const showToast = React.useCallback((msg) => {
     if (!msg) return;
     setToast(msg);
@@ -132,11 +143,18 @@ export default function StudioShell() {
   const brief = briefStore.brief;
   const concepts = Array.isArray(brief.concepts) ? brief.concepts : [];
   const hasConcepts = concepts.length > 0;
-  const hasStones = tray.items.length > 0;
+  const realTrayItems = Array.isArray(tray.items) ? tray.items : [];
+  const showDemoLayer = ENABLE_DEMO_GEMSTONE_LAYER && realTrayItems.length === 0;
+  const displayTrayItems = showDemoLayer ? demoTrayItems : realTrayItems;
+  const hasStones = displayTrayItems.length > 0;
+  const selectedDemoTrayItem = showDemoLayer
+    ? displayTrayItems.find((it) => it.id === selectedDemoTrayItemId) || displayTrayItems[0] || null
+    : null;
+  const selectedDemoStone = selectedDemoTrayItem ? getDemoInspectStoneFromTrayItem(selectedDemoTrayItem) : null;
   const selected = getSelectedConcept(brief);
   const output = getActiveOutput(brief);
-  const conceptsStale = conceptsAreStale(brief, tray.items);
-  const outStale = outputIsStale(brief, tray.items);
+  const conceptsStale = conceptsAreStale(brief, realTrayItems);
+  const outStale = outputIsStale(brief, realTrayItems);
   const outputState = output ? (outStale ? 'stale' : 'ready') : 'none';
 
   const view = STEP_TO_VIEW[activeStep] || 'concepts';
@@ -236,7 +254,15 @@ export default function StudioShell() {
           outputState={outputState}
           compact
         />
-        <StudioStoneStrip trayItems={tray.items} onAddStones={() => setPickerOpen(true)} />
+        <StudioStoneStrip
+          trayItems={displayTrayItems}
+          onAddStones={() => setPickerOpen(true)}
+          onSelectItem={(item) => {
+            if (showDemoLayer && item && item.id) setSelectedDemoTrayItemId(item.id);
+          }}
+          selectedItemId={selectedDemoTrayItem ? selectedDemoTrayItem.id : null}
+          demoMode={showDemoLayer}
+        />
       </div>
 
       {/* MIDDLE: rail | canvas | inspector */}
@@ -271,6 +297,8 @@ export default function StudioShell() {
         <StudioInspectorDrawer
           concept={selected}
           output={output}
+          selectedStone={!selected ? selectedDemoStone : null}
+          demoMode={showDemoLayer}
         />
       </div>
 

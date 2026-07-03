@@ -82,11 +82,71 @@ function Section({ title, body, items, defaultOpen = false }) {
 export default function StudioInspectorDrawer({
   concept,
   output,
+  selectedStone,
+  demoMode,
   primaryLabel,
   primaryDisabled,
   onPrimary,
 }) {
   const L = STUDIO_5D_HE;
+
+  // Demo Operating Layer inspect state: visible only when no real design
+  // direction is selected and the studio is currently showing demo tray stones.
+  // It is read-only and does not write to any real data source.
+  if (!concept && selectedStone) {
+    const carat = typeof selectedStone.estimatedCarat === 'number' ? `${selectedStone.estimatedCarat} ct` : null;
+    const sourceLabel = selectedStone.sourceType === 'client-owned'
+      ? 'Client-owned'
+      : selectedStone.sourceType === 'supplier'
+        ? 'Supplier'
+        : 'Owned';
+    const statusLabel = selectedStone.status || 'demo';
+
+    return (
+      <aside style={styles.drawer} dir="rtl">
+        <div style={styles.scroll}>
+          <div style={styles.head}>
+            <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
+            <span style={styles.demoPill}>{demoMode ? 'DEMO STONE' : 'STONE'}</span>
+            <span style={styles.conceptName}>{selectedStone.titleHe || selectedStone.title}</span>
+          </div>
+
+          {selectedStone.inspectImage ? (
+            <div style={styles.demoImageWrap}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={selectedStone.inspectImage} alt="" style={styles.demoImage} />
+            </div>
+          ) : null}
+
+          <div style={styles.demoBadges}>
+            <span style={styles.demoBadgeText}>{sourceLabel}</span>
+            <span style={styles.demoBadgeText}>{statusLabel}</span>
+            <span style={styles.demoBadgeText}>Temporary</span>
+          </div>
+
+          <div style={styles.rows}>
+            <Row Icon={CenterStoneIcon} label="סוג אבן" value={selectedStone.stoneTypeHe || selectedStone.stoneType} />
+            <Row Icon={SettingIcon} label="צורה" value={selectedStone.shapeHe || selectedStone.shape} />
+            <Row Icon={SideStoneIcon} label="משקל משוער" value={carat} />
+            <Row Icon={StyleIcon} label="צבע" value={selectedStone.color} />
+            <Row Icon={FeasibilityIcon} label="איכות / ניקיון" value={selectedStone.clarity} />
+            <Row Icon={MetalIcon} label="טיפול" value={selectedStone.treatment} />
+          </div>
+
+          <div style={styles.demoActions}>
+            <button type="button" style={styles.demoAction}>Send to Work Tray</button>
+            <button type="button" style={styles.demoAction}>Start Design</button>
+            <button type="button" style={styles.demoActionMuted}>Create Report</button>
+            <button type="button" style={styles.demoActionMuted}>Open Asset</button>
+          </div>
+
+          <p style={styles.demoNote}>
+            שכבת דמו זמנית בלבד. לא נשמר במלאי האמיתי ולא מחליף את Work Tray / Upload / Inventory.
+          </p>
+        </div>
+      </aside>
+    );
+  }
 
   if (!concept) {
     return (
@@ -211,6 +271,80 @@ const styles = {
     color: tokens.color.inkFaint,
     cursor: 'not-allowed',
     boxShadow: 'none',
+  },
+  demoPill: {
+    alignSelf: 'flex-start',
+    display: 'inline-flex',
+    height: '22px',
+    alignItems: 'center',
+    padding: '0 9px',
+    borderRadius: '999px',
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '9px',
+    fontWeight: 800,
+    letterSpacing: '0.12em',
+  },
+  demoImageWrap: {
+    width: '100%',
+    aspectRatio: '1 / 1',
+    borderRadius: tokens.radius.lg,
+    overflow: 'hidden',
+    background: tokens.color.ivory,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    boxShadow: tokens.shadow.hairline,
+  },
+  demoImage: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  demoBadges: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  demoBadgeText: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: '24px',
+    padding: '0 10px',
+    borderRadius: '999px',
+    background: tokens.color.platinumSoft,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    color: tokens.color.inkSoft,
+    fontFamily: tokens.font.body,
+    fontSize: '10.5px',
+    fontWeight: 700,
+  },
+  demoActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
+  demoAction: {
+    minHeight: '38px',
+    padding: '8px 10px',
+    border: 'none',
+    borderRadius: tokens.radius.sm,
+    background: tokens.color.charcoal,
+    color: tokens.color.ivory,
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    fontWeight: 800,
+    cursor: 'default',
+  },
+  demoActionMuted: {
+    minHeight: '38px',
+    padding: '8px 10px',
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.sm,
+    background: tokens.color.ivory,
+    color: tokens.color.inkSoft,
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    fontWeight: 800,
+    cursor: 'default',
+  },
+  demoNote: {
+    margin: 0,
+    padding: '10px 12px',
+    borderRadius: tokens.radius.md,
+    background: tokens.color.goldFaint,
+    color: tokens.color.inkSoft,
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    lineHeight: 1.6,
   },
   head: { display: 'flex', flexDirection: 'column', gap: '6px' },
   drawerTitle: {

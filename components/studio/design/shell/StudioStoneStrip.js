@@ -10,10 +10,20 @@
 // Clean 5D-R3: this panel was already on the light ivory chrome direction —
 // only comfort/accessibility polish here (larger add-stones target, explicit
 // aria-label, slightly calmer empty-state wording emphasis). No logic touched.
+//
+// Clean 5D-R3 + Starter Asset Pack v1: when a tray item has NO real
+// snapshot.primaryImage, the chip now falls back to a best-effort demo
+// illustration from the Starter Asset Pack (getStoneThumbFallback) instead
+// of the generic line icon. A small gold "אילוסטרציה" dot marks these as
+// non-final demo art — never mistaken for the real item photo. If nothing
+// in the pack matches the item's shape/type text, the original generic icon
+// fallback is used exactly as before (zero regression).
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { getStoneThumbFallback } from '../../../../lib/studio/assetPack';
+import { getGemstoneThumbFallback } from '../../../../lib/studio/demoGemstoneAssets';
 
 const PARCEL_ROLES = new Set(['parcel']);
 
@@ -29,15 +39,25 @@ function chipTitle(item) {
   return s.shapeHe || s.stoneTypeHe || s.name || s.productTypeHe || '—';
 }
 
-function StoneChip({ item }) {
+function StoneChip({ item, selected, onSelect, demoMode }) {
   const s = item.snapshot || {};
   const parcel = isParcel(item);
   const carat = typeof s.caratWeight === 'number' ? `${s.caratWeight}${STUDIO_5D_HE.caratSuffix}` : '';
   const color = typeof s.color === 'string' && s.color.trim() ? s.color.trim() : '';
-  const img = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
+  const realImg = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
+  const demoImg = !realImg ? getGemstoneThumbFallback(item, 'box') || getStoneThumbFallback(item) : null;
+  const img = realImg || demoImg;
+
+  const clickable = typeof onSelect === 'function';
 
   return (
-    <div style={styles.chip} dir="rtl">
+    <button
+      type="button"
+      onClick={clickable ? () => onSelect(item) : undefined}
+      style={{ ...styles.chip, ...(selected ? styles.chipSelected : null), ...(clickable ? styles.chipClickable : null) }}
+      dir="rtl"
+      aria-pressed={selected ? 'true' : undefined}
+    >
       <span style={styles.thumb}>
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -51,6 +71,13 @@ function StoneChip({ item }) {
           </span>
         )}
         {parcel ? <span style={styles.parcelBadge}>{STUDIO_5D_HE.parcelChip}</span> : null}
+        {demoMode || demoImg ? (
+          <span
+            style={styles.demoBadge}
+            title={STUDIO_5D_HE.demoThumbBadge}
+            aria-label={STUDIO_5D_HE.demoThumbBadge}
+          />
+        ) : null}
       </span>
       <span style={styles.meta}>
         <span style={styles.title}>{chipTitle(item)}</span>
@@ -58,11 +85,11 @@ function StoneChip({ item }) {
           {[carat, color].filter(Boolean).join(' · ') || '\u00A0'}
         </span>
       </span>
-    </div>
+    </button>
   );
 }
 
-export default function StudioStoneStrip({ trayItems, onAddStones }) {
+export default function StudioStoneStrip({ trayItems, onAddStones, onSelectItem, selectedItemId, demoMode }) {
   const items = Array.isArray(trayItems) ? trayItems : [];
 
   if (items.length === 0) {
@@ -94,8 +121,15 @@ export default function StudioStoneStrip({ trayItems, onAddStones }) {
     <div style={styles.strip} dir="rtl">
       <span style={styles.stripLabel}>{STUDIO_5D_HE.stonesTitle}</span>
       <div style={styles.scroller}>
+        {demoMode ? <span style={styles.demoModePill}>DEMO</span> : null}
         {items.map((it) => (
-          <StoneChip key={it.id} item={it} />
+          <StoneChip
+            key={it.id}
+            item={it}
+            selected={selectedItemId === it.id}
+            onSelect={onSelectItem}
+            demoMode={demoMode}
+          />
         ))}
       </div>
       {typeof onAddStones === 'function' && (
@@ -144,6 +178,9 @@ const styles = {
     paddingBottom: '2px',
   },
   chip: {
+    border: 'none',
+    appearance: 'none',
+    WebkitAppearance: 'none',
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
@@ -152,6 +189,27 @@ const styles = {
     border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.pill,
     boxShadow: tokens.shadow.hairline,
+    flexShrink: 0,
+  },
+  chipClickable: { cursor: 'pointer' },
+  chipSelected: {
+    outline: `2px solid ${tokens.color.gold}`,
+    boxShadow: '0 0 0 4px rgba(184,151,90,0.14)',
+  },
+  demoModePill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    alignSelf: 'center',
+    height: '22px',
+    padding: '0 8px',
+    borderRadius: '999px',
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '9px',
+    fontWeight: 800,
+    letterSpacing: '0.12em',
     flexShrink: 0,
   },
   thumb: {
@@ -182,6 +240,16 @@ const styles = {
     color: tokens.color.ivory,
     background: tokens.color.ice,
     lineHeight: '12px',
+  },
+  demoBadge: {
+    position: 'absolute',
+    top: '1px',
+    insetInlineEnd: '1px',
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    background: tokens.color.gold,
+    border: `1px solid ${tokens.color.ivory}`,
   },
   meta: { display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 },
   title: {
