@@ -22,6 +22,7 @@ import { CONCEPT_HE, BRIEF_HE, FLOW_HE } from '../../../lib/studio/labels';
 import {
   PRODUCT_TYPE_VALUES,
   STONE_USAGE_VALUES,
+  STYLE_PREFERENCE,
   STYLE_PREFERENCE_VALUES,
   METAL_PREFERENCE_VALUES,
   DESIGN_ROLE,
@@ -29,6 +30,13 @@ import {
   conceptsAreStale,
   computeInputSignature,
 } from '../../../lib/studio/designDraft';
+// Studio Layout Reset (Clean 5D-R4) — narrow, approved exception. Scoped,
+// Design-Studio-only visual constants (NOT the shared components/studio/
+// shared/tokens.js, which is imported by ~60 files across Inventory/Tray/
+// etc.). Used ONLY for the two additive pieces below: the 3-card quick
+// style pick and the concept carousel row. Every other style in this file
+// keeps using the original `tokens` import, untouched.
+import { reset } from './shell/studioResetStyle';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   createUseDesignBrief,
@@ -76,6 +84,119 @@ function ChipSelect({ label, options, labelMap, value, onChange }) {
     </div>
   );
 }
+
+// Clean 5D-R4 — Studio Layout Reset (narrow, approved exception).
+//
+// A 3-card quick style pick — Classic / Modern / Statement — shown above the
+// existing (now-collapsed-by-default) direction form. It reads and writes
+// the SAME `brief.styleDirection` field as the original 5-value ChipSelect
+// further down (still present, unchanged, just nested under the new
+// "advanced details" disclosure): both controls are two views onto one
+// field, no new business vocabulary, nothing removed. Purely additive,
+// visual/layout only — same onChange contract as ChipSelect's toggle
+// behavior (selecting the active card clears it back to null).
+const QUICK_STYLE_CARDS = [
+  {
+    value: STYLE_PREFERENCE.CLASSIC,
+    Icon: (p) => (
+      <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="12" cy="12" r="7" />
+        <circle cx="12" cy="12" r="2.4" />
+      </svg>
+    ),
+  },
+  {
+    value: STYLE_PREFERENCE.MODERN,
+    Icon: (p) => (
+      <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+        <rect x="6" y="6" width="12" height="12" />
+      </svg>
+    ),
+  },
+  {
+    value: STYLE_PREFERENCE.STATEMENT,
+    Icon: (p) => (
+      <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+        <path d="M12 3l2.6 6.2L21 12l-6.4 2.8L12 21l-2.6-6.2L3 12l6.4-2.8L12 3z" />
+      </svg>
+    ),
+  },
+];
+
+function QuickStyleCards({ value, onChange }) {
+  return (
+    <div style={quickStyleStyles.wrap} dir="rtl">
+      <span style={quickStyleStyles.label}>{CONCEPT_HE.quickStyleLabel}</span>
+      <div style={quickStyleStyles.row}>
+        {QUICK_STYLE_CARDS.map(({ value: v, Icon }) => {
+          const selected = value === v;
+          const label = BRIEF_HE.style[v] || v;
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onChange(selected ? null : v)}
+              style={{ ...quickStyleStyles.card, ...(selected ? quickStyleStyles.cardSelected : null) }}
+              aria-pressed={selected}
+              title={label}
+            >
+              <span style={quickStyleStyles.cardIcon} aria-hidden="true">
+                <Icon width={20} height={20} />
+              </span>
+              <span style={quickStyleStyles.cardLabel}>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const quickStyleStyles = {
+  wrap: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  label: {
+    fontFamily: reset.font.body,
+    fontSize: '10.5px',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    color: reset.color.textFaint,
+  },
+  row: { display: 'flex', gap: '8px' },
+  card: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    minHeight: '84px',
+    padding: '14px 10px',
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.md,
+    cursor: 'pointer',
+  },
+  cardSelected: {
+    border: `1.5px solid ${reset.color.text}`,
+    background: reset.color.page,
+  },
+  cardIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '34px',
+    height: '34px',
+    borderRadius: reset.radius.sm,
+    color: reset.color.textMuted,
+    background: reset.color.page,
+  },
+  cardLabel: {
+    fontFamily: reset.font.body,
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: reset.color.text,
+  },
+};
 
 // Clean 5B.3 — a quiet collapsible disclosure (iceberg). Secondary inputs and
 // detail live here, closed by default, so the surface stays calm. All children
@@ -151,16 +272,18 @@ function ConceptCard({ concept, chosen, onChoose, onNotes, onRemove, onRefresh }
       dir="rtl"
     >
       <div style={styles.conceptHead}>
-        <span style={styles.conceptName}>{concept.conceptName}</span>
+        <span style={styles.conceptName} title={concept.shortDescription || undefined}>
+          {concept.conceptName}
+        </span>
         {chosen && <span style={styles.chosenPill}>{CONCEPT_HE.chosenBadge}</span>}
       </div>
-      {concept.shortDescription ? (
-        <p style={styles.conceptDesc}>{concept.shortDescription}</p>
-      ) : null}
 
-      {/* ICEBERG: technical detail + inert future placeholders live under a
-          quiet disclosure rather than always on the surface. */}
-      {rows.length > 0 && (
+      {/* Clean 5D-R4 — Studio Layout Reset (approved exception): shortDescription
+          moved from an always-visible paragraph into this SAME existing
+          details toggle (visual-first card, no long text by default). The
+          text itself is unchanged and still reachable via the toggle below
+          and via the title tooltip above — nothing removed. */}
+      {(rows.length > 0 || concept.shortDescription) && (
         <div style={styles.detailsWrap}>
           <button
             type="button"
@@ -172,14 +295,19 @@ function ConceptCard({ concept, chosen, onChoose, onNotes, onRemove, onRefresh }
           </button>
           {showDetails && (
             <>
-              <dl style={styles.conceptRows}>
-                {rows.map((r) => (
-                  <div key={r.k} style={styles.conceptRow}>
-                    <dt style={styles.conceptRowLabel}>{F[r.k]}</dt>
-                    <dd style={styles.conceptRowValue}>{r.v}</dd>
-                  </div>
-                ))}
-              </dl>
+              {concept.shortDescription ? (
+                <p style={styles.conceptDesc}>{concept.shortDescription}</p>
+              ) : null}
+              {rows.length > 0 && (
+                <dl style={styles.conceptRows}>
+                  {rows.map((r) => (
+                    <div key={r.k} style={styles.conceptRow}>
+                      <dt style={styles.conceptRowLabel}>{F[r.k]}</dt>
+                      <dd style={styles.conceptRowValue}>{r.v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
               <div style={styles.placeholderRow}>
                 <span style={styles.placeholderTag}>{F.productionNotes}: בקרוב</span>
                 <span style={styles.placeholderTag}>{F.renderBriefText}: בקרוב</span>
@@ -357,8 +485,19 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
     : { t: CONCEPT_HE.status.emptyTitle, b: CONCEPT_HE.status.emptyBody, ready: false };
 
   // ----- Stage 1: direction (product/style/metal/usage/inputs/brief) -----
+  // Clean 5D-R4 — Studio Layout Reset (narrow, approved exception): a 3-card
+  // quick style pick is now always visible above the form, and the full
+  // existing form (Parts 1-3 below) is wrapped in ONE outer "advanced
+  // details" disclosure, collapsed by default. No field, handler, or value
+  // was removed — everything below is unchanged, just nested.
   const directionView = (
     <>
+      <QuickStyleCards
+        value={brief.styleDirection}
+        onChange={(v) => briefStore.update({ styleDirection: v })}
+      />
+
+      <Disclosure title={CONCEPT_HE.advancedDirectionDetails}>
       {/* Part 1 — מה מעצבים? */}
       <ChipSelect
         label={CONCEPT_HE.productTypeLabel}
@@ -461,6 +600,7 @@ export default function DesignConceptPanel({ view = 'all', onToast, suppressStal
           </div>
         </Disclosure>
       </div>
+      </Disclosure>
     </>
   );
 
@@ -779,7 +919,16 @@ const styles = {
     color: tokens.color.inkSoft,
   },
   // concepts
-  conceptGrid: { display: 'flex', flexDirection: 'column', gap: '14px' },
+  // Clean 5D-R4 — Studio Layout Reset (approved exception): horizontal
+  // scroll/carousel row instead of a vertical stacked list. Same
+  // ConceptCard component, same data, same handlers — layout only.
+  conceptGrid: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '12px',
+    overflowX: 'auto',
+    paddingBottom: '4px',
+  },
   conceptCard: {
     display: 'flex',
     flexDirection: 'column',
@@ -789,6 +938,9 @@ const styles = {
     border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.md,
     boxShadow: tokens.shadow.soft,
+    minWidth: '280px',
+    maxWidth: '320px',
+    flexShrink: 0,
   },
   conceptCardChosen: {
     border: `1px solid ${tokens.color.gold}`,

@@ -219,4 +219,15 @@ export const TrayIcon = (p) => (
   </Icon>
 );
 
+// ---- Studio Layout Reset (Clean 5D-R4) — additive ----
+
+// Three-dot "more actions" glyph for compact icon-only overflow buttons.
+export const MoreIcon = ({ size = 20, style }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
+    <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+  </svg>
+);
+
 export default Icon;

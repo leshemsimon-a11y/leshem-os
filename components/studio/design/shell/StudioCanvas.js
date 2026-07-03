@@ -1,12 +1,14 @@
 // components/studio/design/shell/StudioCanvas.js
 //
-// Clean 5D-R3 — the central canvas, made usable before clever. It is never an
-// empty grid: every state shows jewelry/stone/CAD visuals so a jeweler
-// instantly sees what is being designed. All visuals are inline CSS/SVG
-// placeholders — no asset files, no render generation, no AI. Business logic
-// stays in the panels passed as `children`; the canvas only frames them.
+// LESHEM.S OS — Design Studio Layout Reset — Zone 3: Center Work Canvas.
 //
-// States (Clean 5D-R3 state model):
+// The central canvas, made usable before clever. It is never an empty grid:
+// every state shows jewelry/stone/CAD visuals so a jeweller instantly sees
+// what is being designed. All visuals are inline CSS/SVG placeholders — no
+// asset files, no render generation, no AI. Business logic stays in the
+// panels passed as `children`; the canvas only frames them.
+//
+// States (unchanged from Clean 5D-R3):
 //   • hero      → State A: nothing selected yet (no stones, no concepts, not
 //                 dismissed). A calm guided start with exactly 3 large visual
 //                 choices. Never a blank canvas.
@@ -16,19 +18,17 @@
 //   • concepts (>0, none chosen) → State C: the panel's concept cards, framed.
 //   • direction / output → the panel children on a calm CAD surface.
 //
-// Fills its grid cell and scrolls INTERNALLY. No business logic here — the
-// three new hero callbacks are pure UI-level actions wired by the shell
-// (open asset picker / proceed metal-only / go to work tray).
-//
-// UX Compression Pass: hero subtitle, each hero choice's description, the
-// starter subtitle, the 3 slot captions, and the preview-pane hint sentence
-// are no longer always-visible text. Each is either dropped from render and
-// relocated to a hover `title` tooltip (values unchanged in labels.js) or
-// shrunk to a 1-word badge with the fuller phrase kept as the tooltip. No
-// label was deleted — only where and how it's shown changed.
+// Studio Layout Reset (Clean 5D-R4): visual-only pass. Palette relit to the
+// near-white/graphite direction (see ./studioResetStyle.js) — less beige/
+// ivory, no gold fills (the gold token is reserved for a hairline accent at
+// most), border radius reduced across the board, decorative circular tiles
+// squared off to match the "less rounded, more workbench" direction. The
+// step indicator + current step title live in StudioShell.js just above
+// this component (not inside it), so mode/prop contract here is UNCHANGED:
+// same props (mode, selected, hasConcepts, hasStones, hero callbacks,
+// children), same 4 mode branches, same business-logic-free framing role.
 
 import * as React from 'react';
-import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, TrayIcon } from './StudioIcons';
 import {
@@ -36,14 +36,15 @@ import {
   getBlueprintPlaceholder,
   getJewelryPreviewPlaceholder,
 } from '../../../../lib/studio/assetPack';
+import { reset } from './studioResetStyle';
 
 const BLUEPRINT_BG =
   'url("data:image/svg+xml;utf8,' +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">' +
       '<rect width="80" height="80" fill="none"/>' +
-      '<path d="M80 0H0V80" fill="none" stroke="rgba(127,168,184,0.10)" stroke-width="1"/>' +
-      '<path d="M20 0V80M40 0V80M60 0V80M0 20H80M0 40H80M0 60H80" fill="none" stroke="rgba(127,168,184,0.05)" stroke-width="1"/>' +
+      '<path d="M80 0H0V80" fill="none" stroke="rgba(17,17,20,0.06)" stroke-width="1"/>' +
+      '<path d="M20 0V80M40 0V80M60 0V80M0 20H80M0 40H80M0 60H80" fill="none" stroke="rgba(17,17,20,0.03)" stroke-width="1"/>' +
       '</svg>'
   ) +
   '")';
@@ -62,19 +63,19 @@ function BlueprintSketch() {
   return (
     <div style={styles.blueprintArt} aria-hidden="true">
       <svg width="100%" height="100%" viewBox="0 0 260 260" fill="none" preserveAspectRatio="xMidYMid meet">
-        <circle cx="130" cy="150" r="62" stroke="#B9C3C8" strokeWidth="1.2" />
-        <circle cx="130" cy="150" r="40" stroke="#CBD3D7" strokeWidth="1" strokeDasharray="3 4" />
-        <path d="M130 18v74M70 150h120M104 92l8 16h36l8-16" stroke="#B9C3C8" strokeWidth="1.1" />
-        <path d="M112 92l-6 16M148 92l6 16" stroke="#CBD3D7" strokeWidth="1" />
-        <path d="M130 18l-10 22M130 18l10 22" stroke="#CBD3D7" strokeWidth="1" />
-        <circle cx="130" cy="150" r="10" stroke="#B9C3C8" strokeWidth="1" />
+        <circle cx="130" cy="150" r="62" stroke="#C7CBD1" strokeWidth="1.2" />
+        <circle cx="130" cy="150" r="40" stroke="#D8DBDF" strokeWidth="1" strokeDasharray="3 4" />
+        <path d="M130 18v74M70 150h120M104 92l8 16h36l8-16" stroke="#C7CBD1" strokeWidth="1.1" />
+        <path d="M112 92l-6 16M148 92l6 16" stroke="#D8DBDF" strokeWidth="1" />
+        <path d="M130 18l-10 22M130 18l10 22" stroke="#D8DBDF" strokeWidth="1" />
+        <circle cx="130" cy="150" r="10" stroke="#C7CBD1" strokeWidth="1" />
       </svg>
     </div>
   );
 }
 
 // Clean 5D-R3 + Starter Asset Pack v1 — a jewelry preview photo (Asset Pack)
-// filling the same circular frame as PreviewTile. Falls back to the original
+// filling the same square frame as PreviewTile. Falls back to the original
 // inline ring silhouette on any load error, so the canvas is NEVER blank or
 // broken even if a static asset is missing at deploy time.
 function PreviewVisual({ size = 132, src }) {
@@ -104,11 +105,9 @@ function BlueprintVisual({ src }) {
 
 // Clean 5D-R3 + Starter Asset Pack v1 — the guided-start hero illustration.
 // Falls back to the original ring-silhouette PreviewTile on any load error.
-// UX Compression Pass: accepts an optional `title` tooltip so the hero
-// subtitle text (previously always-visible) is still reachable on hover.
 function HeroIllustration({ src, title }) {
   const [failed, setFailed] = React.useState(false);
-  if (!src || failed) return <PreviewTile size={116} />;
+  if (!src || failed) return <PreviewTile size={112} />;
   return (
     <div style={styles.heroIllustration} title={title} aria-label={title}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -117,11 +116,8 @@ function HeroIllustration({ src, title }) {
   );
 }
 
-// Clean 5D-R3 — one large tappable choice card for the guided start state.
-// UX Compression Pass: only the icon + short title are always visible now;
-// `desc` (unchanged text) becomes a hover tooltip + accessible name instead
-// of a second always-visible line, per "turn choose-direction into compact
-// visual buttons; hide why-this-direction text inside expandable details."
+// One large tappable choice card for the guided start state. `desc` is a
+// hover tooltip + accessible name, not a second always-visible line.
 function HeroChoiceCard({ Icon, title, desc, onClick, primary }) {
   return (
     <button
@@ -133,7 +129,7 @@ function HeroChoiceCard({ Icon, title, desc, onClick, primary }) {
       aria-label={desc ? `${title} — ${desc}` : title}
     >
       <span style={{ ...styles.heroCardIcon, ...(primary ? styles.heroCardIconPrimary : null) }} aria-hidden="true">
-        <Icon size={26} />
+        <Icon size={24} />
       </span>
       <span style={styles.heroCardTitle}>{title}</span>
     </button>
@@ -219,7 +215,7 @@ export default function StudioCanvas({
         <div style={styles.blueprint} aria-hidden="true" />
         <div style={styles.starter}>
           <div style={styles.starterHero}>
-            <PreviewTile size={150} />
+            <PreviewTile size={140} />
             <div style={styles.starterHeroText}>
               <span style={styles.starterEyebrow}>{STUDIO_5D_HE.rail.design}</span>
               <span
@@ -235,7 +231,7 @@ export default function StudioCanvas({
           <div style={styles.slots}>
             {[0, 1, 2].map((i) => (
               <div key={i} style={styles.slot} title={STUDIO_5D_HE.canvasSlot} aria-hidden="true">
-                <StoneFacets size={34} />
+                <StoneFacets size={30} />
               </div>
             ))}
           </div>
@@ -264,10 +260,9 @@ export default function StudioCanvas({
 const styles = {
   canvas: {
     position: 'relative',
-    background: tokens.color.canvas,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.canvas,
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.lg,
     overflow: 'hidden',
     minHeight: 0,
     height: '100%',
@@ -277,7 +272,7 @@ const styles = {
   blueprint: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: tokens.color.canvas,
+    backgroundColor: reset.color.panel,
     backgroundImage: `radial-gradient(circle at 50% 0%, rgba(255,255,255,0.7), transparent 55%), ${BLUEPRINT_BG}`,
     backgroundSize: 'auto, 80px 80px',
     pointerEvents: 'none',
@@ -289,12 +284,12 @@ const styles = {
     flex: 1,
     minHeight: 0,
     overflowY: 'auto',
-    padding: '36px 32px',
+    padding: '32px 28px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '30px',
+    gap: '26px',
   },
   heroIntro: {
     display: 'flex',
@@ -305,13 +300,12 @@ const styles = {
     maxWidth: '440px',
   },
   heroIllustration: {
-    width: '208px',
-    height: '208px',
-    borderRadius: tokens.radius.lg,
+    width: '188px',
+    height: '188px',
+    borderRadius: reset.radius.lg,
     overflow: 'hidden',
-    border: `1px solid ${tokens.color.cardEdge}`,
-    boxShadow: tokens.shadow.hairline,
-    background: tokens.color.ivory,
+    border: `1px solid ${reset.color.border}`,
+    background: reset.color.page,
   },
   heroIllustrationImg: {
     width: '100%',
@@ -319,66 +313,61 @@ const styles = {
     objectFit: 'cover',
   },
   heroEyebrow: {
-    fontFamily: tokens.font.body,
+    fontFamily: reset.font.body,
     fontSize: '10px',
     fontWeight: 700,
-    letterSpacing: '0.16em',
-    color: tokens.color.gold,
-    marginTop: '6px',
+    letterSpacing: '0.14em',
+    color: reset.color.textMuted,
+    marginTop: '4px',
   },
   heroTitle: {
-    fontFamily: tokens.font.display,
+    fontFamily: reset.font.display,
     fontWeight: 700,
-    fontSize: '26px',
-    color: tokens.color.charcoal,
+    fontSize: '22px',
+    color: reset.color.text,
     lineHeight: 1.2,
   },
   heroChoices: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))',
-    gap: '14px',
+    gridTemplateColumns: 'repeat(3, minmax(170px, 1fr))',
+    gap: '12px',
     width: '100%',
-    maxWidth: '760px',
+    maxWidth: '720px',
   },
   heroCard: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center',
-    gap: '12px',
-    minHeight: '168px',
-    padding: '24px 18px',
-    background: tokens.color.ivory,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.hairline,
+    gap: '10px',
+    minHeight: '150px',
+    padding: '20px 16px',
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.md,
     cursor: 'pointer',
-    transition: 'border-color 140ms, box-shadow 140ms, transform 140ms',
   },
   heroCardPrimary: {
-    background: tokens.color.goldFaint,
-    border: `1px solid ${tokens.color.goldSoft}`,
-    boxShadow: '0 10px 24px rgba(184,151,90,0.16)',
+    border: `1.5px solid ${reset.color.text}`,
   },
   heroCardIcon: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '52px',
-    height: '52px',
-    borderRadius: '50%',
-    color: tokens.color.ice,
-    background: tokens.color.iceFaint,
+    width: '44px',
+    height: '44px',
+    borderRadius: reset.radius.sm,
+    color: reset.color.textMuted,
+    background: reset.color.page,
   },
   heroCardIconPrimary: {
-    color: tokens.color.gold,
-    background: tokens.color.ivory,
+    color: reset.color.text,
   },
   heroCardTitle: {
-    fontFamily: tokens.font.body,
-    fontSize: '14px',
+    fontFamily: reset.font.body,
+    fontSize: '13px',
     fontWeight: 700,
-    color: tokens.color.charcoal,
+    color: reset.color.text,
   },
 
   // ---- split (selected) ----
@@ -395,9 +384,8 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '14px',
-    padding: '24px',
-    background: 'radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.92), rgba(244,239,230,0.5))',
+    gap: '12px',
+    padding: '22px',
   },
   blueprintPane: {
     position: 'relative',
@@ -405,56 +393,54 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '24px',
-    borderInlineStart: `1px solid ${tokens.color.cardEdge}`,
+    padding: '22px',
+    borderInlineStart: `1px solid ${reset.color.border}`,
   },
   paneTag: {
     position: 'absolute',
-    top: '14px',
-    insetInlineEnd: '16px',
-    fontFamily: tokens.font.body,
+    top: '12px',
+    insetInlineEnd: '14px',
+    fontFamily: reset.font.body,
     fontSize: '10px',
     fontWeight: 700,
-    letterSpacing: '0.14em',
-    color: tokens.color.inkFaint,
+    letterSpacing: '0.12em',
+    color: reset.color.textFaint,
   },
   previewTile: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '210px',
-    height: '210px',
-    borderRadius: '50%',
+    width: '200px',
+    height: '200px',
+    borderRadius: reset.radius.lg,
     overflow: 'hidden',
-    color: tokens.color.gold,
-    background: 'radial-gradient(circle at 38% 32%, #FFFFFF, #F1ECE3 70%, #E6DFD2)',
-    boxShadow: 'inset 0 2px 10px rgba(184,151,90,0.12), 0 10px 30px rgba(43,40,36,0.06)',
+    color: reset.color.textMuted,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
   },
   previewTileImg: {
     width: '100%',
     height: '100%',
-    objectFit: 'cover',
+    objectFit: 'contain',
   },
   previewTitle: {
-    fontFamily: tokens.font.display,
+    fontFamily: reset.font.display,
     fontWeight: 700,
-    fontSize: '20px',
-    color: tokens.color.charcoal,
+    fontSize: '18px',
+    color: reset.color.text,
     textAlign: 'center',
   },
   previewHint: {
-    fontFamily: tokens.font.body,
+    fontFamily: reset.font.body,
     fontSize: '11px',
-    color: tokens.color.inkFaint,
-    letterSpacing: '0.02em',
+    color: reset.color.textFaint,
   },
   blueprintArt: {
     width: '100%',
-    maxWidth: '300px',
+    maxWidth: '280px',
     aspectRatio: '1 / 1',
-    color: tokens.color.ice,
-    opacity: 0.9,
-    borderRadius: tokens.radius.md,
+    color: reset.color.textMuted,
+    borderRadius: reset.radius.md,
     overflow: 'hidden',
   },
   blueprintArtImg: {
@@ -469,36 +455,36 @@ const styles = {
     flex: 1,
     minHeight: 0,
     overflowY: 'auto',
-    padding: '26px 28px 28px',
+    padding: '22px 24px 24px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '22px',
+    gap: '18px',
   },
   starterHero: {
     display: 'flex',
     alignItems: 'center',
-    gap: '22px',
+    gap: '18px',
     flexWrap: 'wrap',
   },
   starterHeroText: { display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 },
   starterEyebrow: {
-    fontFamily: tokens.font.body,
+    fontFamily: reset.font.body,
     fontSize: '10px',
     fontWeight: 700,
-    letterSpacing: '0.16em',
-    color: tokens.color.gold,
+    letterSpacing: '0.14em',
+    color: reset.color.textMuted,
   },
   starterTitle: {
-    fontFamily: tokens.font.display,
+    fontFamily: reset.font.display,
     fontWeight: 700,
-    fontSize: '24px',
-    color: tokens.color.charcoal,
+    fontSize: '20px',
+    color: reset.color.text,
     lineHeight: 1.15,
   },
   slots: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '14px',
+    gap: '12px',
   },
   slot: {
     display: 'flex',
@@ -506,17 +492,17 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    minHeight: '112px',
-    borderRadius: tokens.radius.md,
-    border: `1px dashed ${tokens.color.goldFaint}`,
-    background: 'rgba(255,255,255,0.5)',
-    color: tokens.color.goldSoft,
+    minHeight: '100px',
+    borderRadius: reset.radius.md,
+    border: `1px dashed ${reset.color.border}`,
+    background: reset.color.page,
+    color: reset.color.textFaint,
   },
   starterPanel: {
-    background: 'rgba(255,255,255,0.6)',
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.md,
-    padding: '18px 20px',
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.md,
+    padding: '16px 18px',
   },
 
   // ---- flow (concepts list / direction / output — State C) ----
@@ -525,15 +511,15 @@ const styles = {
     flex: 1,
     minHeight: 0,
     overflowY: 'auto',
-    padding: '22px 24px',
+    padding: '20px 22px',
   },
   flowEyebrow: {
     display: 'block',
-    fontFamily: tokens.font.body,
+    fontFamily: reset.font.body,
     fontSize: '11px',
     fontWeight: 700,
-    letterSpacing: '0.14em',
-    color: tokens.color.gold,
-    marginBottom: '14px',
+    letterSpacing: '0.12em',
+    color: reset.color.textMuted,
+    marginBottom: '12px',
   },
 };

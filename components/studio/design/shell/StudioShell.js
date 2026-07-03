@@ -1,43 +1,62 @@
 // components/studio/design/shell/StudioShell.js
 //
-// LESHEM.S OS — Clean 5D-R Studio Workstation (North-Star reset).
+// LESHEM.S OS — Design Studio Layout Reset (Clean 5D-R4).
 //
-// A FULL-VIEWPORT jewelry studio workstation, not a page. Structure follows the
-// approved North Star: a compact top bar + selected-stones strip, a slim left
-// icon workflow rail, a DOMINANT central canvas (render | blueprint split), a
-// right inspector drawer (≈340px) with a pinned gold CTA, and a compact bottom
-// variant/action strip.
+// A FULL-VIEWPORT jewelry studio workstation, not a page. Studio Layout
+// Reset structure — 4 zones:
+//   1. Top Work Tray Ribbon      — StudioCommandBar + StudioStoneStrip
+//   2. Left Selected Stone Panel — StudioStonePanel (NEW)
+//   3. Center Work Canvas        — step indicator + title, stale banners,
+//                                  StudioCanvas, StudioBottomStrip (docked
+//                                  to the bottom of this column only)
+//   4. Right Inspector           — StudioInspectorDrawer
 //
-// LOGIC IS PRESERVED. This file only arranges regions and threads them with the
-// existing business logic, untouched:
+// LOGIC IS PRESERVED. This file only arranges regions and threads them with
+// the existing business logic, untouched:
 //   • direction inputs + concept cards (generate / select / remove / refresh)
-//     are rendered by DesignConceptPanel (Clean 5B.3).
-//   • output + structured render brief by DesignOutputPanel (Clean 5B + 5C).
+//     are rendered by DesignConceptPanel.
+//   • output + structured render brief by DesignOutputPanel.
 //   • stale detection uses the SAME conceptsAreStale / outputIsStale helpers.
 // The shell performs NO generation and owns NO output mutations; the bottom
-// strip and stone strip read store data, and selection routes through the same
-// brief store the panels use (single source of truth).
+// strip and stone strip read store data, and selection routes through the
+// same brief store the panels use (single source of truth).
 //
-// Clean 5D-R3 (additive, UI-only): a local `heroDismissed` flag gates a new
-// guided empty/start state (State A) on the canvas — shown only when there
-// are zero tray stones AND zero concepts AND the user hasn't engaged with a
-// start choice yet. It is pure presentation: it never reads or writes the
-// brief/tray/projects stores, and every store-derived variable used below
-// (brief, concepts, selected, output, conceptsStale, outStale) is computed
-// exactly as in 5D-R2.
+// Studio Layout Reset (Clean 5D-R4) — what changed vs Clean 5D-R3:
+//   • The vertical icon workflow rail (its own grid column) is gone; the
+//     SAME step list/logic now renders as a compact horizontal indicator in
+//     the canvas header, alongside a plain-text current-step title. See
+//     StudioWorkflowRail.js (repurposed) and the new canvasHeader below.
+//   • A NEW left "selected stone" panel (StudioStonePanel.js) occupies that
+//     freed column: it shows the active tray-strip selection (image, rows,
+//     badges) and one real, wired primary action — Add/Remove Work Tray —
+//     using ONLY the existing useWorkTray hook methods (tray.addItem /
+//     tray.remove). "Start Design" jumps to the existing 'design' step
+//     (setActiveStep). "Create Report" / "More" are honest disabled
+//     placeholders — Certificates are out of scope for this pass.
+//   • Stone-strip selection (previously wired ONLY for Demo Operating Layer
+//     stones) is generalized to a single `selectedItemId` that works for
+//     BOTH a real Work Tray selection and a demo one, so "click selects
+//     stone and updates inspector" holds regardless of which list is shown.
+//     This is the one behavioral generalization in this pass — everything
+//     else is layout/visual.
+//   • The bottom variant strip now docks to the bottom of the CENTER column
+//     only (not the full screen width), so it reads as part of Zone 3.
+//   • Palette relit to near-white/graphite via ./studioResetStyle.js — NOT
+//     the shared components/studio/shared/tokens.js (kept out of scope
+//     deliberately; that file is imported by ~60 files across Inventory/
+//     Work Tray/etc.).
 //
-// Full-height with safe fallbacks: regions scroll INTERNALLY; if the viewport
-// is short the whole shell falls back to page scroll; on narrow widths the grid
-// stacks. Mobile flow itself is NOT built here but is not blocked either.
-//
-// UX Compression Pass + Demo Layer preserved: stale-banner body text is kept
-// as a hover tooltip instead of a second visible line; the rail column is
-// tighter for the icon-first workflow rail. The temporary demo inventory /
-// Work Tray / Inspector fallback remains intact.
+// A note on one discoverable side effect: because the Demo Operating Layer
+// only shows demo stones while the REAL Work Tray is empty
+// (ENABLE_DEMO_OPERATING_LAYER && realTrayItems.length === 0 — unchanged,
+// pre-existing logic), using the new "Add to Work Tray" action on a demo
+// stone adds ONE real item to the tray, which then hides the whole demo
+// suggestion set on the next render (by the SAME pre-existing rule). This
+// is intentional, existing behavior newly reached via a wired button, not a
+// new bug — flagged here and in the delivery changelog.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
@@ -56,10 +75,12 @@ import AssetPicker from '../../assets/AssetPicker';
 import StudioCommandBar from './StudioCommandBar';
 import StudioWorkflowRail from './StudioWorkflowRail';
 import StudioStoneStrip from './StudioStoneStrip';
+import StudioStonePanel from './StudioStonePanel';
 import StudioCanvas from './StudioCanvas';
 import StudioInspectorDrawer from './StudioInspectorDrawer';
 import StudioBottomStrip from './StudioBottomStrip';
 import { AlertIcon } from './StudioIcons';
+import { reset } from './studioResetStyle';
 import {
   ENABLE_DEMO_OPERATING_LAYER,
   getDemoStudioTrayItems,
@@ -126,7 +147,12 @@ export default function StudioShell() {
   // selected stones from the demo inventory. The demo inventory screen writes
   // only to localStorage, never to real inventory/Airtable/uploads.
   const [demoTrayItems, setDemoTrayItems] = React.useState(() => getDemoStudioTrayItems(6));
-  const [selectedDemoTrayItemId, setSelectedDemoTrayItemId] = React.useState(null);
+
+  // Studio Layout Reset — generalized from the old `selectedDemoTrayItemId`:
+  // this now tracks the top-ribbon selection for WHICHEVER list is on
+  // screen (demo or real), so clicking any stone chip selects it and
+  // updates the left panel + inspector, not just demo stones.
+  const [selectedItemId, setSelectedItemId] = React.useState(null);
 
   React.useEffect(() => {
     const refreshDemoTray = () => setDemoTrayItems(getDemoStudioTrayItems(6));
@@ -164,10 +190,16 @@ export default function StudioShell() {
   const showDemoLayer = ENABLE_DEMO_OPERATING_LAYER && realTrayItems.length === 0;
   const displayTrayItems = showDemoLayer ? demoTrayItems : realTrayItems;
   const hasStones = displayTrayItems.length > 0;
-  const selectedDemoTrayItem = showDemoLayer
-    ? displayTrayItems.find((it) => it.id === selectedDemoTrayItemId) || displayTrayItems[0] || null
-    : null;
-  const selectedDemoStone = selectedDemoTrayItem ? getDemoInspectStoneFromTrayItem(selectedDemoTrayItem) : null;
+
+  // Studio Layout Reset — generalized selection: works for real or demo
+  // tray items alike. Defaults to the first item so Zone 2 / Zone 4 are
+  // never blank when stones exist (never a blank panel), matching the
+  // existing "never a blank canvas" philosophy already used elsewhere here.
+  const selectedTrayItem =
+    displayTrayItems.find((it) => it.id === selectedItemId) || displayTrayItems[0] || null;
+  const selectedDemoStone =
+    showDemoLayer && selectedTrayItem ? getDemoInspectStoneFromTrayItem(selectedTrayItem) : null;
+
   const selected = getSelectedConcept(brief);
   const output = getActiveOutput(brief);
   const conceptsStale = conceptsAreStale(brief, realTrayItems);
@@ -181,7 +213,7 @@ export default function StudioShell() {
   // trap the user can get stuck behind or in front of).
   const heroActive = !hasStones && !hasConcepts && !heroDismissed;
 
-  // One obvious primary action (bottom strip + drawer CTA share this).
+  // One obvious primary action (bottom strip only — the single dominant CTA).
   let primaryLabel = STUDIO_5D_HE.primaryGenerateConcepts;
   let primaryDisabled = false;
   let onPrimary = () => setActiveStep('design');
@@ -204,6 +236,33 @@ export default function StudioShell() {
   }
 
   const onSelectVariant = (conceptId) => briefStore.selectConcept(conceptId);
+
+  // Studio Layout Reset — Zone 1 ribbon selection, generalized (see note
+  // above `selectedTrayItem`). Works whether displayTrayItems is the demo
+  // array or the real tray array.
+  const onSelectItem = (item) => {
+    if (item && item.id) setSelectedItemId(item.id);
+  };
+
+  // Studio Layout Reset — Zone 2 "Add / Remove Work Tray" action, wired for
+  // real using ONLY existing exported functions (tray.addItem / tray.remove
+  // from the existing useWorkTray hook). No new business logic: when the
+  // selection is a demo stone, it is already shaped exactly like a Work Tray
+  // item (lib/studio/demoInventoryLayer.js toStudioTrayItem already ran when
+  // building the demo list), so it can be added as-is. When the selection is
+  // already a real tray item, removing it calls the existing tray.remove.
+  const inTray = Boolean(selectedTrayItem) && !showDemoLayer;
+  const onToggleTray = selectedTrayItem
+    ? () => {
+        if (showDemoLayer) {
+          tray.addItem(selectedTrayItem);
+          showToast(STUDIO_5D_HE.toastAddedToTray);
+        } else {
+          tray.remove(selectedTrayItem.id);
+          showToast(STUDIO_5D_HE.toastRemovedFromTray);
+        }
+      }
+    : undefined;
 
   // Canvas content per view; existing panels own all logic.
   let canvasMode = 'concepts';
@@ -237,7 +296,6 @@ export default function StudioShell() {
     <>
       {conceptsStale && (
         <StaleBanner
-          tone="concepts"
           title={STUDIO_5D_HE.staleConceptsTitle}
           body={STUDIO_5D_HE.staleConceptsBody}
           action={STUDIO_5D_HE.staleConceptsAction}
@@ -246,7 +304,6 @@ export default function StudioShell() {
       )}
       {outStale && (
         <StaleBanner
-          tone="output"
           title={STUDIO_5D_HE.staleOutputTitle}
           body={STUDIO_5D_HE.staleOutputBody}
           action={STUDIO_5D_HE.staleOutputAction}
@@ -264,40 +321,47 @@ export default function StudioShell() {
       }}
       dir="rtl"
     >
-      {/* TOP: command bar + stone strip on one compact row */}
+      {/* TOP: command bar + stone strip on one compact row (Zone 1) */}
       <div style={styles.topRow}>
         <StudioCommandBar
           hasActiveWork={Boolean(activeWorkId)}
           outputState={outputState}
-          compact
+          onExit={() => router.push('/studio')}
         />
         <StudioStoneStrip
           trayItems={displayTrayItems}
           onAddStones={() => setPickerOpen(true)}
-          onSelectItem={(item) => {
-            if (showDemoLayer && item && item.id) setSelectedDemoTrayItemId(item.id);
-          }}
-          selectedItemId={selectedDemoTrayItem ? selectedDemoTrayItem.id : null}
+          onSelectItem={onSelectItem}
+          selectedItemId={selectedTrayItem ? selectedTrayItem.id : null}
           demoMode={showDemoLayer}
         />
       </div>
 
-      {/* MIDDLE: rail | canvas | inspector */}
+      {/* MIDDLE: left stone panel | center canvas | right inspector */}
       <div
         style={{
           ...styles.middle,
           ...(narrow ? styles.middleNarrow : null),
         }}
       >
-        <StudioWorkflowRail
-          active={activeStep}
-          onSelect={setActiveStep}
-          onExit={() => router.push('/studio')}
-          horizontal={narrow}
+        <StudioStonePanel
+          item={showDemoLayer ? null : selectedTrayItem}
+          demoStone={selectedDemoStone}
+          demoMode={showDemoLayer}
+          hasStones={hasStones}
+          inTray={inTray}
+          onToggleTray={onToggleTray}
+          onStartDesign={() => setActiveStep('design')}
         />
 
         <div style={styles.canvasColumn}>
+          <div style={styles.canvasHeader}>
+            <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} />
+            <span style={styles.canvasHeaderTitle}>{STUDIO_5D_HE.rail[activeStep] || ''}</span>
+          </div>
+
           {!heroActive && staleBanners}
+
           <StudioCanvas
             mode={canvasMode}
             selected={selected}
@@ -309,25 +373,25 @@ export default function StudioShell() {
           >
             {canvasBody}
           </StudioCanvas>
+
+          <StudioBottomStrip
+            concepts={concepts}
+            selectedId={brief.selectedConceptId}
+            onSelectVariant={onSelectVariant}
+            primaryLabel={primaryLabel}
+            primaryDisabled={primaryDisabled}
+            onPrimary={onPrimary}
+          />
         </div>
 
         <StudioInspectorDrawer
           concept={selected}
           output={output}
-          selectedStone={!selected ? selectedDemoStone : null}
+          selectedItem={!selected && !showDemoLayer ? selectedTrayItem : null}
+          selectedDemoStone={!selected ? selectedDemoStone : null}
           demoMode={showDemoLayer}
         />
       </div>
-
-      {/* BOTTOM: variant strip + echoed primary action */}
-      <StudioBottomStrip
-        concepts={concepts}
-        selectedId={brief.selectedConceptId}
-        onSelectVariant={onSelectVariant}
-        primaryLabel={primaryLabel}
-        primaryDisabled={primaryDisabled}
-        onPrimary={onPrimary}
-      />
 
       <AssetPicker
         open={pickerOpen}
@@ -346,16 +410,11 @@ export default function StudioShell() {
   );
 }
 
-function StaleBanner({ tone, title, body, action, onAction }) {
+function StaleBanner({ title, body, action, onAction }) {
   return (
-    <div
-      style={{ ...styles.stale, ...(tone === 'output' ? styles.staleOutput : styles.staleConcepts) }}
-      dir="rtl"
-      role="status"
-      title={body}
-    >
+    <div style={styles.stale} dir="rtl" role="status" title={body}>
       <span style={styles.staleIcon} aria-hidden="true">
-        <AlertIcon size={16} />
+        <AlertIcon size={15} />
       </span>
       <span style={styles.staleTitle}>{title}</span>
       <button type="button" onClick={onAction} style={styles.staleBtn}>
@@ -375,7 +434,7 @@ const styles = {
     height: '100vh',
     padding: GAP,
     boxSizing: 'border-box',
-    background: tokens.color.ivory,
+    background: reset.color.page,
     overflow: 'hidden',
   },
   // Short viewports: let the whole shell scroll instead of clipping.
@@ -385,23 +444,23 @@ const styles = {
     overflow: 'visible',
   },
   loading: {
-    fontFamily: tokens.font.body,
-    fontSize: '15px',
-    color: tokens.color.inkFaint,
+    fontFamily: reset.font.body,
+    fontSize: '14px',
+    color: reset.color.textFaint,
     padding: '60px 0',
     textAlign: 'center',
   },
 
   topRow: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(220px, 300px) minmax(0, 1fr)',
+    gridTemplateColumns: 'minmax(200px, 280px) minmax(0, 1fr)',
     gap: GAP,
     alignItems: 'stretch',
   },
 
   middle: {
     display: 'grid',
-    gridTemplateColumns: '64px minmax(0, 1fr) minmax(320px, 360px)',
+    gridTemplateColumns: 'minmax(230px, 270px) minmax(0, 1fr) minmax(300px, 340px)',
     gap: GAP,
     minHeight: 0,
   },
@@ -418,39 +477,54 @@ const styles = {
     minHeight: 0,
   },
 
-  // Stale banners (calm, slim).
+  canvasHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexShrink: 0,
+  },
+  canvasHeaderTitle: {
+    fontFamily: reset.font.display,
+    fontWeight: 700,
+    fontSize: '13px',
+    color: reset.color.text,
+    flexShrink: 0,
+  },
+
+  // Stale banners (calm, minimal).
   stale: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    padding: '10px 14px',
-    borderRadius: tokens.radius.md,
+    padding: '9px 14px',
+    borderRadius: reset.radius.md,
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
     flexShrink: 0,
   },
-  staleConcepts: { background: tokens.color.goldFaint, border: `1px solid ${tokens.color.gold}` },
-  staleOutput: { background: tokens.color.iceFaint, border: `1px solid ${tokens.color.ice}` },
-  staleIcon: { display: 'inline-flex', color: tokens.color.charcoal, flexShrink: 0 },
+  staleIcon: { display: 'inline-flex', color: reset.color.textMuted, flexShrink: 0 },
   staleTitle: {
     flex: '1 1 auto',
     minWidth: 0,
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
+    fontFamily: reset.font.body,
+    fontSize: '12.5px',
     fontWeight: 700,
-    color: tokens.color.charcoal,
+    color: reset.color.text,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
   staleBtn: {
-    minHeight: '38px',
-    padding: '8px 16px',
-    fontFamily: tokens.font.body,
-    fontSize: '12.5px',
+    minHeight: '34px',
+    padding: '7px 14px',
+    fontFamily: reset.font.body,
+    fontSize: '12px',
     fontWeight: 700,
-    color: tokens.color.ivory,
-    background: tokens.color.charcoal,
+    color: reset.color.primaryText,
+    background: reset.color.primaryBg,
     border: 'none',
-    borderRadius: tokens.radius.sm,
+    borderRadius: reset.radius.sm,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
@@ -461,14 +535,13 @@ const styles = {
     left: '50%',
     bottom: '24px',
     transform: 'translateX(-50%)',
-    fontFamily: tokens.font.body,
-    fontSize: '14px',
+    fontFamily: reset.font.body,
+    fontSize: '13.5px',
     fontWeight: 600,
-    color: tokens.color.ivory,
-    background: tokens.color.charcoal,
-    padding: '10px 20px',
-    borderRadius: '999px',
-    boxShadow: tokens.shadow.lift,
+    color: reset.color.primaryText,
+    background: reset.color.primaryBg,
+    padding: '9px 18px',
+    borderRadius: reset.radius.md,
     zIndex: 50,
     pointerEvents: 'none',
   },

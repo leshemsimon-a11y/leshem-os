@@ -1,21 +1,25 @@
 // components/studio/design/shell/StudioBottomStrip.js
 //
-// Clean 5D — bottom variant / action strip. A compact dock showing the design
-// directions as selectable variant thumbnails plus ONE obvious primary action.
+// LESHEM.S OS — Design Studio Layout Reset — variant / action strip.
 //
-// It owns no logic: variant selection and the primary action are passed in as
-// callbacks from the shell (which wires them to the existing concept/output
-// handlers). The primary label/intent is computed by the shell from flow state.
+// A compact dock showing the design directions as selectable variant
+// thumbnails plus ONE obvious primary action. Now docked to the bottom of
+// the Center Work Canvas column only (see StudioShell.js), not the full
+// screen width, so it reads as part of Zone 3 rather than a separate strip.
 //
-// Clean 5D-R3: relit to the light ivory/platinum chrome direction (was dark
-// graphite). Selected variant uses the same soft-gold recipe as the rest of
-// the studio (goldFaint fill + gold border). The single gold CTA is
-// unchanged — it remains the one dominant action in the whole workstation.
+// It owns no logic: variant selection and the primary action are passed in
+// as callbacks from the shell (which wires them to the existing concept/
+// output handlers). The primary label/intent is computed by the shell from
+// flow state — unchanged.
+//
+// Studio Layout Reset (Clean 5D-R4): relit to the near-white/graphite
+// direction; pill shapes reduced to compact rectangular chips. No logic
+// changed.
 
 import * as React from 'react';
-import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { CheckIcon } from './StudioIcons';
+import { reset } from './studioResetStyle';
 
 function Variant({ concept, selected, onSelect }) {
   return (
@@ -27,12 +31,12 @@ function Variant({ concept, selected, onSelect }) {
       title={concept.conceptName}
     >
       <span style={styles.variantThumb} aria-hidden="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" style={{ color: tokens.color.goldSoft }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
           <path d="M6 3h12l3 6-9 12L3 9l3-6z" />
         </svg>
         {selected ? (
           <span style={styles.selDot}>
-            <CheckIcon size={13} />
+            <CheckIcon size={11} />
           </span>
         ) : null}
       </span>
@@ -93,99 +97,101 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '18px',
+    gap: '16px',
     flexWrap: 'wrap',
-    padding: '14px 18px',
-    background: tokens.color.canvas,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.soft,
-  },
-  variants: { display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: '1 1 auto' },
-  variantsLabel: {
-    fontFamily: tokens.font.body,
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.12em',
-    color: tokens.color.gold,
+    padding: '12px 16px',
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.md,
     flexShrink: 0,
   },
-  variantScroller: { display: 'flex', gap: '8px', overflowX: 'auto', minWidth: 0, padding: '2px' },
+  variants: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: '1 1 auto' },
+  variantsLabel: {
+    fontFamily: reset.font.body,
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    color: reset.color.textFaint,
+    flexShrink: 0,
+  },
+  variantScroller: { display: 'flex', gap: '7px', overflowX: 'auto', minWidth: 0, padding: '2px' },
   variant: {
     display: 'flex',
     alignItems: 'center',
-    gap: '9px',
-    minHeight: '44px',
-    padding: '6px 16px 6px 6px',
-    background: tokens.color.ivory,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.pill,
+    gap: '8px',
+    minHeight: '38px',
+    padding: '5px 14px 5px 5px',
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.sm,
     cursor: 'pointer',
     flexShrink: 0,
-    transition: 'border-color 140ms, background 140ms',
   },
   variantSelected: {
-    border: `1px solid ${tokens.color.gold}`,
-    background: tokens.color.goldFaint,
+    border: `1.5px solid ${reset.color.text}`,
+    background: reset.color.panel,
   },
   variantThumb: {
     position: 'relative',
-    width: '28px',
-    height: '28px',
-    borderRadius: '50%',
-    background: `radial-gradient(circle at 35% 30%, ${tokens.color.platinumSoft}, ${tokens.color.iceFaint})`,
-    border: `1px solid ${tokens.color.cardEdge}`,
+    width: '24px',
+    height: '24px',
+    borderRadius: reset.radius.xs,
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    color: reset.color.textMuted,
   },
-  selDot: { color: tokens.color.gold, display: 'inline-flex', position: 'absolute', insetInlineEnd: '-3px', top: '-3px' },
+  selDot: {
+    color: reset.color.text,
+    display: 'inline-flex',
+    position: 'absolute',
+    insetInlineEnd: '-3px',
+    top: '-3px',
+  },
   slot: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '44px',
-    height: '32px',
-    borderRadius: '999px',
-    border: `1px dashed ${tokens.color.goldFaint}`,
-    background: 'rgba(255,255,255,0.5)',
+    width: '38px',
+    height: '30px',
+    borderRadius: reset.radius.sm,
+    border: `1px dashed ${reset.color.border}`,
+    background: reset.color.page,
     flexShrink: 0,
   },
   slotDot: {
     width: '5px',
     height: '5px',
     borderRadius: '50%',
-    background: tokens.color.goldSoft,
+    background: reset.color.textFaint,
   },
   variantName: {
-    fontFamily: tokens.font.body,
-    fontSize: '12.5px',
+    fontFamily: reset.font.body,
+    fontSize: '12px',
     fontWeight: 600,
-    color: tokens.color.charcoal,
+    color: reset.color.text,
     whiteSpace: 'nowrap',
-    letterSpacing: '0.02em',
   },
   primary: {
-    minHeight: '50px',
-    padding: '13px 32px',
-    fontFamily: tokens.font.body,
-    fontSize: '15px',
+    minHeight: '44px',
+    padding: '11px 26px',
+    fontFamily: reset.font.body,
+    fontSize: '13.5px',
     fontWeight: 700,
-    letterSpacing: '0.02em',
-    color: tokens.color.graphite,
-    background: `linear-gradient(180deg, ${tokens.color.goldSoft} 0%, ${tokens.color.gold} 100%)`,
+    letterSpacing: '0.01em',
+    color: reset.color.primaryText,
+    background: reset.color.primaryBg,
     border: 'none',
-    borderRadius: tokens.radius.md,
+    borderRadius: reset.radius.sm,
     cursor: 'pointer',
     flexShrink: 0,
-    boxShadow: '0 6px 18px rgba(184,151,90,0.28)',
-    transition: 'transform 140ms, box-shadow 140ms',
   },
   primaryDisabled: {
-    background: tokens.color.platinumSoft,
-    color: tokens.color.inkFaint,
-    opacity: 0.8,
+    background: reset.color.border,
+    color: reset.color.textFaint,
+    opacity: 0.9,
     cursor: 'not-allowed',
-    boxShadow: 'none',
   },
 };

@@ -1,34 +1,24 @@
 // components/studio/design/shell/StudioWorkflowRail.js
 //
-// Clean 5D — left icon workflow rail. A slim studio workflow (not a menu):
-// Stones → Product → Design → Brief → Production. Icon + very short label.
-// "Production" is an honest future/disabled affordance.
+// LESHEM.S OS — Design Studio Layout Reset — compact step indicator.
 //
-// Clean 5D-R3: relit to the light ivory/platinum chrome direction (was dark
-// graphite). Selected state now reads via a soft gold chip + charcoal text
-// (graphite reserved for small text contrast, not the whole rail surface).
-// Targets enlarged for comfort; aria-label added for the icon-only exit
-// control. Presentation + navigation only — no business logic changed.
+// Studio Layout Reset (Clean 5D-R4): this was previously a vertical icon
+// rail occupying its own grid column. It is now a compact, icon-only,
+// horizontal row embedded in the Center Work Canvas header (Zone 3),
+// alongside a separate "current step title" — see StudioShell.js. Same
+// steps, same order, same active-step semantics as before: Stones → Product
+// → Design → Brief → Production (disabled/future). The "exit studio"
+// control moved to StudioCommandBar (top bar) since it no longer fits
+// naturally in a compact horizontal step row.
 //
-// UX Compression Pass: the rail is now icon-first — the short Hebrew word
-// under each icon is no longer always rendered. Every step keeps its label
-// as a hover tooltip (title, already present) and now also as an
-// aria-label (previously only the exit control had one), so nothing is
-// lost for either sighted or screen-reader users — it's just not printed
-// on screen five times at once. The active step is still unambiguous via
-// the existing gold chip + gold accent bar.
+// Presentation + navigation only — no business logic. No existing step key,
+// label, or navigation behavior removed; STUDIO_5D_HE.rail / .aria keys are
+// unchanged and still used here.
 
 import * as React from 'react';
-import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
-import {
-  StoneIcon,
-  ProductIcon,
-  DesignIcon,
-  BriefIcon,
-  ProductionIcon,
-  HomeIcon,
-} from './StudioIcons';
+import { StoneIcon, ProductIcon, DesignIcon, BriefIcon, ProductionIcon } from './StudioIcons';
+import { reset } from './studioResetStyle';
 
 const STEPS = [
   { key: 'stones', Icon: StoneIcon },
@@ -38,14 +28,10 @@ const STEPS = [
   { key: 'production', Icon: ProductionIcon, future: true },
 ];
 
-export default function StudioWorkflowRail({ active, onSelect, onExit, horizontal = false }) {
+export default function StudioWorkflowRail({ active, onSelect }) {
   const L = STUDIO_5D_HE.rail;
   return (
-    <nav
-      style={{ ...styles.rail, ...(horizontal ? styles.railHorizontal : null) }}
-      dir="rtl"
-      aria-label={STUDIO_5D_HE.aria.workflowNav}
-    >
+    <nav style={styles.rail} dir="rtl" aria-label={STUDIO_5D_HE.aria.workflowNav}>
       {STEPS.map(({ key, Icon, future }) => {
         const isActive = active === key;
         const label = future ? STUDIO_5D_HE.railProductionSoon : L[key];
@@ -57,34 +43,17 @@ export default function StudioWorkflowRail({ active, onSelect, onExit, horizonta
             onClick={() => !future && onSelect && onSelect(key)}
             title={label}
             aria-label={label}
+            aria-current={isActive ? 'step' : undefined}
             style={{
               ...styles.step,
               ...(isActive ? styles.stepActive : null),
               ...(future ? styles.stepFuture : null),
             }}
-            aria-current={isActive ? 'step' : undefined}
           >
-            <span style={styles.iconWrap}>
-              <Icon size={20} />
-            </span>
-            {isActive ? <span style={styles.activeBar} aria-hidden="true" /> : null}
+            <Icon size={15} />
           </button>
         );
       })}
-
-      {typeof onExit === 'function' && (
-        <button
-          type="button"
-          onClick={onExit}
-          title={STUDIO_5D_HE.exitStudio}
-          aria-label={STUDIO_5D_HE.aria.exitStudio}
-          style={{ ...styles.step, ...styles.exitStep }}
-        >
-          <span style={styles.iconWrap}>
-            <HomeIcon size={20} />
-          </span>
-        </button>
-      )}
     </nav>
   );
 }
@@ -92,68 +61,25 @@ export default function StudioWorkflowRail({ active, onSelect, onExit, horizonta
 const styles = {
   rail: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    padding: '16px 9px',
-    height: '100%',
-    minHeight: 0,
-    background: tokens.color.canvas,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.lg,
-    boxShadow: tokens.shadow.soft,
-    minWidth: '60px',
-  },
-  railHorizontal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: '4px',
-    minWidth: 0,
-    padding: '9px',
   },
   step: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '46px',
-    padding: '12px 6px',
-    background: 'transparent',
-    border: '1px solid transparent',
-    borderRadius: tokens.radius.md,
-    cursor: 'pointer',
-    color: tokens.color.inkSoft,
-    flex: '1 1 auto',
-    transition: 'background 140ms, border-color 140ms, color 140ms',
-  },
-  stepActive: {
-    background: tokens.color.goldFaint,
-    border: `1px solid ${tokens.color.goldSoft}`,
-    color: tokens.color.charcoal,
-  },
-  stepFuture: { color: tokens.color.platinumSoft, opacity: 0.7, cursor: 'not-allowed' },
-  exitStep: {
-    marginTop: 'auto',
-    color: tokens.color.inkFaint,
-    borderTop: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: 0,
-    paddingTop: '14px',
-    minHeight: '44px',
-  },
-  iconWrap: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '24px',
-    height: '24px',
+    width: '32px',
+    height: '32px',
+    background: 'transparent',
+    border: `1px solid transparent`,
+    borderRadius: reset.radius.sm,
+    color: reset.color.textMuted,
+    cursor: 'pointer',
   },
-  activeBar: {
-    position: 'absolute',
-    insetInlineStart: '3px',
-    top: '22%',
-    bottom: '22%',
-    width: '3px',
-    borderRadius: '3px',
-    background: `linear-gradient(180deg, ${tokens.color.gold}, ${tokens.color.goldSoft})`,
+  stepActive: {
+    background: reset.color.page,
+    border: `1px solid ${reset.color.borderStrong}`,
+    color: reset.color.text,
   },
+  stepFuture: { color: reset.color.textFaint, opacity: 0.6, cursor: 'not-allowed' },
 };

@@ -1,54 +1,63 @@
 // components/studio/design/shell/StudioCommandBar.js
 //
-// Clean 5D-R — compact command bar (top-left cell). Studio identity + a calm
-// status pill. Presentation only; status derived from props.
+// LESHEM.S OS — Design Studio Layout Reset — top command bar (top-left cell).
+// Studio identity + a calm status pill + the studio exit control (moved here
+// from the workflow step indicator, which is now embedded in the canvas
+// header — see StudioCanvas usage in StudioShell.js). Presentation only;
+// status derived from props, exit is a plain navigation callback from the
+// shell (router.push('/studio')) — no business logic here.
 //
-// Clean 5D-R3: relit to the light ivory/platinum chrome direction. The bar is
-// no longer a heavy dark surface — it reads as a calm card, matching the
-// canvas and inspector. Graphite/dark tones are used only as small text
-// contrast (e.g. inside the identity mark), never as a full-width surface.
-// No logic changed — status text/dot mapping is identical to 5D-R2.
-//
-// UX Compression Pass: the status word is no longer always-visible text next
-// to the dot — it's now a hover tooltip + aria-label on the pill, with the
-// colored dot serving as the always-visible badge (icon/badge over text,
-// per the compression rules). Status logic itself is untouched.
+// Studio Layout Reset (Clean 5D-R4): relit to the near-white / graphite
+// direction (see ./studioResetStyle.js). No status logic changed.
 
 import * as React from 'react';
-import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
-import { DotIcon } from './StudioIcons';
+import { DotIcon, HomeIcon } from './StudioIcons';
+import { reset } from './studioResetStyle';
 
-export default function StudioCommandBar({ hasActiveWork, outputState }) {
+export default function StudioCommandBar({ hasActiveWork, outputState, onExit }) {
   const L = STUDIO_5D_HE;
 
   let statusText = L.statusDraft;
-  let dot = tokens.color.inkFaint;
+  let dot = reset.color.textFaint;
   if (hasActiveWork) {
     statusText = L.statusActive;
-    dot = tokens.color.sage;
+    dot = reset.color.text;
   }
   if (outputState === 'ready') {
     statusText = L.statusOutputReady;
-    dot = tokens.color.gold;
+    dot = reset.color.accent;
   } else if (outputState === 'stale') {
     statusText = L.statusOutputStale;
-    dot = tokens.color.ice;
+    dot = reset.color.textMuted;
   }
 
   return (
     <header style={styles.bar} dir="rtl">
       <div style={styles.identity}>
         <span style={styles.mark} aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
             <path d="M6 3h12l3 6-9 12L3 9l3-6z" />
           </svg>
         </span>
         <span style={styles.name}>{L.appName}</span>
       </div>
-      <span style={styles.status} title={statusText} aria-label={statusText} role="status">
-        <DotIcon size={8} color={dot} />
-      </span>
+      <div style={styles.right}>
+        <span style={styles.status} title={statusText} aria-label={statusText} role="status">
+          <DotIcon size={8} color={dot} />
+        </span>
+        {typeof onExit === 'function' && (
+          <button
+            type="button"
+            onClick={onExit}
+            title={L.exitStudio}
+            aria-label={L.aria.exitStudio}
+            style={styles.exitBtn}
+          >
+            <HomeIcon size={16} />
+          </button>
+        )}
+      </div>
     </header>
   );
 }
@@ -59,46 +68,57 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '10px',
-    padding: '0 18px',
+    padding: '0 14px',
     height: '100%',
-    minHeight: '52px',
-    background: tokens.color.canvas,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    borderRadius: tokens.radius.md,
-    color: tokens.color.charcoal,
-    boxShadow: tokens.shadow.soft,
+    minHeight: '48px',
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: reset.radius.md,
+    color: reset.color.text,
   },
-  identity: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 },
+  identity: { display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 },
   mark: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '24px',
+    height: '24px',
+    borderRadius: reset.radius.sm,
+    color: reset.color.text,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    flexShrink: 0,
+  },
+  name: {
+    fontFamily: reset.font.body,
+    fontSize: '12.5px',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    color: reset.color.text,
+    whiteSpace: 'nowrap',
+  },
+  right: { display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 },
+  status: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     width: '28px',
     height: '28px',
-    borderRadius: '50%',
-    color: tokens.color.gold,
-    background: tokens.color.goldFaint,
-    border: `1px solid ${tokens.color.goldSoft}`,
-    flexShrink: 0,
+    borderRadius: reset.radius.sm,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    cursor: 'default',
   },
-  name: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    fontWeight: 700,
-    letterSpacing: '0.12em',
-    color: tokens.color.charcoal,
-    whiteSpace: 'nowrap',
-  },
-  status: {
+  exitBtn: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-    width: '30px',
-    height: '30px',
-    borderRadius: '50%',
-    background: tokens.color.platinumSoft,
-    border: `1px solid ${tokens.color.cardEdge}`,
-    cursor: 'default',
+    width: '32px',
+    height: '32px',
+    borderRadius: reset.radius.sm,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    color: reset.color.textMuted,
+    cursor: 'pointer',
   },
 };
