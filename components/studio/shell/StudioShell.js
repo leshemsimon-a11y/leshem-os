@@ -204,7 +204,7 @@ const styles = {
   desktopContentWrap: {
     maxWidth: '960px',
     margin: '0 auto',
-    padding: '48px 40px 80px',
+    padding: '32px 32px 56px',
   },
   // Clean 5D-R — edge-to-edge content for the full-viewport Design Studio.
   // Fills the area beside the nav rail; the inner studio owns its own height
@@ -272,7 +272,7 @@ const styles = {
   mobileContentWrap: {
     maxWidth: '720px',
     margin: '0 auto',
-    padding: '28px 20px 64px',
+    padding: '20px 16px 48px',
   },
   backdrop: {
     position: 'fixed',

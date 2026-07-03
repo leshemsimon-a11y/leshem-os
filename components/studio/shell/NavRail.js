@@ -54,10 +54,11 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
                     aria-current={isActive ? 'page' : undefined}
                     style={{
                       ...styles.item,
+                      ...(!item.built ? styles.itemFuture : null),
                       ...(isActive ? styles.itemActive : null),
                     }}
                   >
-                    <span style={styles.itemGlyph} aria-hidden="true">
+                    <span style={{ ...styles.itemGlyph, ...(!item.built ? styles.itemGlyphFuture : null) }} aria-hidden="true">
                       {item.glyph}
                     </span>
                     <span style={styles.itemLabel}>{item.labelHe}</span>
@@ -81,19 +82,19 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
 
 const styles = {
   rail: {
-    width: '264px',
+    width: '240px',
     flexShrink: 0,
     height: '100vh',
     position: 'sticky',
     top: 0,
     background: tokens.color.ivory,
     borderLeft: `1px solid ${tokens.color.cardEdge}`,
-    padding: '28px 18px',
+    padding: '20px 14px',
     boxSizing: 'border-box',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '28px',
+    gap: '22px',
   },
   // In the mobile drawer the rail fills the drawer; positioning is handled by
   // the drawer wrapper in StudioShell, so we relax sticky/height here.
@@ -165,6 +166,17 @@ const styles = {
     color: tokens.color.ink,
     textAlign: 'right',
     transition: 'background 140ms ease, color 140ms ease',
+  },
+  // Global Visual Upgrade V1 — not-yet-built sections read as a quieter,
+  // more compact secondary list (less clutter) rather than full-weight
+  // items. Same onClick/navigation as before — visual only.
+  itemFuture: {
+    padding: '7px 12px',
+    fontSize: '13px',
+    color: tokens.color.inkFaint,
+  },
+  itemGlyphFuture: {
+    color: tokens.color.inkFaint,
   },
   itemActive: {
     background: tokens.color.canvas,

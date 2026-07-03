@@ -1,9 +1,25 @@
 // components/studio/demo/DemoInventoryWorkspace.js
 // LESHEM.S OS — clean temporary Demo Inventory screen.
 // Self-contained page-level component. No Airtable writes, no schema changes.
+//
+// Global Visual Upgrade V1 (Clean 5E-Global): visual/layout pass only. All
+// state, handlers, and data flow below are UNCHANGED from the previous
+// version — persist/updateActive/toggleTray/resetDemo, the filtering logic,
+// and every import from lib/studio/demoInventoryLayer.js are identical. What
+// changed:
+//   • Now uses the shared components/studio/shared/tokens.js palette instead
+//     of its own hardcoded hex literals, so it matches the rest of the app
+//     and the Design Studio Layout Reset direction (near-white/graphite,
+//     less gold, tighter radius).
+//   • Stone images: square contain frames (was a 1/0.78 cropped "cover"
+//     rectangle) — the full gemstone is now always visible, never cropped.
+//   • Tray actions get a small inline icon alongside their existing label
+//     (icons for actions, per the visual upgrade brief) — same onClick,
+//     same behavior.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
+import { tokens } from '../shared/tokens';
 import {
   getDemoInventorySnapshot,
   saveDemoInventorySnapshot,
@@ -47,6 +63,48 @@ function currency(value) {
 
 function cloneItems(items) {
   return Array.isArray(items) ? items.map((item) => ({ ...item })) : [];
+}
+
+// Small inline icon set — self-contained (no cross-import from the Design
+// Studio shell), matching this file's own "self-contained" convention.
+function TrayIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 13h4l2 3h4l2-3h4" />
+      <path d="M5 13l1.6-7h10.8L19 13" />
+      <path d="M4 13v5.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V13" />
+    </svg>
+  );
+}
+function RemoveIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" />
+    </svg>
+  );
+}
+function DesignIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 17.5L14 6.5l3.5 3.5L6.5 21H3v-3.5z" />
+      <path d="M13 7.5l3.5 3.5" />
+    </svg>
+  );
+}
+function ResetIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <path d="M20 11a8 8 0 1 0-.6 4M20 5v6h-6" />
+    </svg>
+  );
+}
+function SearchIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M20 20l-4.3-4.3" />
+    </svg>
+  );
 }
 
 function Field({ label, children }) {
@@ -107,6 +165,7 @@ function StoneCard({ item, active, onClick, onToggleTray }) {
             onToggleTray(item.id);
           }}
         >
+          {item.selectedForTray ? <RemoveIcon /> : <TrayIcon />}
           {item.selectedForTray ? 'הסר מ־Work Tray' : 'שלח ל־Work Tray'}
         </button>
       </div>
@@ -183,12 +242,16 @@ export default function DemoInventoryWorkspace() {
           <span style={styles.kicker}>LESHEM.S OS · Demo Inventory</span>
           <h1 style={styles.title}>מלאי אבנים — שכבת דמו פעילה</h1>
           <p style={styles.subtitle}>
-            מסך נקי לבחירה, בדיקה וקסטום של אבני הדמו. כל שינוי נשמר רק בדפדפן ולא נוגע במלאי האמיתי.
+            מסך לבחירה ובדיקה של אבני דמו. שינויים נשמרים בדפדפן בלבד.
           </p>
         </div>
         <div style={styles.headerActions}>
-          <button type="button" style={styles.secondaryBtn} onClick={resetDemo}>אפס דמו</button>
-          <button type="button" style={styles.primaryBtn} onClick={() => router.push('/studio/design')}>פתח Design Studio</button>
+          <button type="button" style={styles.secondaryBtn} onClick={resetDemo}>
+            <ResetIcon /> אפס דמו
+          </button>
+          <button type="button" style={styles.primaryBtn} onClick={() => router.push('/studio/design')}>
+            <DesignIcon /> פתח Design Studio
+          </button>
         </div>
       </section>
 
@@ -214,12 +277,15 @@ export default function DemoInventoryWorkspace() {
             <span style={styles.panelTitle}>סינון מהיר</span>
             <span style={styles.softBadge}>Temporary</span>
           </div>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="חפש אבן, צבע, מספר מלאי…"
-            style={styles.searchInput}
-          />
+          <div style={styles.searchWrap}>
+            <span style={styles.searchIcon} aria-hidden="true"><SearchIcon /></span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="חפש אבן, צבע, מספר מלאי…"
+              style={styles.searchInput}
+            />
+          </div>
           <div style={styles.filterList}>
             {TYPE_FILTERS.map((filter) => (
               <button
@@ -310,10 +376,11 @@ export default function DemoInventoryWorkspace() {
 
               <div style={styles.inspectActions}>
                 <button type="button" style={styles.primaryBtnFull} onClick={() => toggleTray(activeItem.id)}>
+                  {activeItem.selectedForTray ? <RemoveIcon /> : <TrayIcon />}
                   {activeItem.selectedForTray ? 'הסר מ־Work Tray' : 'שלח ל־Work Tray'}
                 </button>
                 <button type="button" style={styles.secondaryBtnFull} onClick={() => router.push('/studio/design')}>
-                  עבור לעיצוב עם האבנים
+                  <DesignIcon /> עבור לעיצוב עם האבנים
                 </button>
               </div>
             </>
@@ -329,11 +396,11 @@ export default function DemoInventoryWorkspace() {
 const styles = {
   page: {
     minHeight: '100vh',
-    padding: '18px',
+    padding: '16px',
     boxSizing: 'border-box',
-    background: '#f6f1e8',
-    color: '#24211d',
-    fontFamily: 'Arial, sans-serif',
+    background: tokens.color.ivory,
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
   },
   header: {
     display: 'flex',
@@ -343,64 +410,75 @@ const styles = {
     maxWidth: '1480px',
     margin: '0 auto 14px',
   },
-  kicker: { fontSize: '11px', letterSpacing: '0.18em', fontWeight: 900, color: '#9f7e43' },
-  title: { margin: '4px 0 4px', fontSize: '30px', lineHeight: 1.1, letterSpacing: '-0.04em' },
-  subtitle: { margin: 0, color: '#6f6a61', maxWidth: '760px', lineHeight: 1.5, fontSize: '14px' },
+  kicker: { fontSize: '10px', letterSpacing: '0.14em', fontWeight: 700, color: tokens.color.gold },
+  title: { margin: '4px 0 4px', fontSize: '24px', lineHeight: 1.15, fontFamily: tokens.font.display, fontWeight: 700, color: tokens.color.charcoal },
+  subtitle: { margin: 0, color: tokens.color.inkSoft, maxWidth: '640px', lineHeight: 1.5, fontSize: '13px' },
   headerActions: { display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 },
-  primaryBtn: { border: 'none', background: '#27231f', color: '#fff9ef', borderRadius: '14px', padding: '12px 18px', fontWeight: 800, cursor: 'pointer' },
-  secondaryBtn: { border: '1px solid rgba(39,35,31,0.16)', background: '#fffaf2', color: '#27231f', borderRadius: '14px', padding: '12px 18px', fontWeight: 800, cursor: 'pointer' },
-  statsRow: { maxWidth: '1480px', margin: '0 auto 12px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' },
-  stat: { background: '#fffaf2', border: '1px solid rgba(161,130,74,0.22)', borderRadius: '18px', padding: '12px 16px', boxShadow: '0 10px 24px rgba(39,35,31,0.04)' },
-  statValue: { display: 'block', fontSize: '18px', fontWeight: 900, color: '#27231f' },
-  statLabel: { display: 'block', marginTop: '2px', fontSize: '11px', color: '#877c6b', fontWeight: 800 },
-  activityRow: { maxWidth: '1480px', margin: '0 auto 12px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' },
-  activityItem: { display: 'flex', alignItems: 'center', gap: '8px', background: '#fffdf8', border: '1px solid rgba(39,35,31,0.08)', borderRadius: '16px', padding: '10px 12px', fontSize: '12px', fontWeight: 800, color: '#514a41' },
-  activityDot: { width: '8px', height: '8px', borderRadius: '99px', background: '#b99658', flexShrink: 0 },
-  workspace: { maxWidth: '1480px', margin: '0 auto', display: 'grid', gridTemplateColumns: '230px minmax(0, 1fr) 360px', gap: '12px', alignItems: 'start' },
-  leftPanel: { background: '#fffaf2', border: '1px solid rgba(39,35,31,0.09)', borderRadius: '22px', padding: '14px', position: 'sticky', top: '14px' },
+  primaryBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: '7px', border: 'none', background: tokens.color.charcoal,
+    color: tokens.color.ivory, borderRadius: tokens.radius.md, padding: '10px 16px', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
+  },
+  secondaryBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: '7px', border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.canvas,
+    color: tokens.color.charcoal, borderRadius: tokens.radius.md, padding: '10px 16px', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
+  },
+  statsRow: { maxWidth: '1480px', margin: '0 auto 10px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' },
+  stat: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.md, padding: '11px 14px', boxShadow: tokens.shadow.soft },
+  statValue: { display: 'block', fontSize: '17px', fontWeight: 700, color: tokens.color.charcoal },
+  statLabel: { display: 'block', marginTop: '2px', fontSize: '10.5px', color: tokens.color.inkFaint, fontWeight: 600 },
+  activityRow: { maxWidth: '1480px', margin: '0 auto 10px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' },
+  activityItem: { display: 'flex', alignItems: 'center', gap: '8px', background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.sm, padding: '9px 11px', fontSize: '11.5px', fontWeight: 600, color: tokens.color.inkSoft },
+  activityDot: { width: '6px', height: '6px', borderRadius: '50%', background: tokens.color.gold, flexShrink: 0 },
+  workspace: { maxWidth: '1480px', margin: '0 auto', display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr) 340px', gap: '12px', alignItems: 'start' },
+  leftPanel: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, padding: '14px', position: 'sticky', top: '14px' },
   panelHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' },
-  panelTitle: { fontSize: '14px', fontWeight: 900 },
-  softBadge: { fontSize: '10px', fontWeight: 900, borderRadius: '999px', padding: '5px 8px', background: '#efe5d2', color: '#85683b' },
-  searchInput: { width: '100%', boxSizing: 'border-box', borderRadius: '14px', border: '1px solid rgba(39,35,31,0.12)', background: '#fffdf8', padding: '12px 12px', fontSize: '13px', outline: 'none' },
-  filterList: { display: 'flex', flexDirection: 'column', gap: '7px', marginTop: '12px' },
-  filterBtn: { minHeight: '38px', borderRadius: '14px', border: '1px solid rgba(39,35,31,0.1)', background: '#fffdf8', color: '#514a41', fontWeight: 800, cursor: 'pointer', textAlign: 'right', padding: '8px 12px' },
-  filterBtnActive: { background: '#27231f', color: '#fff9ef' },
-  noteBox: { marginTop: '14px', padding: '12px', borderRadius: '16px', background: '#efe5d2', color: '#6e5d42', display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '12px', lineHeight: 1.45 },
+  panelTitle: { fontSize: '13px', fontWeight: 700, color: tokens.color.charcoal },
+  softBadge: { fontSize: '9.5px', fontWeight: 700, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '3px 7px', background: tokens.color.goldFaint, color: tokens.color.inkSoft },
+  searchWrap: { position: 'relative', display: 'flex', alignItems: 'center' },
+  searchIcon: { position: 'absolute', insetInlineStart: '10px', color: tokens.color.inkFaint, display: 'inline-flex', pointerEvents: 'none' },
+  searchInput: { width: '100%', boxSizing: 'border-box', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, padding: '10px 12px 10px 32px', fontSize: '12.5px', outline: 'none', fontFamily: tokens.font.body },
+  filterList: { display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' },
+  filterBtn: { minHeight: '36px', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, color: tokens.color.inkSoft, fontWeight: 600, fontSize: '13px', cursor: 'pointer', textAlign: 'right', padding: '8px 12px', fontFamily: tokens.font.body },
+  filterBtnActive: { background: tokens.color.charcoal, color: tokens.color.ivory, borderColor: tokens.color.charcoal },
+  noteBox: { marginTop: '14px', padding: '11px', borderRadius: tokens.radius.sm, background: tokens.color.pearl, color: tokens.color.inkSoft, display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px', lineHeight: 1.5 },
   gridPanel: { minWidth: 0 },
-  gridHead: { height: '42px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' },
-  gridTitle: { fontSize: '16px', fontWeight: 900 },
-  gridCount: { fontSize: '12px', color: '#7b7162', fontWeight: 800 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '12px' },
-  card: { background: '#fffdf8', border: '1px solid rgba(39,35,31,0.08)', borderRadius: '22px', overflow: 'hidden', cursor: 'pointer', boxShadow: '0 12px 28px rgba(39,35,31,0.06)' },
-  cardActive: { outline: '2px solid #b99658', boxShadow: '0 16px 34px rgba(185,150,88,0.22)' },
-  cardImageWrap: { position: 'relative', aspectRatio: '1 / 0.78', background: '#fff', overflow: 'hidden' },
-  cardImage: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-  cardDemoPill: { position: 'absolute', top: '9px', right: '9px', background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(39,35,31,0.12)', borderRadius: '999px', padding: '4px 8px', fontSize: '9px', fontWeight: 900, letterSpacing: '0.12em' },
-  cardSelectedPill: { position: 'absolute', bottom: '9px', right: '9px', background: '#27231f', color: '#fff9ef', borderRadius: '999px', padding: '5px 9px', fontSize: '10px', fontWeight: 900 },
-  cardBody: { padding: '12px', display: 'flex', flexDirection: 'column', gap: '7px' },
+  gridHead: { height: '38px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 2px' },
+  gridTitle: { fontSize: '14px', fontWeight: 700, color: tokens.color.charcoal, fontFamily: tokens.font.display },
+  gridCount: { fontSize: '11.5px', color: tokens.color.inkFaint, fontWeight: 600 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' },
+  card: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, overflow: 'hidden', cursor: 'pointer', boxShadow: tokens.shadow.soft },
+  cardActive: { border: `1.5px solid ${tokens.color.charcoal}`, boxShadow: tokens.shadow.lift },
+  // Global Visual Upgrade V1 — square, contain image frame (was a 1/0.78
+  // cropped "cover" rectangle). Full gemstone always visible, never cropped.
+  cardImageWrap: { position: 'relative', aspectRatio: '1 / 1', background: tokens.color.pearl, overflow: 'hidden' },
+  cardImage: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
+  cardDemoPill: { position: 'absolute', top: '8px', insetInlineEnd: '8px', background: 'rgba(255,255,255,0.9)', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '3px 7px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em' },
+  cardSelectedPill: { position: 'absolute', bottom: '8px', insetInlineEnd: '8px', background: tokens.color.charcoal, color: tokens.color.ivory, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '9.5px', fontWeight: 700 },
+  cardBody: { padding: '11px', display: 'flex', flexDirection: 'column', gap: '6px' },
   cardTopLine: { display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' },
-  inventoryNo: { fontSize: '11px', color: '#9f7e43', fontWeight: 900, letterSpacing: '0.08em' },
-  price: { fontSize: '12px', color: '#27231f', fontWeight: 900 },
-  cardTitle: { margin: 0, fontSize: '16px', letterSpacing: '-0.02em' },
-  cardSub: { margin: 0, fontSize: '12px', color: '#746b5e' },
+  inventoryNo: { fontSize: '10.5px', color: tokens.color.gold, fontWeight: 700, letterSpacing: '0.04em' },
+  price: { fontSize: '11.5px', color: tokens.color.charcoal, fontWeight: 700 },
+  cardTitle: { margin: 0, fontSize: '15px', color: tokens.color.charcoal, fontFamily: tokens.font.display, fontWeight: 700 },
+  cardSub: { margin: 0, fontSize: '11.5px', color: tokens.color.inkSoft },
   pills: { display: 'flex', flexWrap: 'wrap', gap: '5px' },
-  pillsWide: { display: 'flex', flexWrap: 'wrap', gap: '7px' },
-  pill: { background: '#f1eadc', borderRadius: '999px', padding: '5px 8px', fontSize: '10px', color: '#5d5348', fontWeight: 900 },
-  trayBtn: { marginTop: '4px', border: '1px solid rgba(39,35,31,0.13)', background: '#fffaf2', borderRadius: '13px', minHeight: '34px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' },
-  trayBtnOn: { background: '#27231f', color: '#fff9ef' },
-  inspector: { background: '#fffaf2', border: '1px solid rgba(39,35,31,0.09)', borderRadius: '22px', padding: '14px', position: 'sticky', top: '14px', boxShadow: '0 12px 30px rgba(39,35,31,0.06)' },
-  inspectImageWrap: { position: 'relative', borderRadius: '18px', overflow: 'hidden', background: '#fff', aspectRatio: '1 / 0.78', border: '1px solid rgba(39,35,31,0.08)' },
-  inspectImage: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-  inspectPill: { position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(39,35,31,0.12)', borderRadius: '999px', padding: '5px 8px', fontSize: '9px', fontWeight: 900, letterSpacing: '0.12em' },
+  pillsWide: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
+  pill: { background: tokens.color.pearl, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '10px', color: tokens.color.inkSoft, fontWeight: 600 },
+  trayBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px', border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, color: tokens.color.charcoal, borderRadius: tokens.radius.sm, minHeight: '34px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
+  trayBtnOn: { background: tokens.color.charcoal, color: tokens.color.ivory, borderColor: tokens.color.charcoal },
+  inspector: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, padding: '14px', position: 'sticky', top: '14px', boxShadow: tokens.shadow.soft },
+  // Global Visual Upgrade V1 — square, contain (same reasoning as cardImage).
+  inspectImageWrap: { position: 'relative', borderRadius: tokens.radius.md, overflow: 'hidden', background: tokens.color.pearl, aspectRatio: '1 / 1', border: `1px solid ${tokens.color.cardEdge}` },
+  inspectImage: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
+  inspectPill: { position: 'absolute', top: '9px', insetInlineEnd: '9px', background: 'rgba(255,255,255,0.9)', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em' },
   inspectHead: { marginTop: '12px' },
-  inspectTitle: { margin: '4px 0 2px', fontSize: '22px', letterSpacing: '-0.04em' },
-  inspectSub: { margin: 0, color: '#746b5e', fontSize: '13px' },
+  inspectTitle: { margin: '4px 0 2px', fontSize: '19px', color: tokens.color.charcoal, fontFamily: tokens.font.display, fontWeight: 700 },
+  inspectSub: { margin: 0, color: tokens.color.inkSoft, fontSize: '12.5px' },
   formGrid: { marginTop: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
   field: { display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 },
-  fieldLabel: { fontSize: '11px', fontWeight: 900, color: '#7b7162' },
-  input: { minHeight: '38px', borderRadius: '12px', border: '1px solid rgba(39,35,31,0.12)', background: '#fffdf8', padding: '8px 10px', fontSize: '12px', outline: 'none', boxSizing: 'border-box', width: '100%' },
+  fieldLabel: { fontSize: '10.5px', fontWeight: 700, color: tokens.color.inkFaint },
+  input: { minHeight: '36px', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none', boxSizing: 'border-box', width: '100%', fontFamily: tokens.font.body, color: tokens.color.charcoal },
   inspectActions: { display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '14px' },
-  primaryBtnFull: { minHeight: '42px', border: 'none', borderRadius: '14px', background: '#27231f', color: '#fff9ef', fontWeight: 900, cursor: 'pointer' },
-  secondaryBtnFull: { minHeight: '42px', border: '1px solid rgba(39,35,31,0.14)', borderRadius: '14px', background: '#fffdf8', color: '#27231f', fontWeight: 900, cursor: 'pointer' },
-  emptyInspector: { minHeight: '300px', display: 'grid', placeItems: 'center', color: '#7b7162', fontWeight: 800 },
+  primaryBtnFull: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '42px', border: 'none', borderRadius: tokens.radius.sm, background: tokens.color.charcoal, color: tokens.color.ivory, fontWeight: 700, fontSize: '13px', cursor: 'pointer' },
+  secondaryBtnFull: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '42px', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.sm, background: tokens.color.ivory, color: tokens.color.charcoal, fontWeight: 700, fontSize: '13px', cursor: 'pointer' },
+  emptyInspector: { minHeight: '280px', display: 'grid', placeItems: 'center', color: tokens.color.inkFaint, fontWeight: 600, fontSize: '13px' },
 };

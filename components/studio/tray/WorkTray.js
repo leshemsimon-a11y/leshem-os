@@ -285,9 +285,9 @@ const styles = {
   title: {
     fontFamily: tokens.font.display,
     fontWeight: 700,
-    fontSize: '34px',
+    fontSize: '26px',
     color: tokens.color.charcoal,
-    margin: '8px 0 12px',
+    margin: '6px 0 10px',
   },
   draftNote: {
     fontFamily: tokens.font.body,

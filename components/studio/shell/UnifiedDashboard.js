@@ -206,40 +206,40 @@ export default function UnifiedDashboard() {
 }
 
 const styles = {
-  header: { marginBottom: '18px' },
-  eyebrow: { fontFamily: tokens.font.body, fontSize: '14px', fontWeight: 600, letterSpacing: '0.06em', color: tokens.color.gold },
-  title: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '32px', color: tokens.color.charcoal, margin: '6px 0 0' },
+  header: { marginBottom: '14px' },
+  eyebrow: { fontFamily: tokens.font.body, fontSize: '13px', fontWeight: 600, letterSpacing: '0.06em', color: tokens.color.gold },
+  title: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '26px', color: tokens.color.charcoal, margin: '5px 0 0' },
 
   // Active band
   activeBand: {
     display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px',
-    padding: '18px 20px', marginBottom: '28px',
+    padding: '14px 18px', marginBottom: '20px',
     background: tokens.color.goldFaint, border: `1px solid ${tokens.color.goldSoft}`, borderRadius: tokens.radius.lg,
   },
   activeInfo: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 },
   activeDot: { width: '10px', height: '10px', borderRadius: '50%', background: tokens.color.gold, flexShrink: 0 },
-  activeText: { fontFamily: tokens.font.body, fontSize: '15px', color: tokens.color.charcoal },
+  activeText: { fontFamily: tokens.font.body, fontSize: '14px', color: tokens.color.charcoal },
   activeName: { fontFamily: tokens.font.body, fontWeight: 700, color: tokens.color.charcoal },
-  noActiveText: { fontFamily: tokens.font.body, fontSize: '15px', fontWeight: 700, color: tokens.color.charcoal },
-  noActiveHint: { fontFamily: tokens.font.body, fontSize: '13px', color: tokens.color.inkSoft, margin: '4px 0 0', maxWidth: '420px' },
+  noActiveText: { fontFamily: tokens.font.body, fontSize: '14px', fontWeight: 700, color: tokens.color.charcoal },
+  noActiveHint: { fontFamily: tokens.font.body, fontSize: '12.5px', color: tokens.color.inkSoft, margin: '4px 0 0', maxWidth: '420px' },
   activeActions: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
 
-  sectionTitle: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '20px', color: tokens.color.charcoal, margin: '0 0 14px' },
+  sectionTitle: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '16px', color: tokens.color.charcoal, margin: '0 0 10px' },
 
   // Guided grid
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px', marginBottom: '30px' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '24px' },
   card: {
-    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '7px', textAlign: 'right',
-    padding: '20px', minHeight: '156px', background: tokens.color.canvas,
+    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', textAlign: 'right',
+    padding: '16px', minHeight: '140px', background: tokens.color.canvas,
     border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, boxShadow: tokens.shadow.soft,
     cursor: 'pointer', transition: 'border-color 140ms ease, box-shadow 140ms ease',
   },
   cardGold: { border: `1px solid ${tokens.color.gold}`, background: tokens.color.ivory },
   cardDisabled: { opacity: 0.6, cursor: 'default', boxShadow: 'none', background: tokens.color.pearl },
   cardGlyph: {
-    fontSize: '24px', lineHeight: 1, color: tokens.color.gold, background: tokens.color.goldFaint,
+    fontSize: '20px', lineHeight: 1, color: tokens.color.gold, background: tokens.color.goldFaint,
     border: `1px solid ${tokens.color.goldSoft}`, borderRadius: tokens.radius.md,
-    width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px',
+    width: '38px', height: '38px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2px',
   },
   cardTitle: { fontFamily: tokens.font.display, fontWeight: 700, fontSize: '18px', color: tokens.color.charcoal, lineHeight: 1.3 },
   cardDesc: { fontFamily: tokens.font.body, fontSize: '13px', lineHeight: 1.55, color: tokens.color.inkSoft, flex: 1 },

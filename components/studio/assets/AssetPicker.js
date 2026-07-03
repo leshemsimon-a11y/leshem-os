@@ -209,7 +209,7 @@ export default function AssetPicker({
 
 const styles = {
   overlay: {
-    position: 'fixed', inset: 0, zIndex: 1050, background: 'rgba(43,40,36,0.38)',
+    position: 'fixed', inset: 0, zIndex: 1050, background: 'rgba(20,22,26,0.42)',
     display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 14px', overflowY: 'auto',
   },
   modal: {
