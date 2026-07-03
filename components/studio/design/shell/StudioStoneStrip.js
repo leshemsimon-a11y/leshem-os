@@ -10,20 +10,10 @@
 // Clean 5D-R3: this panel was already on the light ivory chrome direction —
 // only comfort/accessibility polish here (larger add-stones target, explicit
 // aria-label, slightly calmer empty-state wording emphasis). No logic touched.
-//
-// Clean 5D-R3 + Starter Asset Pack v1: when a tray item has NO real
-// snapshot.primaryImage, the chip now falls back to a best-effort demo
-// illustration from the Starter Asset Pack (getStoneThumbFallback) instead
-// of the generic line icon. A small gold "אילוסטרציה" dot marks these as
-// non-final demo art — never mistaken for the real item photo. If nothing
-// in the pack matches the item's shape/type text, the original generic icon
-// fallback is used exactly as before (zero regression).
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
-import { getStoneThumbFallback } from '../../../../lib/studio/assetPack';
-import { getGemstoneThumbFallback } from '../../../../lib/studio/demoGemstoneAssets';
 
 const PARCEL_ROLES = new Set(['parcel']);
 
@@ -44,9 +34,7 @@ function StoneChip({ item }) {
   const parcel = isParcel(item);
   const carat = typeof s.caratWeight === 'number' ? `${s.caratWeight}${STUDIO_5D_HE.caratSuffix}` : '';
   const color = typeof s.color === 'string' && s.color.trim() ? s.color.trim() : '';
-  const realImg = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
-  const demoImg = !realImg ? getGemstoneThumbFallback(item, 'box') || getStoneThumbFallback(item) : null;
-  const img = realImg || demoImg;
+  const img = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
 
   return (
     <div style={styles.chip} dir="rtl">
@@ -63,13 +51,6 @@ function StoneChip({ item }) {
           </span>
         )}
         {parcel ? <span style={styles.parcelBadge}>{STUDIO_5D_HE.parcelChip}</span> : null}
-        {demoImg ? (
-          <span
-            style={styles.demoBadge}
-            title={STUDIO_5D_HE.demoThumbBadge}
-            aria-label={STUDIO_5D_HE.demoThumbBadge}
-          />
-        ) : null}
       </span>
       <span style={styles.meta}>
         <span style={styles.title}>{chipTitle(item)}</span>
@@ -201,16 +182,6 @@ const styles = {
     color: tokens.color.ivory,
     background: tokens.color.ice,
     lineHeight: '12px',
-  },
-  demoBadge: {
-    position: 'absolute',
-    top: '1px',
-    insetInlineEnd: '1px',
-    width: '7px',
-    height: '7px',
-    borderRadius: '50%',
-    background: tokens.color.gold,
-    border: `1px solid ${tokens.color.ivory}`,
   },
   meta: { display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 },
   title: {

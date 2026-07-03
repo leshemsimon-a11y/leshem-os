@@ -24,11 +24,6 @@ import * as React from 'react';
 import { tokens } from '../../shared/tokens';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, TrayIcon } from './StudioIcons';
-import {
-  getEmptyStateIllustration,
-  getBlueprintPlaceholder,
-  getJewelryPreviewPlaceholder,
-} from '../../../../lib/studio/assetPack';
 
 const BLUEPRINT_BG =
   'url("data:image/svg+xml;utf8,' +
@@ -41,7 +36,7 @@ const BLUEPRINT_BG =
   ) +
   '")';
 
-// Soft jewelry-preview tile placeholder (inline SVG fallback — always available).
+// Soft jewelry-preview tile placeholder.
 function PreviewTile({ size = 132 }) {
   return (
     <div style={styles.previewTile} aria-hidden="true">
@@ -50,7 +45,7 @@ function PreviewTile({ size = 132 }) {
   );
 }
 
-// Blueprint technical sketch (inline SVG fallback — always available).
+// Blueprint technical sketch (decorative).
 function BlueprintSketch() {
   return (
     <div style={styles.blueprintArt} aria-hidden="true">
@@ -62,48 +57,6 @@ function BlueprintSketch() {
         <path d="M130 18l-10 22M130 18l10 22" stroke="#CBD3D7" strokeWidth="1" />
         <circle cx="130" cy="150" r="10" stroke="#B9C3C8" strokeWidth="1" />
       </svg>
-    </div>
-  );
-}
-
-// Clean 5D-R3 + Starter Asset Pack v1 — a jewelry preview photo (Asset Pack)
-// filling the same circular frame as PreviewTile. Falls back to the original
-// inline ring silhouette on any load error, so the canvas is NEVER blank or
-// broken even if a static asset is missing at deploy time.
-function PreviewVisual({ size = 132, src }) {
-  const [failed, setFailed] = React.useState(false);
-  if (!src || failed) return <PreviewTile size={size} />;
-  return (
-    <div style={styles.previewTile} aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" style={styles.previewTileImg} onError={() => setFailed(true)} />
-    </div>
-  );
-}
-
-// Clean 5D-R3 + Starter Asset Pack v1 — a real blueprint illustration (Asset
-// Pack) in place of the inline CAD sketch. Falls back to BlueprintSketch on
-// any load error.
-function BlueprintVisual({ src }) {
-  const [failed, setFailed] = React.useState(false);
-  if (!src || failed) return <BlueprintSketch />;
-  return (
-    <div style={styles.blueprintArt} aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" style={styles.blueprintArtImg} onError={() => setFailed(true)} />
-    </div>
-  );
-}
-
-// Clean 5D-R3 + Starter Asset Pack v1 — the guided-start hero illustration.
-// Falls back to the original ring-silhouette PreviewTile on any load error.
-function HeroIllustration({ src }) {
-  const [failed, setFailed] = React.useState(false);
-  if (!src || failed) return <PreviewTile size={116} />;
-  return (
-    <div style={styles.heroIllustration} aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" style={styles.heroIllustrationImg} onError={() => setFailed(true)} />
     </div>
   );
 }
@@ -147,7 +100,7 @@ export default function StudioCanvas({
         <div style={styles.blueprint} aria-hidden="true" />
         <div style={styles.hero}>
           <div style={styles.heroIntro}>
-            <HeroIllustration src={getEmptyStateIllustration()} />
+            <PreviewTile size={116} />
             <span style={styles.heroEyebrow}>{H.eyebrow}</span>
             <span style={styles.heroTitle}>{H.title}</span>
             <span style={styles.heroSubtitle}>{H.subtitle}</span>
@@ -186,13 +139,13 @@ export default function StudioCanvas({
         <div style={styles.split}>
           <div style={styles.previewPane}>
             <span style={styles.paneTag}>{STUDIO_5D_HE.canvasRender}</span>
-            <PreviewVisual size={150} src={getJewelryPreviewPlaceholder()} />
+            <PreviewTile size={150} />
             <span style={styles.previewTitle}>{selected.conceptName}</span>
             <span style={styles.previewHint}>{STUDIO_5D_HE.canvasPreviewSoon}</span>
           </div>
           <div style={styles.blueprintPane}>
             <span style={styles.paneTag}>{STUDIO_5D_HE.canvasBlueprint}</span>
-            <BlueprintVisual src={getBlueprintPlaceholder()} />
+            <BlueprintSketch />
           </div>
         </div>
       </section>
@@ -289,20 +242,6 @@ const styles = {
     gap: '8px',
     textAlign: 'center',
     maxWidth: '440px',
-  },
-  heroIllustration: {
-    width: '208px',
-    height: '208px',
-    borderRadius: tokens.radius.lg,
-    overflow: 'hidden',
-    border: `1px solid ${tokens.color.cardEdge}`,
-    boxShadow: tokens.shadow.hairline,
-    background: tokens.color.ivory,
-  },
-  heroIllustrationImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
   },
   heroEyebrow: {
     fontFamily: tokens.font.body,
@@ -424,15 +363,9 @@ const styles = {
     width: '210px',
     height: '210px',
     borderRadius: '50%',
-    overflow: 'hidden',
     color: tokens.color.gold,
     background: 'radial-gradient(circle at 38% 32%, #FFFFFF, #F1ECE3 70%, #E6DFD2)',
     boxShadow: 'inset 0 2px 10px rgba(184,151,90,0.12), 0 10px 30px rgba(43,40,36,0.06)',
-  },
-  previewTileImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
   },
   previewTitle: {
     fontFamily: tokens.font.display,
@@ -453,13 +386,6 @@ const styles = {
     aspectRatio: '1 / 1',
     color: tokens.color.ice,
     opacity: 0.9,
-    borderRadius: tokens.radius.md,
-    overflow: 'hidden',
-  },
-  blueprintArtImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain',
   },
 
   // ---- starter (State B) ----

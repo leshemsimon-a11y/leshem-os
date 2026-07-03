@@ -1,0 +1,240 @@
+LESHEM.S OS — Clean 5D-R3 — Usability First Visual Studio
+===========================================================
+
+Root-ready bundle. Upload the CONTENTS of this folder to GitHub at the same
+paths. UX + visual clarity pass only — no business logic changed, no new
+features, no dependencies, no schema/store changes.
+
+Builds on 5D-R2 (real, never-empty canvas + single global-nav fix). This
+milestone fixes the remaining comfort/clarity problem: the Studio was
+structurally closer but still felt heavy, dark, and unclear about "what do I
+do next" in the earliest state.
+
+
+STATE MODEL (Clean 5D-R3)
+--------------------------
+Five states are now explicit in the canvas:
+
+  A — Hero / guided start   zero tray stones AND zero concepts AND not yet
+                             dismissed. NEW. Three large visual choices:
+                               • צור תכשיט מאבנים   → opens the existing
+                                 AssetPicker (unchanged component/logic)
+                               • צור תכשיט ללא אבנים → dismisses the hero,
+                                 revealing the existing metal-only starter/
+                                 input flow (unchanged panel)
+                               • פתח מגש עבודה       → router.push('/studio/tray')
+                             Purely local UI state (`heroDismissed`); no
+                             store reads/writes, no new routes.
+
+  B — Inputs ready          stones added OR hero dismissed, no concepts yet.
+                             This is the existing "starter" canvas (ring
+                             silhouette + 3 concept slots + the embedded
+                             DesignConceptPanel), now with more breathing
+                             room and bigger targets. UNCHANGED LOGIC.
+
+  C — Concepts generated    hasConcepts && !selected. Existing "flow" framing
+                             around DesignConceptPanel's concept cards.
+                             UNCHANGED LOGIC.
+
+  D — Direction selected    the existing large split (jewelry preview |
+                             CAD blueprint). UNCHANGED LOGIC.
+
+  E — Stale                 conceptsStale / outStale banners, same trigger
+                             functions (conceptsAreStale / outputIsStale),
+                             same action callbacks. Only the banner's visual
+                             container was tightened; text/logic identical.
+
+The hero (State A) is computed in components/studio/design/shell/StudioShell.js
+as `!hasStones && !hasConcepts && !heroDismissed` and passed to StudioCanvas
+as `mode="hero"`. It never overrides States B–E once either condition is no
+longer true — the user cannot get stuck behind or in front of it.
+
+
+VISUAL DIRECTION CHANGE (approved)
+-----------------------------------
+The command bar, left workflow rail, and bottom variant/action strip were
+dark graphite gradients in 5D-R2. Per approval, they are now the SAME light
+ivory/platinum chrome as the canvas and inspector:
+  • background: tokens.color.canvas, border: tokens.color.cardEdge,
+    shadow: tokens.shadow.soft (replacing the dark railGlow surfaces)
+  • selected/active states: soft gold chip (goldFaint fill + gold border),
+    text in charcoal — NOT a dark panel
+  • graphite is now used ONLY as small text contrast (e.g. the CTA's text
+    color on its gold gradient) — never as a full-width surface
+  • the single gold CTA gradient itself is unchanged (goldSoft → gold)
+
+No new token keys were introduced (tokens.js is not part of this bundle and
+was not touched) — every color used is one already in use elsewhere in the
+approved files (ivory / canvas / cardEdge / charcoal / inkFaint / inkSoft /
+gold / goldSoft / goldFaint / ice / iceFaint / sage / graphite / platinum /
+platinumSoft).
+
+
+USABILITY / ACCESSIBILITY CHANGES
+-----------------------------------
+  • Bigger click targets throughout: rail steps ≥52px, exit control ≥48px,
+    bottom-strip variant chips ≥44px, inspector section toggles ≥44px,
+    stone-strip add button 40×40px (was 34×34px).
+  • aria-label added to icon-only controls: add-stones button, exit-studio
+    button, inspector section toggle (open/close), and an aria-label on the
+    workflow rail (`nav`) itself. Visible text labels under rail icons were
+    already present and are unchanged.
+  • Clearer selected/active states via color + border instead of opacity
+    tricks (better contrast, easier to read at a glance).
+  • Spacing increased across the starter, flow, and inspector regions for
+    more breathing room; slot/placeholder sizes enlarged slightly.
+  • Global button:focus-visible outline (already defined in the OUTER
+    components/studio/shell/StudioShell.js, not touched here) continues to
+    apply — no duplicate focus styling added.
+
+
+WHAT LOGIC WAS PRESERVED
+--------------------------
+No business logic touched. Verified additive-only:
+  • Zero exports removed from any of the 9 changed files (comm -23 diff on
+    exported symbol sets — see QA below). Only ONE new export was added:
+    `TrayIcon` in StudioIcons.js (a decorative inline SVG for the new hero
+    choice — no logic).
+  • Zero STUDIO_5D_HE keys removed or renamed in labels.js. Only new nested
+    keys added: `hero` (8 strings for the guided start screen) and `aria`
+    (5 accessibility label strings).
+  • designDraft.js (the four stale-detection functions), designBriefStore.js,
+    workTray.js, designProjects.js, AssetPicker, DesignConceptPanel,
+    DesignOutputPanel — NOT in this bundle, NOT imported differently, NOT
+    modified. The shell continues to call getSelectedConcept / getActiveOutput
+    / conceptsAreStale / outputIsStale exactly as in 5D-R2.
+  • Concept generation, select, remove-with-confirm, refresh-one, render
+    brief, stone-based + metal-only workflows all remain inside the same
+    panels, passed as `children`/unchanged props — the shell only reframes
+    the space around them.
+
+
+FILES CHANGED (9 — exactly the approved list)
+------------------------------------------------
+  components/studio/design/shell/StudioShell.js        + heroDismissed local state,
+                                                          hasStones var, 3 hero
+                                                          handlers, mode="hero"
+                                                          wiring. No store logic
+                                                          changed.
+  components/studio/design/shell/StudioCanvas.js        + new "hero" render mode
+                                                          (State A); spacing/
+                                                          hierarchy polish on
+                                                          starter/flow/split.
+  components/studio/design/shell/StudioBottomStrip.js   light chrome; bigger
+                                                          targets; clearer
+                                                          selected/disabled states.
+  components/studio/design/shell/StudioCommandBar.js    light chrome; text/dot
+                                                          contrast fixed for
+                                                          light background.
+  components/studio/design/shell/StudioWorkflowRail.js  light chrome; bigger
+                                                          targets; aria-label.
+  components/studio/design/shell/StudioInspectorDrawer.js  spacing/target-size
+                                                          polish only (already
+                                                          light chrome).
+  components/studio/design/shell/StudioStoneStrip.js    bigger add-button
+                                                          target; aria-label
+                                                          (already light chrome).
+  components/studio/design/shell/StudioIcons.js          + TrayIcon (additive,
+                                                          decorative only).
+  lib/studio/labels.js                                   + STUDIO_5D_HE.hero,
+                                                          + STUDIO_5D_HE.aria
+                                                          (additive only).
+
+No other files touched. Outer components/studio/shell/StudioShell.js (global
+nav / fullBleed scoping) is UNCHANGED and not included in this bundle.
+
+
+3-SECOND TEST (acceptance)
+-----------------------------
+A non-technical jeweler opening /studio/design for the first time (no stones,
+no concepts) should understand within 3 seconds:
+  1. What am I working with?  → Nothing yet — the hero says so plainly and
+     shows exactly 3 ways to start.
+  2. What stage am I in?      → "בואו נתחיל לעצב" + the top stone strip shows
+     the metal-only empty state.
+  3. What should I click next? → One of 3 large, clearly labeled cards; no
+     other competing button on screen.
+
+At every later stage, exactly ONE gold CTA is visible in the bottom strip,
+and the current stones/materials remain visible in the top strip.
+
+
+HOW TO TEST
+--------------
+1.  Open /studio/design with an empty Work Tray and no concepts. Confirm the
+    hero screen appears — NOT the old ring-silhouette starter, and never a
+    blank canvas.
+2.  Click "פתח מגש עבודה" → navigates to /studio/tray.
+3.  Return to /studio/design. Click "צור תכשיט ללא אבנים" → hero dismisses;
+    the existing metal-only starter (ring silhouette + 3 slots + input panel)
+    appears, matching 5D-R2 behavior exactly.
+4.  Reload with an empty tray again. Click "צור תכשיט מאבנים" → the existing
+    AssetPicker opens. Add a stone → the top stone strip populates; hero does
+    not reappear even if you close the picker without adding (heroDismissed
+    stays true) — no dead end.
+5.  With stones already in the tray (returning session), confirm the hero
+    does NOT appear — you land directly in the starter/inputs state.
+6.  Generate concepts → cards appear framed, one gold CTA reads
+    "בחרו כיוון" (disabled) until a direction is selected.
+7.  Select a direction → canvas shows the jewelry|blueprint split; CTA
+    updates; inspector shows the compact spec rows.
+8.  Remove a direction (calm confirm); refresh one direction — confirm both
+    still work exactly as in 5D-R2 (untouched panel logic).
+9.  Change product/style/metal/stones → calm stale banners still appear with
+    the same copy and same "עדכן כיוונים/פלט" actions.
+10. Confirm the command bar, left rail, and bottom strip are now LIGHT ivory/
+    platinum surfaces — no full-width dark bars remain. The gold CTA still
+    pops against the light background.
+11. Tab through the rail and bottom strip with a keyboard — confirm visible
+    focus rings (from the existing global focus-visible style) and that the
+    add-stones / exit buttons have accessible names (screen reader / devtools
+    accessibility tree).
+12. Confirm other pages (inventory/tray/projects/assets) are fully unaffected
+    — this bundle touches ONLY the 9 approved files under
+    components/studio/design/shell/ and lib/studio/labels.js.
+
+
+KNOWN LIMITATIONS
+--------------------
+• No real `next build` offline in this sandbox — Vercel green is the final
+  gate, as with every prior milestone.
+• `tokens.js`, `designDraft.js`, `designBriefStore.js`, `workTray.js`,
+  `designProjects.js`, `AssetPicker`, `DesignConceptPanel`, `DesignOutputPanel`
+  are NOT part of this bundle (unchanged since earlier milestones) — I could
+  not re-run your logic sandboxes against them offline. I did not touch them,
+  did not change how they're imported, and did not change their call
+  signatures, so risk is limited to the visual/UI layer verified below.
+• All jewelry/stone/blueprint visuals remain elegant CSS/SVG PLACEHOLDERS —
+  no real render or image is generated (out of scope, unchanged from 5D-R2).
+• The hero's "no dead end" guarantee (item 4 in HOW TO TEST) is UI-state
+  only — if you need the hero to be re-openable on demand later (e.g. a
+  "start over" affordance), that would be a new, explicitly-scoped feature,
+  not included here.
+• Desktop-first full-height; degrades to page scroll on short viewports and
+  stacks on narrow widths (unchanged from 5D-R2). Mobile/voice flow not built.
+
+
+OFFLINE QA PERFORMED
+------------------------
+• node --check on lib/studio/labels.js (plain JS) — pass.
+• Brace/bracket balance (curly + square only, per project convention —
+  paren-counting gives false positives on JSX) on all 9 changed files —
+  0/0 diff on every file, PASS.
+• Additive-only proof: `comm -23` on exported symbol sets, baseline vs. new,
+  for all 9 files — zero exports removed on any file; the only addition is
+  `TrayIcon`.
+• STUDIO_5D_HE key-preservation check: zero keys removed or renamed; only
+  new nested `hero` and `aria` keys added.
+• Forbidden-token scan (basket/cart/checkout, lucide-react import, Stripe/
+  OpenAI/Stability calls, \uXXXX Hebrew escapes) — clean (only comments that
+  explicitly say "no lucide" / "never basket" matched, no actual usage).
+• Cross-reference check: every new StudioCanvas import (StoneIcon, MetalIcon,
+  TrayIcon) confirmed present as an export in StudioIcons.js; every hero
+  prop name passed from StudioShell.js confirmed to match the prop name
+  destructured in StudioCanvas.js; every STUDIO_5D_HE.hero / .aria reference
+  confirmed present in labels.js.
+• Full recursive diff against the 5D-R2 baseline confirms exactly the 9
+  approved files changed and nothing else.
+• NOT performed (no network/toolchain in this sandbox): a real Babel/JSX
+  parse or `next build`. Brace/bracket balance plus the cross-reference
+  checks above are the offline substitute; Vercel build is the true gate.
