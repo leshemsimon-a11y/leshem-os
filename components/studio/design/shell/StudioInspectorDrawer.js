@@ -13,6 +13,10 @@
 // breathing room, bigger row icons). No logic, no data shape, no CTA behavior
 // changed — the CTA remains OPTIONAL/omitted so the single dominant action
 // stays in the bottom strip only.
+//
+// UX Compression Pass + Demo Layer preserved: concept shortDescription is
+// moved from an always-visible paragraph into a hover tooltip on the concept
+// name. The read-only demo-stone Inspector state remains intact.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -182,10 +186,9 @@ export default function StudioInspectorDrawer({
       <div style={styles.scroll}>
         <div style={styles.head}>
           <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
-          <span style={styles.conceptName}>{concept.conceptName}</span>
-          {concept.shortDescription ? (
-            <p style={styles.preview}>{concept.shortDescription}</p>
-          ) : null}
+          <span style={styles.conceptName} title={concept.shortDescription || undefined}>
+            {concept.conceptName}
+          </span>
         </div>
 
         <div style={styles.rows}>
@@ -361,13 +364,6 @@ const styles = {
     letterSpacing: '0.01em',
     color: tokens.color.charcoal,
     lineHeight: 1.2,
-  },
-  preview: {
-    fontFamily: tokens.font.body,
-    fontSize: '12.5px',
-    lineHeight: 1.6,
-    color: tokens.color.inkSoft,
-    margin: 0,
   },
   empty: {
     fontFamily: tokens.font.body,

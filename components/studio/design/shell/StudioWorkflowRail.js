@@ -9,6 +9,14 @@
 // (graphite reserved for small text contrast, not the whole rail surface).
 // Targets enlarged for comfort; aria-label added for the icon-only exit
 // control. Presentation + navigation only — no business logic changed.
+//
+// UX Compression Pass: the rail is now icon-first — the short Hebrew word
+// under each icon is no longer always rendered. Every step keeps its label
+// as a hover tooltip (title, already present) and now also as an
+// aria-label (previously only the exit control had one), so nothing is
+// lost for either sighted or screen-reader users — it's just not printed
+// on screen five times at once. The active step is still unambiguous via
+// the existing gold chip + gold accent bar.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -40,13 +48,15 @@ export default function StudioWorkflowRail({ active, onSelect, onExit, horizonta
     >
       {STEPS.map(({ key, Icon, future }) => {
         const isActive = active === key;
+        const label = future ? STUDIO_5D_HE.railProductionSoon : L[key];
         return (
           <button
             key={key}
             type="button"
             disabled={future}
             onClick={() => !future && onSelect && onSelect(key)}
-            title={future ? STUDIO_5D_HE.railProductionSoon : L[key]}
+            title={label}
+            aria-label={label}
             style={{
               ...styles.step,
               ...(isActive ? styles.stepActive : null),
@@ -57,7 +67,6 @@ export default function StudioWorkflowRail({ active, onSelect, onExit, horizonta
             <span style={styles.iconWrap}>
               <Icon size={20} />
             </span>
-            <span style={styles.label}>{L[key]}</span>
             {isActive ? <span style={styles.activeBar} aria-hidden="true" /> : null}
           </button>
         );
@@ -74,7 +83,6 @@ export default function StudioWorkflowRail({ active, onSelect, onExit, horizonta
           <span style={styles.iconWrap}>
             <HomeIcon size={20} />
           </span>
-          <span style={styles.label}>{STUDIO_5D_HE.exitShort}</span>
         </button>
       )}
     </nav>
@@ -93,7 +101,7 @@ const styles = {
     border: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: tokens.radius.lg,
     boxShadow: tokens.shadow.soft,
-    minWidth: '78px',
+    minWidth: '60px',
   },
   railHorizontal: {
     flexDirection: 'row',
@@ -107,8 +115,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '6px',
-    minHeight: '52px',
+    justifyContent: 'center',
+    minHeight: '46px',
     padding: '12px 6px',
     background: 'transparent',
     border: '1px solid transparent',
@@ -129,8 +137,8 @@ const styles = {
     color: tokens.color.inkFaint,
     borderTop: `1px solid ${tokens.color.cardEdge}`,
     borderRadius: 0,
-    paddingTop: '16px',
-    minHeight: '48px',
+    paddingTop: '14px',
+    minHeight: '44px',
   },
   iconWrap: {
     display: 'inline-flex',
@@ -138,12 +146,6 @@ const styles = {
     justifyContent: 'center',
     width: '24px',
     height: '24px',
-  },
-  label: {
-    fontFamily: tokens.font.body,
-    fontSize: '10px',
-    fontWeight: 600,
-    letterSpacing: '0.05em',
   },
   activeBar: {
     position: 'absolute',

@@ -8,6 +8,11 @@
 // canvas and inspector. Graphite/dark tones are used only as small text
 // contrast (e.g. inside the identity mark), never as a full-width surface.
 // No logic changed — status text/dot mapping is identical to 5D-R2.
+//
+// UX Compression Pass: the status word is no longer always-visible text next
+// to the dot — it's now a hover tooltip + aria-label on the pill, with the
+// colored dot serving as the always-visible badge (icon/badge over text,
+// per the compression rules). Status logic itself is untouched.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -41,10 +46,9 @@ export default function StudioCommandBar({ hasActiveWork, outputState }) {
         </span>
         <span style={styles.name}>{L.appName}</span>
       </div>
-      <div style={styles.status}>
-        <DotIcon size={7} color={dot} />
-        <span style={styles.statusText}>{statusText}</span>
-      </div>
+      <span style={styles.status} title={statusText} aria-label={statusText} role="status">
+        <DotIcon size={8} color={dot} />
+      </span>
     </header>
   );
 }
@@ -86,21 +90,15 @@ const styles = {
     whiteSpace: 'nowrap',
   },
   status: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '7px',
+    justifyContent: 'center',
     flexShrink: 0,
-    padding: '6px 12px',
-    borderRadius: '999px',
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
     background: tokens.color.platinumSoft,
     border: `1px solid ${tokens.color.cardEdge}`,
-  },
-  statusText: {
-    fontFamily: tokens.font.body,
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.03em',
-    color: tokens.color.inkSoft,
-    whiteSpace: 'nowrap',
+    cursor: 'default',
   },
 };

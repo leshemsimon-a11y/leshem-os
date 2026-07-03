@@ -19,6 +19,13 @@
 // Fills its grid cell and scrolls INTERNALLY. No business logic here — the
 // three new hero callbacks are pure UI-level actions wired by the shell
 // (open asset picker / proceed metal-only / go to work tray).
+//
+// UX Compression Pass: hero subtitle, each hero choice's description, the
+// starter subtitle, the 3 slot captions, and the preview-pane hint sentence
+// are no longer always-visible text. Each is either dropped from render and
+// relocated to a hover `title` tooltip (values unchanged in labels.js) or
+// shrunk to a 1-word badge with the fuller phrase kept as the tooltip. No
+// label was deleted — only where and how it's shown changed.
 
 import * as React from 'react';
 import { tokens } from '../../shared/tokens';
@@ -97,11 +104,13 @@ function BlueprintVisual({ src }) {
 
 // Clean 5D-R3 + Starter Asset Pack v1 — the guided-start hero illustration.
 // Falls back to the original ring-silhouette PreviewTile on any load error.
-function HeroIllustration({ src }) {
+// UX Compression Pass: accepts an optional `title` tooltip so the hero
+// subtitle text (previously always-visible) is still reachable on hover.
+function HeroIllustration({ src, title }) {
   const [failed, setFailed] = React.useState(false);
   if (!src || failed) return <PreviewTile size={116} />;
   return (
-    <div style={styles.heroIllustration} aria-hidden="true">
+    <div style={styles.heroIllustration} title={title} aria-label={title}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" style={styles.heroIllustrationImg} onError={() => setFailed(true)} />
     </div>
@@ -109,6 +118,10 @@ function HeroIllustration({ src }) {
 }
 
 // Clean 5D-R3 — one large tappable choice card for the guided start state.
+// UX Compression Pass: only the icon + short title are always visible now;
+// `desc` (unchanged text) becomes a hover tooltip + accessible name instead
+// of a second always-visible line, per "turn choose-direction into compact
+// visual buttons; hide why-this-direction text inside expandable details."
 function HeroChoiceCard({ Icon, title, desc, onClick, primary }) {
   return (
     <button
@@ -116,14 +129,13 @@ function HeroChoiceCard({ Icon, title, desc, onClick, primary }) {
       onClick={onClick}
       style={{ ...styles.heroCard, ...(primary ? styles.heroCardPrimary : null) }}
       dir="rtl"
+      title={desc}
+      aria-label={desc ? `${title} — ${desc}` : title}
     >
       <span style={{ ...styles.heroCardIcon, ...(primary ? styles.heroCardIconPrimary : null) }} aria-hidden="true">
         <Icon size={26} />
       </span>
-      <span style={styles.heroCardText}>
-        <span style={styles.heroCardTitle}>{title}</span>
-        <span style={styles.heroCardDesc}>{desc}</span>
-      </span>
+      <span style={styles.heroCardTitle}>{title}</span>
     </button>
   );
 }
@@ -147,10 +159,9 @@ export default function StudioCanvas({
         <div style={styles.blueprint} aria-hidden="true" />
         <div style={styles.hero}>
           <div style={styles.heroIntro}>
-            <HeroIllustration src={getEmptyStateIllustration()} />
+            <HeroIllustration src={getEmptyStateIllustration()} title={H.subtitle} />
             <span style={styles.heroEyebrow}>{H.eyebrow}</span>
             <span style={styles.heroTitle}>{H.title}</span>
-            <span style={styles.heroSubtitle}>{H.subtitle}</span>
           </div>
           <div style={styles.heroChoices}>
             <HeroChoiceCard
@@ -188,7 +199,9 @@ export default function StudioCanvas({
             <span style={styles.paneTag}>{STUDIO_5D_HE.canvasRender}</span>
             <PreviewVisual size={150} src={getJewelryPreviewPlaceholder()} />
             <span style={styles.previewTitle}>{selected.conceptName}</span>
-            <span style={styles.previewHint}>{STUDIO_5D_HE.canvasPreviewSoon}</span>
+            <span style={styles.previewHint} title={STUDIO_5D_HE.canvasPreviewSoon}>
+              {STUDIO_5D_HE.canvasPreviewBadge}
+            </span>
           </div>
           <div style={styles.blueprintPane}>
             <span style={styles.paneTag}>{STUDIO_5D_HE.canvasBlueprint}</span>
@@ -209,19 +222,20 @@ export default function StudioCanvas({
             <PreviewTile size={150} />
             <div style={styles.starterHeroText}>
               <span style={styles.starterEyebrow}>{STUDIO_5D_HE.rail.design}</span>
-              <span style={styles.starterTitle}>{STUDIO_5D_HE.canvasStarterTitle}</span>
-              <span style={styles.starterSub}>
-                {hasStones ? STUDIO_5D_HE.canvasStarterStones : STUDIO_5D_HE.stonesMetalOnly}
+              <span
+                style={styles.starterTitle}
+                title={hasStones ? STUDIO_5D_HE.canvasStarterStones : STUDIO_5D_HE.stonesMetalOnly}
+              >
+                {STUDIO_5D_HE.canvasStarterTitle}
               </span>
             </div>
           </div>
 
-          {/* 3 empty preview concept slots */}
+          {/* 3 empty preview concept slots — icon only, label on hover */}
           <div style={styles.slots}>
             {[0, 1, 2].map((i) => (
-              <div key={i} style={styles.slot} aria-hidden="true">
+              <div key={i} style={styles.slot} title={STUDIO_5D_HE.canvasSlot} aria-hidden="true">
                 <StoneFacets size={34} />
-                <span style={styles.slotLabel}>{STUDIO_5D_HE.canvasSlot}</span>
               </div>
             ))}
           </div>
@@ -319,12 +333,6 @@ const styles = {
     color: tokens.color.charcoal,
     lineHeight: 1.2,
   },
-  heroSubtitle: {
-    fontFamily: tokens.font.body,
-    fontSize: '13.5px',
-    color: tokens.color.inkSoft,
-    lineHeight: 1.5,
-  },
   heroChoices: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))',
@@ -366,18 +374,11 @@ const styles = {
     color: tokens.color.gold,
     background: tokens.color.ivory,
   },
-  heroCardText: { display: 'flex', flexDirection: 'column', gap: '4px' },
   heroCardTitle: {
     fontFamily: tokens.font.body,
     fontSize: '14px',
     fontWeight: 700,
     color: tokens.color.charcoal,
-  },
-  heroCardDesc: {
-    fontFamily: tokens.font.body,
-    fontSize: '11.5px',
-    lineHeight: 1.5,
-    color: tokens.color.inkSoft,
   },
 
   // ---- split (selected) ----
@@ -494,11 +495,6 @@ const styles = {
     color: tokens.color.charcoal,
     lineHeight: 1.15,
   },
-  starterSub: {
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    color: tokens.color.inkSoft,
-  },
   slots: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
@@ -515,13 +511,6 @@ const styles = {
     border: `1px dashed ${tokens.color.goldFaint}`,
     background: 'rgba(255,255,255,0.5)',
     color: tokens.color.goldSoft,
-  },
-  slotLabel: {
-    fontFamily: tokens.font.body,
-    fontSize: '11px',
-    fontWeight: 600,
-    color: tokens.color.inkFaint,
-    letterSpacing: '0.04em',
   },
   starterPanel: {
     background: 'rgba(255,255,255,0.6)',

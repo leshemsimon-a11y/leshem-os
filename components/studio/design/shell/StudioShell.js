@@ -29,6 +29,11 @@
 // Full-height with safe fallbacks: regions scroll INTERNALLY; if the viewport
 // is short the whole shell falls back to page scroll; on narrow widths the grid
 // stacks. Mobile flow itself is NOT built here but is not blocked either.
+//
+// UX Compression Pass + Demo Layer preserved: stale-banner body text is kept
+// as a hover tooltip instead of a second visible line; the rail column is
+// tighter for the icon-first workflow rail. The temporary demo inventory /
+// Work Tray / Inspector fallback remains intact.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
@@ -347,14 +352,12 @@ function StaleBanner({ tone, title, body, action, onAction }) {
       style={{ ...styles.stale, ...(tone === 'output' ? styles.staleOutput : styles.staleConcepts) }}
       dir="rtl"
       role="status"
+      title={body}
     >
       <span style={styles.staleIcon} aria-hidden="true">
         <AlertIcon size={16} />
       </span>
-      <div style={styles.staleText}>
-        <span style={styles.staleTitle}>{title}</span>
-        <span style={styles.staleBody}>{body}</span>
-      </div>
+      <span style={styles.staleTitle}>{title}</span>
       <button type="button" onClick={onAction} style={styles.staleBtn}>
         {action}
       </button>
@@ -398,7 +401,7 @@ const styles = {
 
   middle: {
     display: 'grid',
-    gridTemplateColumns: '78px minmax(0, 1fr) minmax(320px, 360px)',
+    gridTemplateColumns: '64px minmax(0, 1fr) minmax(320px, 360px)',
     gap: GAP,
     minHeight: 0,
   },
@@ -427,14 +430,17 @@ const styles = {
   staleConcepts: { background: tokens.color.goldFaint, border: `1px solid ${tokens.color.gold}` },
   staleOutput: { background: tokens.color.iceFaint, border: `1px solid ${tokens.color.ice}` },
   staleIcon: { display: 'inline-flex', color: tokens.color.charcoal, flexShrink: 0 },
-  staleText: { display: 'flex', flexDirection: 'column', gap: '0px', minWidth: 0, flex: '1 1 auto' },
   staleTitle: {
+    flex: '1 1 auto',
+    minWidth: 0,
     fontFamily: tokens.font.body,
     fontSize: '13px',
     fontWeight: 700,
     color: tokens.color.charcoal,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
-  staleBody: { fontFamily: tokens.font.body, fontSize: '11.5px', color: tokens.color.inkSoft },
   staleBtn: {
     minHeight: '38px',
     padding: '8px 16px',
