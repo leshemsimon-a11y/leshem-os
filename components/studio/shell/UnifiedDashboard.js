@@ -95,6 +95,13 @@ function ReportGlyph({ size = 18 }) {
     </svg>
   );
 }
+function ProjectsGlyph({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 7.5v10a1.5 1.5 0 0 0 1.5 1.5h14a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5h-8l-2-2.5H5a1.5 1.5 0 0 0-1.5 1.5z" />
+    </svg>
+  );
+}
 function ArrowGlyph({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -110,12 +117,16 @@ function CheckGlyph({ size = 12 }) {
   );
 }
 
+// Patch C — OS Hardening V1: the strip previously listed the Design Studio
+// TWICE (newDesign + design → the same route) plus a dead disabled Reports
+// tile. Now: one design entry, the real live destinations, and תיקי עבודה.
+// No dead tiles, no duplicated navigation.
 const QUICK_LAUNCH = [
   { key: 'newDesign', route: '/studio/design', Icon: DesignGlyph, primary: true },
   { key: 'inventory', route: '/studio/inventory', Icon: InventoryGlyph },
   { key: 'workTray', route: '/studio/tray', Icon: TrayGlyph },
+  { key: 'projects', route: '/studio/projects', Icon: ProjectsGlyph },
   { key: 'assets', route: '/studio/assets', Icon: AssetsGlyph },
-  { key: 'design', route: '/studio/design', Icon: DesignGlyph },
 ];
 
 export default function UnifiedDashboard() {
@@ -143,6 +154,16 @@ export default function UnifiedDashboard() {
       ? projects.projects.find((p) => p.id === active.activeWorkId)
       : null;
 
+  // Patch C — resume surface: the most recently touched saved session (by
+  // updatedAt), used when no session is currently active. Read-only.
+  const latestProject =
+    projects.hydrated && Array.isArray(projects.active)
+      ? projects.active.reduce(
+          (best, p) => (!best || (p.updatedAt || 0) > (best.updatedAt || 0) ? p : best),
+          null
+        )
+      : null;
+
   // ---- Inventory Pulse — real demo inventory snapshot (read-only) ----
   const inventoryItems = React.useMemo(() => getDemoInventorySnapshot(), []);
   const invStats = {
@@ -163,7 +184,7 @@ export default function UnifiedDashboard() {
   const hasTrayItems = realTrayItems.length > 0;
   const hasConcepts = Array.isArray(brief.concepts) && brief.concepts.length > 0;
   const hasSelectedConcept = Boolean(brief.selectedConceptId);
-  const pipelineReached = [true, hasTrayItems, hasTrayItems, hasConcepts, hasSelectedConcept];
+  const pipelineReached = [true, hasTrayItems, hasTrayItems, hasConcepts];
 
   // ---- Recent Activity — real demo activity feed ----
   const activity = React.useMemo(() => getDemoActivityFeed(), []);
@@ -182,23 +203,50 @@ export default function UnifiedDashboard() {
 
   return (
     <div dir="rtl">
-      {/* A — Command Header */}
+      {/* A — Command Header. Patch C: state-aware launch/resume surface —
+          the status line names the current session state and the header
+          offers ONE obvious action:
+            active session      → המשך עבודה (same openProject restore flow)
+            stones, no session  → פתח סטודיו
+            saved sessions only → המשך עבודה on the latest saved session
+            nothing yet         → התחל מהמלאי */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
           <span style={styles.eyebrow}>{D.eyebrow}</span>
           <h1 style={styles.title}>{D.title}</h1>
           <span style={styles.statusLine}>
             <span style={styles.statusDot} aria-hidden="true" />
-            {activeProject ? `${C.statusActiveWork} · ${activeProject.name}` : C.statusReady}
+            {activeProject
+              ? `${C.statusActiveWork} · ${activeProject.name}`
+              : realTrayItems.length > 0
+              ? C.stonesInTray(realTrayItems.length)
+              : C.noActiveSession}
           </span>
         </div>
-        {activeProject && (
-          <div style={styles.headerActions}>
+        <div style={styles.headerActions}>
+          {activeProject ? (
             <button type="button" onClick={() => openProject(activeProject, '/studio/design')} style={styles.primaryBtn}>
               <DesignGlyph size={15} /> {C.continueWork}
             </button>
-          </div>
-        )}
+          ) : realTrayItems.length > 0 ? (
+            <button type="button" onClick={() => go('/studio/design')} style={styles.primaryBtn}>
+              <DesignGlyph size={15} /> {C.openStudio}
+            </button>
+          ) : latestProject ? (
+            <button
+              type="button"
+              onClick={() => openProject(latestProject, '/studio/design')}
+              style={styles.primaryBtn}
+              title={`${C.resumeLatest} · ${latestProject.name}`}
+            >
+              <ProjectsGlyph size={15} /> {C.continueWork} · {latestProject.name}
+            </button>
+          ) : (
+            <button type="button" onClick={() => go('/studio/inventory')} style={styles.primaryBtn}>
+              <InventoryGlyph size={15} /> {C.startFromInventory}
+            </button>
+          )}
+        </div>
       </header>
 
       {/* B — Quick Launch Strip */}
@@ -218,13 +266,6 @@ export default function UnifiedDashboard() {
               <span style={styles.quickLabel}>{C.quickLaunch[key]}</span>
             </button>
           ))}
-          <div style={styles.quickTileDisabled} aria-disabled="true" title={C.reportsSoon}>
-            <span style={styles.quickGlyph} aria-hidden="true">
-              <ReportGlyph />
-            </span>
-            <span style={styles.quickLabel}>{C.quickLaunch.reports}</span>
-            <span style={styles.quickSoon}>{C.soon}</span>
-          </div>
         </div>
       </section>
 
@@ -291,13 +332,15 @@ export default function UnifiedDashboard() {
         </section>
       </div>
 
-      {/* E — Design Pipeline */}
+      {/* E — Design Pipeline. Patch C: shows only the REAL stages of the
+          working backbone (Inventory → Tray → Studio → Concepts). The future
+          "product" stage is no longer rendered — no coming-soon clutter in
+          the main path. */}
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>{C.pipelineTitle}</h2>
         <div style={styles.pipelineRow}>
-          {['inventory', 'tray', 'studio', 'concepts', 'product'].map((key, i) => {
+          {['inventory', 'tray', 'studio', 'concepts'].map((key, i) => {
             const reached = pipelineReached[i];
-            const future = key === 'product';
             return (
               <React.Fragment key={key}>
                 {i > 0 && (
@@ -308,14 +351,11 @@ export default function UnifiedDashboard() {
                 <span
                   style={{
                     ...styles.pipelineStage,
-                    ...(reached && !future ? styles.pipelineStageDone : null),
-                    ...(future ? styles.pipelineStageFuture : null),
+                    ...(reached ? styles.pipelineStageDone : null),
                   }}
-                  title={future ? C.soon : undefined}
                 >
-                  {reached && !future ? <CheckGlyph /> : null}
+                  {reached ? <CheckGlyph /> : null}
                   {C.pipeline[key]}
-                  {future ? <span style={styles.pipelineFutureTag}>{C.soon}</span> : null}
                 </span>
               </React.Fragment>
             );
@@ -347,7 +387,13 @@ export default function UnifiedDashboard() {
           <div style={styles.nextGrid}>
             <NextAction label={C.nextAction.trayStones} value={realTrayItems.length} onClick={() => go('/studio/tray')} />
             <NextAction label={C.nextAction.pendingConcepts} value={pendingConceptsCount} onClick={() => go('/studio/design')} />
-            <NextAction label={C.nextAction.reportsToComplete} value={null} soon />
+            {/* Patch C — the dead "reports to complete" coming-soon card is
+                replaced by a REAL work-pulse number: saved work sessions. */}
+            <NextAction
+              label={C.nextAction.savedSessions}
+              value={projects.hydrated ? projects.active.length : null}
+              onClick={() => go('/studio/projects')}
+            />
             <NextAction
               label={C.nextAction.assetsNoPhoto}
               value={assetsNoPhotoCount}

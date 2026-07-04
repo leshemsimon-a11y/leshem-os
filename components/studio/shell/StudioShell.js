@@ -21,6 +21,7 @@ import NavRail from './NavRail';
 import DashboardHome from './DashboardHome';
 import UnifiedDashboard from './UnifiedDashboard';
 import WorkTrayIndicator from '../tray/WorkTrayIndicator';
+import ActiveSessionBar from './ActiveSessionBar';
 import { findItem } from './navConfig';
 import { UI_HE } from '../../../lib/studio/labels';
 
@@ -113,6 +114,8 @@ export default function StudioShell({
 
           <main style={styles.mobileMain}>
             <div style={styles.mobileContentWrap}>
+              {/* Patch C — session context row (compact) on mobile too. */}
+              <ActiveSessionBar variant="mobile" />
               <Content />
             </div>
           </main>
@@ -153,6 +156,10 @@ export default function StudioShell({
                 fullBleed ? styles.desktopContentWrapFull : styles.desktopContentWrap
               }
             >
+              {/* Patch C — one persistent session context row across major
+                  studio screens. The full-bleed Design Studio keeps its own
+                  command bar (same status) — no duplication there. */}
+              {!fullBleed && <ActiveSessionBar variant="desktop" />}
               {!fullBleed && <WorkTrayIndicator variant="desktop" />}
               <Content />
             </div>

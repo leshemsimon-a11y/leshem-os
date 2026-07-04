@@ -6,14 +6,18 @@
 //   - "desktop": a sticky right-side rail (RTL)
 //   - "mobile" : the same list rendered inside a slide-in drawer
 //
-// Grouped sections, RTL Hebrew labels, and an honest "בקרוב" badge on sections
-// not yet built. Selecting an item updates the active section in the parent
-// shell; on mobile it also closes the drawer via onSelect's side effect there.
+// Patch C — OS Hardening V1: the primary nav now shows ONLY built, live
+// destinations (Command Center, Inventory, Work Tray, Design Studio,
+// תיקי עבודה, Asset Library) as one flat list — no group headers, no
+// "בקרוב" spam. All not-yet-built sections still exist in navConfig.js
+// (nothing deleted, no route removed) but render inside ONE quiet,
+// collapsed "כלים עתידיים" area at the bottom, closed by default. Selecting
+// any item still routes through the same onSelect flow as before.
 
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
 import { UI_HE } from '../../../lib/studio/labels';
-import { NAV_GROUPS, itemsByGroup } from './navConfig';
+import { NAV_ITEMS } from './navConfig';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 
 const useWorkTray = createUseWorkTray(React);
@@ -22,6 +26,38 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
   const isMobile = variant === 'mobile';
   const tray = useWorkTray();
   const trayCount = tray.hydrated ? tray.count : 0;
+  // Patch C — future tools stay reachable but folded away; closed by default.
+  const [futureOpen, setFutureOpen] = React.useState(false);
+
+  const builtItems = NAV_ITEMS.filter((item) => item.built);
+  const futureItems = NAV_ITEMS.filter((item) => !item.built);
+
+  const renderItem = (item, future) => {
+    const isActive = item.id === active;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => onSelect(item.id)}
+        aria-current={isActive ? 'page' : undefined}
+        style={{
+          ...styles.item,
+          ...(future ? styles.itemFuture : null),
+          ...(isActive ? styles.itemActive : null),
+        }}
+      >
+        <span style={{ ...styles.itemGlyph, ...(future ? styles.itemGlyphFuture : null) }} aria-hidden="true">
+          {item.glyph}
+        </span>
+        <span style={styles.itemLabel}>{item.labelHe}</span>
+        {item.id === 'workTray' && trayCount > 0 && (
+          <span style={styles.itemCount}>{trayCount}</span>
+        )}
+        {future && <span style={styles.itemBadge}>{UI_HE.futureBadge}</span>}
+        {isActive && <span style={styles.activeBar} aria-hidden="true" />}
+      </button>
+    );
+  };
 
   return (
     <nav
@@ -38,43 +74,27 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
       </div>
 
       <div style={styles.groups}>
-        {NAV_GROUPS.map((group) => {
-          const items = itemsByGroup(group.id);
-          if (items.length === 0) return null;
-          return (
-            <div key={group.id} style={styles.group}>
-              <div style={styles.groupLabel}>{group.labelHe}</div>
-              {items.map((item) => {
-                const isActive = item.id === active;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onSelect(item.id)}
-                    aria-current={isActive ? 'page' : undefined}
-                    style={{
-                      ...styles.item,
-                      ...(!item.built ? styles.itemFuture : null),
-                      ...(isActive ? styles.itemActive : null),
-                    }}
-                  >
-                    <span style={{ ...styles.itemGlyph, ...(!item.built ? styles.itemGlyphFuture : null) }} aria-hidden="true">
-                      {item.glyph}
-                    </span>
-                    <span style={styles.itemLabel}>{item.labelHe}</span>
-                    {item.id === 'workTray' && trayCount > 0 && (
-                      <span style={styles.itemCount}>{trayCount}</span>
-                    )}
-                    {!item.built && (
-                      <span style={styles.itemBadge}>{UI_HE.futureBadge}</span>
-                    )}
-                    {isActive && <span style={styles.activeBar} aria-hidden="true" />}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
+        <div style={styles.group}>
+          {builtItems.map((item) => renderItem(item, false))}
+        </div>
+
+        {futureItems.length > 0 && (
+          <div style={styles.group}>
+            <button
+              type="button"
+              onClick={() => setFutureOpen((v) => !v)}
+              aria-expanded={futureOpen}
+              title={UI_HE.navFutureToolsHint}
+              style={styles.futureToggle}
+            >
+              <span style={styles.futureToggleLabel}>{UI_HE.navFutureTools}</span>
+              <span style={styles.futureToggleChevron} aria-hidden="true">
+                {futureOpen ? '▾' : '◂'}
+              </span>
+            </button>
+            {futureOpen && futureItems.map((item) => renderItem(item, true))}
+          </div>
+        )}
       </div>
     </nav>
   );
@@ -149,6 +169,32 @@ const styles = {
     letterSpacing: '0.12em',
     color: tokens.color.inkFaint,
     padding: '0 10px 8px',
+  },
+  // Patch C — collapsed "כלים עתידיים" toggle: reads as a quiet secondary
+  // control, not a primary destination.
+  futureToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    width: '100%',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    padding: '8px 10px',
+    borderRadius: tokens.radius.sm,
+    fontFamily: tokens.font.body,
+    textAlign: 'right',
+  },
+  futureToggleLabel: {
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.1em',
+    color: tokens.color.inkFaint,
+  },
+  futureToggleChevron: {
+    fontSize: '11px',
+    color: tokens.color.inkFaint,
   },
   item: {
     position: 'relative',
