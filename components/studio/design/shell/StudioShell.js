@@ -62,10 +62,15 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
-import { createUseDesignProjects } from '../../../../lib/studio/designProjects';
+import {
+  createUseDesignProjects,
+  getProject,
+  updateProject,
+} from '../../../../lib/studio/designProjects';
+import { createUseActiveWork } from '../../../../lib/studio/activeWorkStore';
 import {
   getSelectedConcept,
   getActiveOutput,
@@ -73,6 +78,9 @@ import {
   outputIsStale,
   DESIGN_ROLE,
   normalizeRole,
+  buildDesignSnapshot,
+  briefHasContent,
+  trayItemTitle,
 } from '../../../../lib/studio/designDraft';
 
 import DesignConceptPanel from '../DesignConceptPanel';
@@ -93,6 +101,11 @@ import { getDemoInspectStoneFromTrayItem } from '../../../../lib/studio/demoInve
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
 const useDesignProjects = createUseDesignProjects(React);
+// Patch B — the shell now uses the EXISTING event-synced Active Work hook
+// (lib/studio/activeWorkStore.js) instead of a local read-once localStorage
+// read, so the command-bar status reflects a save immediately. Same key,
+// same store, no internals touched.
+const useActiveWork = createUseActiveWork(React);
 
 function useViewport() {
   const [vp, setVp] = React.useState({ narrow: false, short: false });
@@ -107,20 +120,6 @@ function useViewport() {
   return vp;
 }
 
-function useActiveWork() {
-  const [id, setId] = React.useState(null);
-  React.useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        setId(window.localStorage.getItem('leshem_studio_current_project_v1'));
-      }
-    } catch (e) {
-      /* non-fatal */
-    }
-  }, []);
-  return id;
-}
-
 // Workflow-rail step → central canvas view.
 const STEP_TO_VIEW = {
   stones: 'direction',
@@ -133,7 +132,7 @@ export default function StudioShell() {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
   const projectsStore = useDesignProjects();
-  const activeWorkId = useActiveWork();
+  const { activeWorkId, setActiveWork } = useActiveWork();
   const { narrow, short } = useViewport();
   const router = useRouter();
 
@@ -259,6 +258,62 @@ export default function StudioShell() {
       }
     : undefined;
 
+  // ------------------------------------------------------------------
+  // Patch B — Session Save / Project Birth.
+  // Persists the CURRENT design session (tray items + brief + computed
+  // snapshot) as a Design Project via the EXISTING designProjects exports.
+  // The brief already carries concepts / selectedConceptId / designOutputs
+  // (Clean 5A/5B), so the full concept state rides along with no new schema.
+  // Create vs update: if the Active Work pointer names a project that still
+  // exists, that project is UPDATED in place (name preserved, updatedAt
+  // stamped) — repeated saves never duplicate. Otherwise a new project is
+  // created with a sensible default title and becomes the Active Work.
+  // Local only — no Airtable, no network, no store internals touched.
+  // ------------------------------------------------------------------
+  const canSaveSession = hasStones || briefHasContent(brief);
+
+  const buildDefaultSessionTitle = () => {
+    const centerItem = realTrayItems.find(
+      (it) => normalizeRole(it.role) === DESIGN_ROLE.CENTER_STONE
+    );
+    const centerTitle = centerItem ? trayItemTitle(centerItem) : '';
+    const productHe =
+      brief.productType &&
+      CONCEPT_HE.productType &&
+      CONCEPT_HE.productType[brief.productType]
+        ? CONCEPT_HE.productType[brief.productType]
+        : '';
+    const detail = [productHe, centerTitle].filter(Boolean).join(' ');
+    return detail
+      ? `${STUDIO_5D_HE.defaultSessionTitlePrefix} — ${detail}`
+      : STUDIO_5D_HE.defaultSessionTitleFallback;
+  };
+
+  const onSaveSession = () => {
+    if (!canSaveSession) return;
+    const snapshot = buildDesignSnapshot(realTrayItems, brief);
+    const existing = activeWorkId ? getProject(activeWorkId) : null;
+    if (existing) {
+      const updated = updateProject(existing.id, {
+        trayItems: realTrayItems,
+        brief,
+        snapshot,
+      });
+      if (updated) showToast(STUDIO_5D_HE.toastSessionUpdated);
+      return;
+    }
+    const project = projectsStore.save({
+      name: buildDefaultSessionTitle(),
+      trayItems: realTrayItems,
+      brief,
+      snapshot,
+    });
+    if (project && project.id) {
+      setActiveWork(project.id);
+      showToast(STUDIO_5D_HE.toastSessionSaved);
+    }
+  };
+
   // Canvas content per view; existing panels own all logic.
   let canvasMode = 'concepts';
   let canvasBody = null;
@@ -324,6 +379,8 @@ export default function StudioShell() {
           hasActiveWork={Boolean(activeWorkId)}
           outputState={outputState}
           onExit={() => router.push('/studio')}
+          onSaveSession={onSaveSession}
+          canSaveSession={canSaveSession}
         />
         <StudioStoneStrip
           trayItems={realTrayItems}

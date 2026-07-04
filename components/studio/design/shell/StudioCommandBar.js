@@ -15,8 +15,20 @@ import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { DotIcon, HomeIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
 
-export default function StudioCommandBar({ hasActiveWork, outputState, onExit }) {
+export default function StudioCommandBar({
+  hasActiveWork,
+  outputState,
+  onExit,
+  onSaveSession,
+  canSaveSession,
+}) {
   const L = STUDIO_5D_HE;
+  // Patch B — Session Save. Presentation only: the shell owns the save
+  // logic; this bar renders one compact action. Disabled ONLY when there is
+  // genuinely nothing to save (empty tray + empty brief) — a real state,
+  // explained via a short tooltip, never a fake placeholder control.
+  const showSave = typeof onSaveSession === 'function';
+  const saveDisabled = !canSaveSession;
 
   let statusText = L.statusDraft;
   let dot = reset.color.textFaint;
@@ -43,6 +55,21 @@ export default function StudioCommandBar({ hasActiveWork, outputState, onExit })
         <span style={styles.name}>{L.appName}</span>
       </div>
       <div style={styles.right}>
+        {showSave && (
+          <button
+            type="button"
+            onClick={saveDisabled ? undefined : onSaveSession}
+            disabled={saveDisabled}
+            title={saveDisabled ? L.saveSessionEmptyHint : L.saveSession}
+            aria-label={L.saveSessionAria}
+            style={{
+              ...styles.saveBtn,
+              ...(saveDisabled ? styles.saveBtnDisabled : null),
+            }}
+          >
+            {L.saveSession}
+          </button>
+        )}
         <span style={styles.status} title={statusText} aria-label={statusText} role="status">
           <DotIcon size={8} color={dot} />
         </span>
@@ -96,8 +123,34 @@ const styles = {
     letterSpacing: '0.1em',
     color: reset.color.text,
     whiteSpace: 'nowrap',
+    // Patch B — the bar's right cluster gained a save action; the identity
+    // text truncates gracefully instead of overflowing the narrow column.
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    minWidth: 0,
   },
   right: { display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 },
+  // Patch B — compact primary save action (שמור תיק עבודה).
+  saveBtn: {
+    minHeight: '28px',
+    padding: '5px 10px',
+    fontFamily: reset.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
+    color: reset.color.primaryText,
+    background: reset.color.primaryBg,
+    border: 'none',
+    borderRadius: reset.radius.sm,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  saveBtnDisabled: {
+    color: reset.color.textFaint,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    cursor: 'not-allowed',
+  },
   status: {
     display: 'inline-flex',
     alignItems: 'center',
