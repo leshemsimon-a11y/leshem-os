@@ -46,14 +46,19 @@
 //     deliberately; that file is imported by ~60 files across Inventory/
 //     Work Tray/etc.).
 //
-// A note on one discoverable side effect: because the Demo Operating Layer
-// only shows demo stones while the REAL Work Tray is empty
-// (ENABLE_DEMO_OPERATING_LAYER && realTrayItems.length === 0 — unchanged,
-// pre-existing logic), using the new "Add to Work Tray" action on a demo
-// stone adds ONE real item to the tray, which then hides the whole demo
-// suggestion set on the next render (by the SAME pre-existing rule). This
-// is intentional, existing behavior newly reached via a wired button, not a
-// new bug — flagged here and in the delivery changelog.
+// Core Workflow Wiring V1 — "One Tray" (Patch A): the silent Demo Operating
+// Layer fallback is REMOVED from this shell. The REAL Work Tray
+// (lib/studio/workTray.js, via the existing useWorkTray hook) is the single
+// source of truth for the stone strip, the left stone panel, and the right
+// inspector — the studio shows exactly the stones the user put in the tray,
+// or the existing guided empty state (hero) when the tray is empty. The
+// hero's "choose stones" action now routes to /studio/inventory (which
+// writes to the real tray as of this patch) instead of opening the picker;
+// the picker stays reachable from the stone strip's add button. Demo-SOURCED
+// tray items (added from the demo inventory screen) still resolve their
+// richer inspect view through the EXISTING getDemoInspectStoneFromTrayItem
+// helper — per selected item, never as an injected list. No store internals
+// were touched; concept/output logic is unchanged.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
@@ -83,11 +88,7 @@ import StudioInspectorDrawer from './StudioInspectorDrawer';
 import StudioBottomStrip from './StudioBottomStrip';
 import { AlertIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
-import {
-  ENABLE_DEMO_OPERATING_LAYER,
-  getDemoStudioTrayItems,
-  getDemoInspectStoneFromTrayItem,
-} from '../../../../lib/studio/demoInventoryLayer';
+import { getDemoInspectStoneFromTrayItem } from '../../../../lib/studio/demoInventoryLayer';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
@@ -145,28 +146,9 @@ export default function StudioShell() {
   // (State A). Never persisted, never read by any store or panel.
   const [heroDismissed, setHeroDismissed] = React.useState(false);
 
-  // Temporary Demo Operating Layer: when the real Work Tray is empty, show
-  // selected stones from the demo inventory. The demo inventory screen writes
-  // only to localStorage, never to real inventory/Airtable/uploads.
-  const [demoTrayItems, setDemoTrayItems] = React.useState(() => getDemoStudioTrayItems(6));
-
-  // Studio Layout Reset — generalized from the old `selectedDemoTrayItemId`:
-  // this now tracks the top-ribbon selection for WHICHEVER list is on
-  // screen (demo or real), so clicking any stone chip selects it and
-  // updates the left panel + inspector, not just demo stones.
+  // One Tray — the top-ribbon selection tracks an item id from the REAL
+  // Work Tray (the only list this shell shows now).
   const [selectedItemId, setSelectedItemId] = React.useState(null);
-
-  React.useEffect(() => {
-    const refreshDemoTray = () => setDemoTrayItems(getDemoStudioTrayItems(6));
-    refreshDemoTray();
-    if (typeof window === 'undefined') return undefined;
-    window.addEventListener('storage', refreshDemoTray);
-    window.addEventListener('focus', refreshDemoTray);
-    return () => {
-      window.removeEventListener('storage', refreshDemoTray);
-      window.removeEventListener('focus', refreshDemoTray);
-    };
-  }, []);
 
   const showToast = React.useCallback((msg) => {
     if (!msg) return;
@@ -188,26 +170,32 @@ export default function StudioShell() {
   const brief = briefStore.brief;
   const concepts = Array.isArray(brief.concepts) ? brief.concepts : [];
   const hasConcepts = concepts.length > 0;
+  // One Tray — the REAL Work Tray is the single source of truth. No demo
+  // fallback list: an empty tray shows the guided empty state below.
   const realTrayItems = Array.isArray(tray.items) ? tray.items : [];
-  const showDemoLayer = ENABLE_DEMO_OPERATING_LAYER && realTrayItems.length === 0;
-  const displayTrayItems = showDemoLayer ? demoTrayItems : realTrayItems;
-  const hasStones = displayTrayItems.length > 0;
+  const hasStones = realTrayItems.length > 0;
 
-  // Studio Layout Reset — generalized selection: works for real or demo
-  // tray items alike. Core Flow Polish V1 — the DEFAULT (when nothing has
-  // been explicitly clicked yet) now prefers a center-stone-role item, since
-  // that's the more sensible "active" stone to land on. Defensive: if no
-  // center stone exists, falls back to the first item exactly as before.
-  // Nothing about the Work Tray store or saved data is touched — this only
-  // changes which already-present item the shell highlights by default.
-  const explicitSelection = displayTrayItems.find((it) => it.id === selectedItemId);
+  // Core Flow Polish V1 — the DEFAULT (when nothing has been explicitly
+  // clicked yet) prefers a center-stone-role item, since that's the more
+  // sensible "active" stone to land on. Defensive: if no center stone
+  // exists, falls back to the first item exactly as before. Nothing about
+  // the Work Tray store or saved data is touched — this only changes which
+  // already-present item the shell highlights by default.
+  const explicitSelection = realTrayItems.find((it) => it.id === selectedItemId);
   const defaultTrayItem =
-    displayTrayItems.find((it) => normalizeRole(it.role) === DESIGN_ROLE.CENTER_STONE) ||
-    displayTrayItems[0] ||
+    realTrayItems.find((it) => normalizeRole(it.role) === DESIGN_ROLE.CENTER_STONE) ||
+    realTrayItems[0] ||
     null;
   const selectedTrayItem = explicitSelection || defaultTrayItem;
+  // One Tray — demo-SOURCED items (added to the real tray from the demo
+  // inventory) still resolve their richer inspect view via the existing
+  // helper; it reads item.demoInventoryItem / the demo snapshot and returns
+  // null for any non-demo item, so the panels gracefully use the tray
+  // snapshot instead. Per selected item only — never an injected list.
   const selectedDemoStone =
-    showDemoLayer && selectedTrayItem ? getDemoInspectStoneFromTrayItem(selectedTrayItem) : null;
+    selectedTrayItem && selectedTrayItem.isDemoAsset
+      ? getDemoInspectStoneFromTrayItem(selectedTrayItem)
+      : null;
 
   const selected = getSelectedConcept(brief);
   const output = getActiveOutput(brief);
@@ -253,30 +241,21 @@ export default function StudioShell() {
 
   const onSelectVariant = (conceptId) => briefStore.selectConcept(conceptId);
 
-  // Studio Layout Reset — Zone 1 ribbon selection, generalized (see note
-  // above `selectedTrayItem`). Works whether displayTrayItems is the demo
-  // array or the real tray array.
+  // Studio Layout Reset — Zone 1 ribbon selection over the real tray list.
   const onSelectItem = (item) => {
     if (item && item.id) setSelectedItemId(item.id);
   };
 
-  // Studio Layout Reset — Zone 2 "Add / Remove Work Tray" action, wired for
-  // real using ONLY existing exported functions (tray.addItem / tray.remove
-  // from the existing useWorkTray hook). No new business logic: when the
-  // selection is a demo stone, it is already shaped exactly like a Work Tray
-  // item (lib/studio/demoInventoryLayer.js toStudioTrayItem already ran when
-  // building the demo list), so it can be added as-is. When the selection is
-  // already a real tray item, removing it calls the existing tray.remove.
-  const inTray = Boolean(selectedTrayItem) && !showDemoLayer;
+  // One Tray — Zone 2 primary action. Every stone this shell shows IS a real
+  // Work Tray item now, so the action is always "remove from tray", wired to
+  // the existing tray.remove (removeFromTray) export. After removal the
+  // default-selection logic above picks the next sensible active stone, or
+  // the guided empty state appears when the tray runs empty.
+  const inTray = Boolean(selectedTrayItem);
   const onToggleTray = selectedTrayItem
     ? () => {
-        if (showDemoLayer) {
-          tray.addItem(selectedTrayItem);
-          showToast(STUDIO_5D_HE.toastAddedToTray);
-        } else {
-          tray.remove(selectedTrayItem.id);
-          showToast(STUDIO_5D_HE.toastRemovedFromTray);
-        }
+        tray.remove(selectedTrayItem.id);
+        showToast(STUDIO_5D_HE.toastRemovedFromTray);
       }
     : undefined;
 
@@ -294,12 +273,14 @@ export default function StudioShell() {
     canvasBody = <DesignConceptPanel view="concepts" onToast={showToast} suppressStaleBanner />;
   }
 
-  // Clean 5D-R3 — guided-start actions. Pure UI: open the existing picker,
-  // dismiss the hero to reveal the existing metal-only starter/input flow, or
-  // navigate to the existing Work Tray route. No new stores, no new routes.
+  // Clean 5D-R3 guided-start actions, One Tray revision: "choose stones"
+  // now routes to the Inventory screen — which writes to the REAL Work Tray
+  // as of this patch — so the guided empty state leads to the true stone
+  // source. (Its label already says "בחרו אבנים מהמלאי".) The metal-only and
+  // open-tray choices are unchanged, and the AssetPicker stays reachable via
+  // the stone strip's add button. No new stores, no new routes.
   const onHeroChooseStones = () => {
-    setHeroDismissed(true);
-    setPickerOpen(true);
+    router.push('/studio/inventory');
   };
   const onHeroChooseNoStones = () => {
     setHeroDismissed(true);
@@ -345,11 +326,11 @@ export default function StudioShell() {
           onExit={() => router.push('/studio')}
         />
         <StudioStoneStrip
-          trayItems={displayTrayItems}
+          trayItems={realTrayItems}
           onAddStones={() => setPickerOpen(true)}
           onSelectItem={onSelectItem}
           selectedItemId={selectedTrayItem ? selectedTrayItem.id : null}
-          demoMode={showDemoLayer}
+          demoMode={false}
         />
       </div>
 
@@ -361,9 +342,9 @@ export default function StudioShell() {
         }}
       >
         <StudioStonePanel
-          item={showDemoLayer ? null : selectedTrayItem}
+          item={selectedTrayItem}
           demoStone={selectedDemoStone}
-          demoMode={showDemoLayer}
+          demoMode={Boolean(selectedDemoStone)}
           hasStones={hasStones}
           inTray={inTray}
           onToggleTray={onToggleTray}
@@ -403,9 +384,9 @@ export default function StudioShell() {
         <StudioInspectorDrawer
           concept={selected}
           output={output}
-          selectedItem={!selected && !showDemoLayer ? selectedTrayItem : null}
+          selectedItem={!selected ? selectedTrayItem : null}
           selectedDemoStone={!selected ? selectedDemoStone : null}
-          demoMode={showDemoLayer}
+          demoMode={Boolean(selectedDemoStone)}
         />
       </div>
 

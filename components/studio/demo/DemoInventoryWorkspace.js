@@ -28,10 +28,25 @@
 //     (icons for actions, per the visual upgrade brief) — same onClick,
 //     same behavior.
 
+// Core Workflow Wiring V1 — "One Tray" (Patch A): "הוסף למגש עבודה" now writes
+// to the REAL Work Tray store (lib/studio/workTray.js) via the EXISTING
+// exported hook (createUseWorkTray → tray.addItem / tray.remove) and the
+// EXISTING demo bridge (toStudioTrayItem from lib/studio/demoInventoryLayer.js).
+// The demo layer remains as SEED DATA only; tray membership is real:
+//   • "in tray" card/inspector state derives from real tray membership
+//     (tray.has), not from the demo selectedForTray flag.
+//   • The demo selectedForTray flag is kept as a MIRROR of real membership
+//     (synced on mount + on toggle, via the same existing persist path), so
+//     read-only demo consumers (Dashboard Inventory Pulse, demo activity
+//     feed) converge to the truth without being edited.
+// No new store, no new persistence keys, no protected-file edits. Filters,
+// inspect/edit fields, and reset-demo behavior are unchanged.
+
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { TRAY_HE } from '../../../lib/studio/labels';
+import { TRAY_HE, STUDIO_5D_HE } from '../../../lib/studio/labels';
+import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   getDemoInventorySnapshot,
   saveDemoInventorySnapshot,
@@ -40,7 +55,10 @@ import {
   getSourceLabelHe,
   getSourceContextBadge,
   getStatusLabelHe,
+  toStudioTrayItem,
 } from '../../../lib/studio/demoInventoryLayer';
+
+const useWorkTray = createUseWorkTray(React);
 
 const SOURCE_OPTIONS = [
   { value: 'owned', label: 'מלאי שלנו' },
@@ -145,8 +163,7 @@ function Stat({ label, value }) {
   );
 }
 
-function StoneCard({ item, active, onClick, onToggleTray }) {
-  const inTray = Boolean(item.selectedForTray);
+function StoneCard({ item, active, inTray, onClick, onToggleTray }) {
   return (
     <article
       style={{
@@ -207,6 +224,7 @@ function StoneCard({ item, active, onClick, onToggleTray }) {
 
 export default function DemoInventoryWorkspace() {
   const router = useRouter();
+  const tray = useWorkTray();
   const [items, setItems] = React.useState([]);
   const [activeId, setActiveId] = React.useState(null);
   const [query, setQuery] = React.useState('');
@@ -219,9 +237,40 @@ export default function DemoInventoryWorkspace() {
     setActiveId((snapshot[0] && snapshot[0].id) || null);
   }, []);
 
-  const activity = React.useMemo(() => getDemoActivityFeed(), [items.length]);
+  // One Tray — REAL tray membership is the single source of truth for the
+  // "in tray" state on this screen. Demo item ids are preserved verbatim by
+  // toStudioTrayItem (tray item id === demo item id), so membership is a
+  // direct id lookup.
+  const trayIds = React.useMemo(
+    () => new Set((tray.items || []).map((it) => it.id)),
+    [tray.items]
+  );
+
+  // One Tray — one-time reconcile after both sources hydrate: the demo
+  // selectedForTray flag becomes a mirror of real tray membership, using
+  // ONLY the existing persist path (saveDemoInventorySnapshot). This keeps
+  // read-only demo consumers (Dashboard Inventory Pulse, activity feed)
+  // truthful without editing them, and clears the seed's pre-selected flags
+  // that previously fed the studio's demo fallback. Skipped entirely when
+  // nothing differs, so it never writes on every visit.
+  const reconciledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (reconciledRef.current || !tray.hydrated || items.length === 0) return;
+    reconciledRef.current = true;
+    const differs = items.some(
+      (item) => Boolean(item.selectedForTray) !== trayIds.has(item.id)
+    );
+    if (!differs) return;
+    const next = items.map((item) => ({
+      ...item,
+      selectedForTray: trayIds.has(item.id),
+    }));
+    setItems(next);
+    saveDemoInventorySnapshot(cloneItems(next));
+  }, [tray.hydrated, items, trayIds]);
+
+  const activity = React.useMemo(() => getDemoActivityFeed(), [items.length, tray.count]);
   const activeItem = items.find((item) => item.id === activeId) || items[0] || null;
-  const selectedCount = items.filter((item) => item.selectedForTray).length;
   const totalValue = items.reduce((sum, item) => sum + (Number(item.askingPriceUsd) || 0), 0);
 
   const filtered = items.filter((item) => {
@@ -251,16 +300,39 @@ export default function DemoInventoryWorkspace() {
     persist(next, 'נשמר בדמו');
   }, [activeItem, items, persist]);
 
+  // One Tray — add/remove acts on the REAL Work Tray using ONLY existing
+  // exports: tray.addItem (addItemToTray) with the existing toStudioTrayItem
+  // bridge, and tray.remove (removeFromTray) by id. The demo selectedForTray
+  // flag is updated in the same action as a mirror of real membership (same
+  // existing persist path as before); the visible in-tray state itself reads
+  // from the real tray (trayIds), never from the flag. Status behavior is
+  // preserved: adding marks the demo item 'selected'; removing leaves the
+  // status untouched, exactly as before.
   const toggleTray = React.useCallback((id) => {
-    const next = items.map((item) => (
-      item.id === id ? { ...item, selectedForTray: !item.selectedForTray, status: !item.selectedForTray ? 'selected' : item.status } : item
+    const item = items.find((it) => it.id === id);
+    if (!item) return;
+    const adding = !trayIds.has(id);
+    if (adding) {
+      const trayItem = toStudioTrayItem(item);
+      if (!trayItem) return;
+      tray.addItem(trayItem);
+    } else {
+      tray.remove(id);
+    }
+    const next = items.map((it) => (
+      it.id === id
+        ? { ...it, selectedForTray: adding, status: adding ? 'selected' : it.status }
+        : it
     ));
-    persist(next, 'מגש העבודה עודכן (דמו)');
-  }, [items, persist]);
+    persist(next, adding ? STUDIO_5D_HE.toastAddedToTray : STUDIO_5D_HE.toastRemovedFromTray);
+  }, [items, trayIds, tray, persist]);
 
   const resetDemo = React.useCallback(() => {
     resetDemoInventorySnapshot();
     const snapshot = getDemoInventorySnapshot();
+    // One Tray — the reset restores the seed's demo flags, so let the mount
+    // reconcile run once more and mirror them back to REAL tray membership.
+    reconciledRef.current = false;
     setItems(snapshot);
     setActiveId((snapshot[0] && snapshot[0].id) || null);
     setStatus('איפוס דמו הושלם');
@@ -289,7 +361,7 @@ export default function DemoInventoryWorkspace() {
 
       <section style={styles.statsRow}>
         <Stat label="אבנים במלאי דמו" value={items.length || '—'} />
-        <Stat label="במגש העבודה" value={selectedCount} />
+        <Stat label="במגש העבודה" value={tray.hydrated ? tray.count : '—'} />
         <Stat label="שווי דמו מוצג" value={currency(totalValue)} />
         <Stat label="סטטוס" value={status === 'ready' ? 'מוכן' : status} />
       </section>
@@ -332,7 +404,7 @@ export default function DemoInventoryWorkspace() {
           </div>
           <div style={styles.noteBox}>
             <strong>מה זה עושה?</strong>
-            <span>בחירה כאן משפיעה על מגש הדמו ב־Design Studio אם אין אבנים אמיתיות במגש.</span>
+            <span>הוספה כאן נכנסת למגש העבודה האמיתי — אותן אבנים בדיוק יופיעו במגש העבודה ובסטודיו העיצוב.</span>
           </div>
         </aside>
 
@@ -347,6 +419,7 @@ export default function DemoInventoryWorkspace() {
                 key={item.id}
                 item={item}
                 active={activeItem && item.id === activeItem.id}
+                inTray={trayIds.has(item.id)}
                 onClick={() => setActiveId(item.id)}
                 onToggleTray={toggleTray}
               />
@@ -411,8 +484,8 @@ export default function DemoInventoryWorkspace() {
 
               <div style={styles.inspectActions}>
                 <button type="button" style={styles.primaryBtnFull} onClick={() => toggleTray(activeItem.id)}>
-                  {activeItem.selectedForTray ? <RemoveIcon /> : <TrayIcon />}
-                  {activeItem.selectedForTray ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
+                  {trayIds.has(activeItem.id) ? <RemoveIcon /> : <TrayIcon />}
+                  {trayIds.has(activeItem.id) ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
                 </button>
                 <button type="button" style={styles.secondaryBtnFull} onClick={() => router.push('/studio/design')}>
                   <DesignIcon /> עבור לעיצוב עם האבנים
@@ -483,7 +556,7 @@ const styles = {
   gridCount: { fontSize: '11.5px', color: tokens.color.inkFaint, fontWeight: 600 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' },
   card: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, overflow: 'hidden', cursor: 'pointer', boxShadow: tokens.shadow.soft },
-  // "In tray" (selectedForTray) and "active/inspecting" are two distinct,
+  // "In tray" (REAL Work Tray membership) and "active/inspecting" are two distinct,
   // composable states shown through different visual channels so they never
   // compete or get lost when both apply to the same card at once:
   //   • in tray  → sage top accent bar + a small checkmark badge on the image
