@@ -42,6 +42,39 @@ const useDesignProjects = createUseDesignProjects(React);
 const useDesignBrief = createUseDesignBrief(React);
 const useActiveWork = createUseActiveWork(React);
 
+// Small inline icons — self-contained, matching the convention already used
+// in DemoInventoryWorkspace.js and TrayItemCard.js (no cross-import from the
+// Design Studio shell's icon set).
+function DesignIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 17.5L14 6.5l3.5 3.5L6.5 21H3v-3.5z" />
+      <path d="M13 7.5l3.5 3.5" />
+    </svg>
+  );
+}
+function BackIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5l-6 7 6 7M5 12h14" />
+    </svg>
+  );
+}
+function ClearIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" />
+    </svg>
+  );
+}
+function PickIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 function StatusStrip({ status }) {
   if (!status || status.key === 'empty') return null;
 
@@ -156,10 +189,10 @@ export default function WorkTray() {
           <p style={styles.emptyHint}>{TRAY_HE.emptyHint}</p>
           <div style={styles.emptyActions}>
             <button type="button" onClick={() => setPickerOpen(true)} style={styles.primaryBtn}>
-              {PICKER_HE.openFromTray}
+              <PickIcon /> {PICKER_HE.openFromTray}
             </button>
             <button type="button" onClick={goInventory} style={styles.secondaryBtn}>
-              {TRAY_HE.backToInventory}
+              <BackIcon /> {TRAY_HE.backToInventory}
             </button>
           </div>
         </div>
@@ -169,14 +202,14 @@ export default function WorkTray() {
             <span style={styles.count}>{TRAY_HE.itemsCount(total)}</span>
             <div style={styles.metaActions}>
               <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickBtn}>
-                {PICKER_HE.openFromTray}
+                <PickIcon /> {PICKER_HE.openFromTray}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmOpen(true)}
                 style={styles.clearBtn}
               >
-                {TRAY_HE.clear}
+                <ClearIcon /> {TRAY_HE.clear}
               </button>
             </div>
           </div>
@@ -220,14 +253,14 @@ export default function WorkTray() {
           {!isMobile && (
             <div style={styles.desktopActions}>
               <button type="button" onClick={goInventory} style={styles.secondaryBtn}>
-                {TRAY_HE.backToInventory}
+                <BackIcon /> {TRAY_HE.backToInventory}
               </button>
               <div style={styles.desktopPrimaryWrap}>
                 <span style={styles.desktopReadyHint}>
                   {readyToBegin ? TRAY_HE.readyHint : TRAY_HE.notReadyHint}
                 </span>
                 <button type="button" onClick={goDesign} style={styles.primaryBtn}>
-                  {TRAY_HE.createJewelry}
+                  <DesignIcon /> {TRAY_HE.createJewelry}
                 </button>
               </div>
             </div>
@@ -244,7 +277,7 @@ export default function WorkTray() {
               {readyToBegin ? TRAY_HE.readyHint : TRAY_HE.openDesignHint}
             </span>
             <button type="button" onClick={goDesign} style={styles.stickyBtn}>
-              {TRAY_HE.openDesign}
+              <DesignIcon /> {TRAY_HE.openDesign}
             </button>
           </div>
         </div>
@@ -358,6 +391,9 @@ const styles = {
     justifyContent: 'center',
   },
   pickBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '7px',
     minHeight: '44px',
     padding: '10px 16px',
     fontFamily: tokens.font.body,
@@ -376,6 +412,9 @@ const styles = {
     color: tokens.color.inkSoft,
   },
   clearBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '7px',
     minHeight: '44px',
     padding: '10px 18px',
     fontFamily: tokens.font.body,
@@ -474,6 +513,10 @@ const styles = {
     color: tokens.color.inkFaint,
   },
   primaryBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
     minHeight: '50px',
     padding: '14px 28px',
     fontFamily: tokens.font.body,
@@ -487,6 +530,10 @@ const styles = {
     boxShadow: tokens.shadow.soft,
   },
   secondaryBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
     minHeight: '50px',
     padding: '14px 26px',
     fontFamily: tokens.font.body,
@@ -524,6 +571,10 @@ const styles = {
     minWidth: 0,
   },
   stickyBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
     minHeight: '50px',
     padding: '14px 22px',
     fontFamily: tokens.font.body,

@@ -27,6 +27,16 @@ import { createUseAssets } from '../../../lib/studio/assetsStore';
 
 const useAssets = createUseAssets(React);
 
+// Small inline icon — self-contained, matching this file's own convention
+// (no cross-import from the Design Studio shell's icon set).
+function RemoveIcon({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" />
+    </svg>
+  );
+}
+
 function identity(snapshot) {
   const s = snapshot || {};
   const title = s.name || s.stoneTypeHe || s.productTypeHe || 'פריט מלאי';
@@ -116,6 +126,7 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
           style={styles.remove}
           aria-label={`${TRAY_HE.remove}: ${title}`}
         >
+          <RemoveIcon />
           {TRAY_HE.remove}
         </button>
       </div>
@@ -273,6 +284,9 @@ const styles = {
     color: tokens.color.inkFaint,
   },
   remove: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
     minHeight: '44px',
     padding: '10px 16px',
     fontFamily: tokens.font.body,

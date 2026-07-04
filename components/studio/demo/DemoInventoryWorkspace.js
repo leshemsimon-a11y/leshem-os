@@ -20,6 +20,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
+import { TRAY_HE } from '../../../lib/studio/labels';
 import {
   getDemoInventorySnapshot,
   saveDemoInventorySnapshot,
@@ -106,6 +107,13 @@ function SearchIcon({ size = 14 }) {
     </svg>
   );
 }
+function CheckIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 12.5l5 5L20 6" />
+    </svg>
+  );
+}
 
 function Field({ label, children }) {
   return (
@@ -126,9 +134,14 @@ function Stat({ label, value }) {
 }
 
 function StoneCard({ item, active, onClick, onToggleTray }) {
+  const inTray = Boolean(item.selectedForTray);
   return (
     <article
-      style={{ ...styles.card, ...(active ? styles.cardActive : null) }}
+      style={{
+        ...styles.card,
+        ...(inTray ? styles.cardInTray : null),
+        ...(active ? styles.cardActive : null),
+      }}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -144,7 +157,11 @@ function StoneCard({ item, active, onClick, onToggleTray }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={item.boxImage || item.thumbImage} alt="" style={styles.cardImage} />
         <span style={styles.cardDemoPill}>DEMO</span>
-        {item.selectedForTray ? <span style={styles.cardSelectedPill}>במגש</span> : null}
+        {inTray ? (
+          <span style={styles.cardInTrayBadge} title={TRAY_HE.inTray} aria-label={TRAY_HE.inTray}>
+            <CheckIcon size={11} />
+          </span>
+        ) : null}
       </div>
       <div style={styles.cardBody}>
         <div style={styles.cardTopLine}>
@@ -159,14 +176,14 @@ function StoneCard({ item, active, onClick, onToggleTray }) {
         </div>
         <button
           type="button"
-          style={{ ...styles.trayBtn, ...(item.selectedForTray ? styles.trayBtnOn : null) }}
+          style={{ ...styles.trayBtn, ...(inTray ? styles.trayBtnOn : null) }}
           onClick={(e) => {
             e.stopPropagation();
             onToggleTray(item.id);
           }}
         >
-          {item.selectedForTray ? <RemoveIcon /> : <TrayIcon />}
-          {item.selectedForTray ? 'הסר מ־Work Tray' : 'שלח ל־Work Tray'}
+          {inTray ? <RemoveIcon /> : <TrayIcon />}
+          {inTray ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
         </button>
       </div>
     </article>
@@ -223,7 +240,7 @@ export default function DemoInventoryWorkspace() {
     const next = items.map((item) => (
       item.id === id ? { ...item, selectedForTray: !item.selectedForTray, status: !item.selectedForTray ? 'selected' : item.status } : item
     ));
-    persist(next, 'עודכן Work Tray דמו');
+    persist(next, 'מגש העבודה עודכן (דמו)');
   }, [items, persist]);
 
   const resetDemo = React.useCallback(() => {
@@ -257,7 +274,7 @@ export default function DemoInventoryWorkspace() {
 
       <section style={styles.statsRow}>
         <Stat label="אבנים במלאי דמו" value={items.length || '—'} />
-        <Stat label="ב־Work Tray" value={selectedCount} />
+        <Stat label="במגש העבודה" value={selectedCount} />
         <Stat label="שווי דמו מוצג" value={currency(totalValue)} />
         <Stat label="סטטוס" value={status === 'ready' ? 'מוכן' : status} />
       </section>
@@ -377,7 +394,7 @@ export default function DemoInventoryWorkspace() {
               <div style={styles.inspectActions}>
                 <button type="button" style={styles.primaryBtnFull} onClick={() => toggleTray(activeItem.id)}>
                   {activeItem.selectedForTray ? <RemoveIcon /> : <TrayIcon />}
-                  {activeItem.selectedForTray ? 'הסר מ־Work Tray' : 'שלח ל־Work Tray'}
+                  {activeItem.selectedForTray ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
                 </button>
                 <button type="button" style={styles.secondaryBtnFull} onClick={() => router.push('/studio/design')}>
                   <DesignIcon /> עבור לעיצוב עם האבנים
@@ -447,13 +464,25 @@ const styles = {
   gridCount: { fontSize: '11.5px', color: tokens.color.inkFaint, fontWeight: 600 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' },
   card: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, overflow: 'hidden', cursor: 'pointer', boxShadow: tokens.shadow.soft },
+  // "In tray" (selectedForTray) and "active/inspecting" are two distinct,
+  // composable states shown through different visual channels so they never
+  // compete or get lost when both apply to the same card at once:
+  //   • in tray  → sage top accent bar + a small checkmark badge on the image
+  //   • active   → a stronger charcoal border (unchanged from before)
+  cardInTray: { borderTop: `3px solid ${tokens.color.sage}` },
   cardActive: { border: `1.5px solid ${tokens.color.charcoal}`, boxShadow: tokens.shadow.lift },
   // Global Visual Upgrade V1 — square, contain image frame (was a 1/0.78
   // cropped "cover" rectangle). Full gemstone always visible, never cropped.
   cardImageWrap: { position: 'relative', aspectRatio: '1 / 1', background: tokens.color.pearl, overflow: 'hidden' },
   cardImage: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
   cardDemoPill: { position: 'absolute', top: '8px', insetInlineEnd: '8px', background: 'rgba(255,255,255,0.9)', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '3px 7px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em' },
-  cardSelectedPill: { position: 'absolute', bottom: '8px', insetInlineEnd: '8px', background: tokens.color.charcoal, color: tokens.color.ivory, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '9.5px', fontWeight: 700 },
+  cardInTrayBadge: {
+    position: 'absolute', bottom: '8px', insetInlineEnd: '8px',
+    width: '22px', height: '22px', borderRadius: '50%',
+    background: tokens.color.sage, color: tokens.color.ivory,
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: tokens.shadow.soft,
+  },
   cardBody: { padding: '11px', display: 'flex', flexDirection: 'column', gap: '6px' },
   cardTopLine: { display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' },
   inventoryNo: { fontSize: '10.5px', color: tokens.color.gold, fontWeight: 700, letterSpacing: '0.04em' },
@@ -464,7 +493,7 @@ const styles = {
   pillsWide: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
   pill: { background: tokens.color.pearl, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '10px', color: tokens.color.inkSoft, fontWeight: 600 },
   trayBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px', border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, color: tokens.color.charcoal, borderRadius: tokens.radius.sm, minHeight: '34px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
-  trayBtnOn: { background: tokens.color.charcoal, color: tokens.color.ivory, borderColor: tokens.color.charcoal },
+  trayBtnOn: { background: tokens.color.sage, color: tokens.color.ivory, borderColor: tokens.color.sage },
   inspector: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, padding: '14px', position: 'sticky', top: '14px', boxShadow: tokens.shadow.soft },
   // Global Visual Upgrade V1 — square, contain (same reasoning as cardImage).
   inspectImageWrap: { position: 'relative', borderRadius: tokens.radius.md, overflow: 'hidden', background: tokens.color.pearl, aspectRatio: '1 / 1', border: `1px solid ${tokens.color.cardEdge}` },

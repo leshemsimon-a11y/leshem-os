@@ -66,6 +66,8 @@ import {
   getActiveOutput,
   conceptsAreStale,
   outputIsStale,
+  DESIGN_ROLE,
+  normalizeRole,
 } from '../../../../lib/studio/designDraft';
 
 import DesignConceptPanel from '../DesignConceptPanel';
@@ -192,11 +194,18 @@ export default function StudioShell() {
   const hasStones = displayTrayItems.length > 0;
 
   // Studio Layout Reset — generalized selection: works for real or demo
-  // tray items alike. Defaults to the first item so Zone 2 / Zone 4 are
-  // never blank when stones exist (never a blank panel), matching the
-  // existing "never a blank canvas" philosophy already used elsewhere here.
-  const selectedTrayItem =
-    displayTrayItems.find((it) => it.id === selectedItemId) || displayTrayItems[0] || null;
+  // tray items alike. Core Flow Polish V1 — the DEFAULT (when nothing has
+  // been explicitly clicked yet) now prefers a center-stone-role item, since
+  // that's the more sensible "active" stone to land on. Defensive: if no
+  // center stone exists, falls back to the first item exactly as before.
+  // Nothing about the Work Tray store or saved data is touched — this only
+  // changes which already-present item the shell highlights by default.
+  const explicitSelection = displayTrayItems.find((it) => it.id === selectedItemId);
+  const defaultTrayItem =
+    displayTrayItems.find((it) => normalizeRole(it.role) === DESIGN_ROLE.CENTER_STONE) ||
+    displayTrayItems[0] ||
+    null;
+  const selectedTrayItem = explicitSelection || defaultTrayItem;
   const selectedDemoStone =
     showDemoLayer && selectedTrayItem ? getDemoInspectStoneFromTrayItem(selectedTrayItem) : null;
 
@@ -214,11 +223,18 @@ export default function StudioShell() {
   const heroActive = !hasStones && !hasConcepts && !heroDismissed;
 
   // One obvious primary action (bottom strip only — the single dominant CTA).
+  // Core Flow Polish V1 — the "Generate Concepts" label previously showed
+  // while still on the Stones/Product (direction) step, where clicking it
+  // only navigates to the step that has the real generate button — two CTAs
+  // effectively sharing one promise. Now the direction step honestly says
+  // "continue", and "Generate Concepts" only appears once the user is on the
+  // step where that action actually lives. No generation logic touched.
   let primaryLabel = STUDIO_5D_HE.primaryGenerateConcepts;
   let primaryDisabled = false;
   let onPrimary = () => setActiveStep('design');
   if (!hasConcepts) {
-    primaryLabel = STUDIO_5D_HE.primaryGenerateConcepts;
+    primaryLabel =
+      view === 'direction' ? STUDIO_5D_HE.primaryContinueToConcepts : STUDIO_5D_HE.primaryGenerateConcepts;
     onPrimary = () => setActiveStep('design');
   } else if (conceptsStale) {
     primaryLabel = STUDIO_5D_HE.primaryUpdateConcepts;

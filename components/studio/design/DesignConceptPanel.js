@@ -140,6 +140,13 @@ function QuickStyleCards({ value, onChange }) {
               aria-pressed={selected}
               title={label}
             >
+              {selected && (
+                <span style={quickStyleStyles.checkBadge} aria-hidden="true">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12.5l5 5L20 6" />
+                  </svg>
+                </span>
+              )}
               <span style={quickStyleStyles.cardIcon} aria-hidden="true">
                 <Icon width={20} height={20} />
               </span>
@@ -163,6 +170,7 @@ const quickStyleStyles = {
   },
   row: { display: 'flex', gap: '8px' },
   card: {
+    position: 'relative',
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
@@ -179,6 +187,19 @@ const quickStyleStyles = {
   cardSelected: {
     border: `1.5px solid ${reset.color.text}`,
     background: reset.color.page,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: '6px',
+    insetInlineEnd: '6px',
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    background: reset.color.text,
+    color: reset.color.panel,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardIcon: {
     display: 'inline-flex',
@@ -275,7 +296,14 @@ function ConceptCard({ concept, chosen, onChoose, onNotes, onRemove, onRefresh }
         <span style={styles.conceptName} title={concept.shortDescription || undefined}>
           {concept.conceptName}
         </span>
-        {chosen && <span style={styles.chosenPill}>{CONCEPT_HE.chosenBadge}</span>}
+        {chosen && (
+          <span style={styles.chosenPill}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginInlineEnd: '3px', verticalAlign: '-1px' }}>
+              <path d="M4 12.5l5 5L20 6" />
+            </svg>
+            {CONCEPT_HE.chosenBadge}
+          </span>
+        )}
       </div>
 
       {/* Clean 5D-R4 — Studio Layout Reset (approved exception): shortDescription
