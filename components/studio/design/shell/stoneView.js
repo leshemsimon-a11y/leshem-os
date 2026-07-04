@@ -12,7 +12,8 @@
 // does not mutate anything, and does not invent data — fields that are not
 // present are simply omitted (never fabricated placeholders).
 
-import { getSourceLabelHe, getStatusLabelHe } from '../../../../lib/studio/demoInventoryLayer';
+import { getSourceLabelHe, getStatusLabelHe, getSourceContextBadge } from '../../../../lib/studio/demoInventoryLayer';
+import { getShapeLabel, getStoneTypeLabel, getTreatmentLabel } from '../../../../lib/studio/gemLabels';
 
 // Core fields shown on BOTH panels: title, image, 4-6 compact rows, badges.
 // `item` is a real Work Tray item (shape from lib/studio/workTray.js); when
@@ -21,19 +22,23 @@ import { getSourceLabelHe, getStatusLabelHe } from '../../../../lib/studio/demoI
 export function buildStoneCore(item, demoStone) {
   if (demoStone) {
     const rows = [
-      { key: 'stoneType', label: 'סוג אבן', value: demoStone.stoneTypeHe || demoStone.stoneType },
-      { key: 'shape', label: 'צורה', value: demoStone.shapeHe || demoStone.shape },
+      { key: 'stoneType', label: 'סוג אבן', value: demoStone.stoneTypeHe || getStoneTypeLabel(demoStone.stoneType) },
+      { key: 'shape', label: 'צורה', value: demoStone.shapeHe || getShapeLabel(demoStone.shape) },
       { key: 'carat', label: 'משקל משוער', value: demoStone.caratLabel },
       { key: 'color', label: 'צבע', value: demoStone.color },
       { key: 'clarity', label: 'ניקיון', value: demoStone.clarity },
-      { key: 'treatment', label: 'טיפול', value: demoStone.treatment },
+      { key: 'treatment', label: 'טיפול', value: getTreatmentLabel(demoStone.treatment) },
     ].filter((r) => r.value && String(r.value).trim());
 
     return {
       title: demoStone.titleHe || demoStone.title || '—',
       image: demoStone.inspectImage || demoStone.boxImage || null,
       rows,
-      badges: [getSourceLabelHe(demoStone.sourceType), getStatusLabelHe(demoStone.status)].filter(Boolean),
+      badges: [
+        getSourceLabelHe(demoStone.sourceType),
+        getSourceContextBadge(demoStone.sourceType),
+        getStatusLabelHe(demoStone.status),
+      ].filter(Boolean),
       isDemo: true,
     };
   }
@@ -41,8 +46,8 @@ export function buildStoneCore(item, demoStone) {
   if (item) {
     const s = item.snapshot || {};
     const rows = [
-      { key: 'stoneType', label: 'סוג אבן', value: s.stoneTypeHe || s.productTypeHe },
-      { key: 'shape', label: 'צורה', value: s.shapeHe },
+      { key: 'stoneType', label: 'סוג אבן', value: s.stoneTypeHe || getStoneTypeLabel(s.stoneType) || s.productTypeHe },
+      { key: 'shape', label: 'צורה', value: s.shapeHe || getShapeLabel(s.shape) },
       {
         key: 'carat',
         label: 'משקל',

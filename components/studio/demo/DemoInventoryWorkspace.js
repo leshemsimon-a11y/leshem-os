@@ -27,13 +27,14 @@ import {
   resetDemoInventorySnapshot,
   getDemoActivityFeed,
   getSourceLabelHe,
+  getSourceContextBadge,
   getStatusLabelHe,
 } from '../../../lib/studio/demoInventoryLayer';
 
 const SOURCE_OPTIONS = [
   { value: 'owned', label: 'מלאי שלנו' },
-  { value: 'supplier', label: 'ספק / וירטואלי' },
-  { value: 'client-owned', label: 'אבן לקוח' },
+  { value: 'supplier', label: 'ספק' },
+  { value: 'client-owned', label: 'של לקוח' },
 ];
 
 const STATUS_OPTIONS = [
@@ -49,7 +50,7 @@ const TYPE_FILTERS = [
   { value: 'Emerald', label: 'אמרלד' },
   { value: 'Ruby', label: 'רובי' },
   { value: 'Sapphire', label: 'ספיר' },
-  { value: 'Paraiba Tourmaline', label: 'פראיבה' },
+  { value: 'Paraiba Tourmaline', label: 'פאראיבה' },
 ];
 
 function currency(value) {
@@ -172,6 +173,9 @@ function StoneCard({ item, active, onClick, onToggleTray }) {
         <p style={styles.cardSub}>{item.estimatedCarat}ct · {item.color}</p>
         <div style={styles.pills}>
           <span style={styles.pill}>{getSourceLabelHe(item.sourceType)}</span>
+          {getSourceContextBadge(item.sourceType) ? (
+            <span style={styles.pill}>{getSourceContextBadge(item.sourceType)}</span>
+          ) : null}
           <span style={styles.pill}>{getStatusLabelHe(item.status)}</span>
         </div>
         <button
@@ -356,6 +360,9 @@ export default function DemoInventoryWorkspace() {
 
               <div style={styles.pillsWide}>
                 <span style={styles.pill}>{getSourceLabelHe(activeItem.sourceType)}</span>
+                {getSourceContextBadge(activeItem.sourceType) ? (
+                  <span style={styles.pill}>{getSourceContextBadge(activeItem.sourceType)}</span>
+                ) : null}
                 <span style={styles.pill}>{getStatusLabelHe(activeItem.status)}</span>
                 <span style={styles.pill}>Demo Asset</span>
               </div>
