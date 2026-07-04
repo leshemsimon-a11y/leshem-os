@@ -50,7 +50,8 @@ export default function StudioWorkflowRail({ active, onSelect }) {
               ...(future ? styles.stepFuture : null),
             }}
           >
-            <Icon size={15} />
+            <Icon size={14} />
+            <span style={styles.stepLabel}>{L[key]}</span>
           </button>
         );
       })}
@@ -63,18 +64,22 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
+    flexWrap: 'wrap',
   },
   step: {
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '32px',
-    height: '32px',
+    gap: '5px',
+    minHeight: '30px',
+    padding: '5px 9px',
     background: 'transparent',
     border: `1px solid transparent`,
     borderRadius: reset.radius.sm,
     color: reset.color.textMuted,
     cursor: 'pointer',
+    fontFamily: reset.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
   },
   stepActive: {
     background: reset.color.page,
@@ -82,4 +87,5 @@ const styles = {
     color: reset.color.text,
   },
   stepFuture: { color: reset.color.textFaint, opacity: 0.6, cursor: 'not-allowed' },
+  stepLabel: { whiteSpace: 'nowrap' },
 };

@@ -25,7 +25,7 @@
 import * as React from 'react';
 import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
 import { buildStoneCore } from './stoneView';
-import { StoneIcon, DesignIcon, BriefIcon, MoreIcon, PlusIcon, RemoveIcon } from './StudioIcons';
+import { StoneIcon, DesignIcon, BriefIcon, PlusIcon, RemoveIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
 
 export default function StudioStonePanel({
@@ -129,15 +129,6 @@ export default function StudioStonePanel({
             style={{ ...styles.iconBtn, ...styles.iconBtnDisabled }}
           >
             <BriefIcon size={16} />
-          </button>
-          <button
-            type="button"
-            disabled
-            title={L.moreActionsSoon}
-            aria-label={L.moreActionsSoon}
-            style={{ ...styles.iconBtn, ...styles.iconBtnDisabled }}
-          >
-            <MoreIcon size={16} />
           </button>
         </div>
       </div>

@@ -1,6 +1,17 @@
 // components/studio/demo/DemoInventoryWorkspace.js
 // LESHEM.S OS — clean temporary Demo Inventory screen.
-// Self-contained page-level component. No Airtable writes, no schema changes.
+// No Airtable writes, no schema changes.
+//
+// Command Center + Unified App Frame pass: this screen now mounts INSIDE the
+// shared app-level StudioShell (see pages/studio/inventory.js and
+// inventory-demo.js) instead of standalone, so it finally has the same
+// NavRail/navigation every other studio screen already has. The only change
+// needed here was the outer page wrapper: it used to own the full viewport
+// (minHeight: 100vh) since it rendered alone; now it fills and scrolls
+// within the shell's content slot instead (height: 100%, overflowY: auto).
+// Every state, handler, and data-flow call below — persist/updateActive/
+// toggleTray/resetDemo, the filtering logic, every import from
+// lib/studio/demoInventoryLayer.js — is byte-identical to before.
 //
 // Global Visual Upgrade V1 (Clean 5E-Global): visual/layout pass only. All
 // state, handlers, and data flow below are UNCHANGED from the previous
@@ -419,7 +430,8 @@ export default function DemoInventoryWorkspace() {
 
 const styles = {
   page: {
-    minHeight: '100vh',
+    height: '100%',
+    overflowY: 'auto',
     padding: '16px',
     boxSizing: 'border-box',
     background: tokens.color.ivory,
