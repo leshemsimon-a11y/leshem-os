@@ -23,7 +23,10 @@
 // business logic, or feature functions removed.
 
 import * as React from 'react';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, USABILITY_D_HE } from '../../../../lib/studio/labels';
+// Patch D — role badge on the ACTIVE stone, via EXISTING designDraft
+// exports only (no store internals touched).
+import { roleHe, normalizeRole, DESIGN_ROLE } from '../../../../lib/studio/designDraft';
 import { buildStoneCore } from './stoneView';
 import { StoneIcon, DesignIcon, BriefIcon, PlusIcon, RemoveIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
@@ -39,6 +42,10 @@ export default function StudioStonePanel({
 }) {
   const L = STUDIO_5D_HE;
   const view = buildStoneCore(item, demoStone);
+  // Patch D — the assigned design role of the active stone (hidden while
+  // unassigned). Read-only from the tray item; never mutated here.
+  const role = item ? normalizeRole(item.role) : DESIGN_ROLE.UNASSIGNED;
+  const roleLabel = role !== DESIGN_ROLE.UNASSIGNED ? roleHe(role) : null;
 
   if (!hasStones || !view) {
     return (
@@ -72,7 +79,14 @@ export default function StudioStonePanel({
           ) : null}
         </div>
 
-        <span style={styles.title}>{view.title}</span>
+        <div style={styles.titleRow}>
+          <span style={styles.title}>{view.title}</span>
+          {roleLabel ? (
+            <span style={styles.roleBadge} title={USABILITY_D_HE.activeStoneLabel}>
+              {roleLabel}
+            </span>
+          ) : null}
+        </div>
 
         {view.badges.length > 0 && (
           <div style={styles.badges}>
@@ -203,12 +217,36 @@ const styles = {
     borderRadius: reset.radius.xs,
     padding: '2px 6px',
   },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
   title: {
     fontFamily: reset.font.display,
     fontWeight: 700,
     fontSize: '15px',
     color: reset.color.text,
     lineHeight: 1.3,
+    minWidth: 0,
+  },
+  // Patch D — the active stone's design role, small and unambiguous.
+  roleBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    height: '20px',
+    padding: '0 8px',
+    borderRadius: reset.radius.xs,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.borderStrong}`,
+    color: reset.color.text,
+    fontFamily: reset.font.body,
+    fontSize: '10px',
+    fontWeight: 700,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   badges: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
   badge: {

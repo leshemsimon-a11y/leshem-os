@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -194,6 +194,26 @@ export default function StudioShell() {
   const selectedDemoStone =
     selectedTrayItem && selectedTrayItem.isDemoAsset
       ? getDemoInspectStoneFromTrayItem(selectedTrayItem)
+      : null;
+
+  // Patch D — multi-stone session awareness for the canvas header: when the
+  // session includes more than one stone, show a compact group line
+  // ("N אבנים · מרכזית: X") so the direction/concept area clearly refers to
+  // the whole selected group, not one stone. Read-only; reuses the same
+  // center-stone lookup pattern used by buildDefaultSessionTitle below.
+  const groupCenterItem = realTrayItems.find(
+    (it) => normalizeRole(it.role) === DESIGN_ROLE.CENTER_STONE
+  );
+  const groupIndicator =
+    realTrayItems.length > 1
+      ? [
+          USABILITY_D_HE.stonesCount(realTrayItems.length),
+          groupCenterItem
+            ? `${USABILITY_D_HE.groupCenterPrefix}: ${trayItemTitle(groupCenterItem)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
       : null;
 
   const selected = getSelectedConcept(brief);
@@ -411,7 +431,15 @@ export default function StudioShell() {
         <div style={styles.canvasColumn}>
           <div style={styles.canvasHeader}>
             <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} />
-            <span style={styles.canvasHeaderTitle}>{STUDIO_5D_HE.rail[activeStep] || ''}</span>
+            <span style={styles.canvasHeaderMeta}>
+              {/* Patch D — group indicator: this session designs around N stones. */}
+              {groupIndicator ? (
+                <span style={styles.groupIndicator} title={groupIndicator}>
+                  {groupIndicator}
+                </span>
+              ) : null}
+              <span style={styles.canvasHeaderTitle}>{STUDIO_5D_HE.rail[activeStep] || ''}</span>
+            </span>
           </div>
 
           {!heroActive && staleBanners}
@@ -444,6 +472,7 @@ export default function StudioShell() {
           selectedItem={!selected ? selectedTrayItem : null}
           selectedDemoStone={!selected ? selectedDemoStone : null}
           demoMode={Boolean(selectedDemoStone)}
+          trayItems={realTrayItems}
         />
       </div>
 
@@ -537,6 +566,24 @@ const styles = {
     justifyContent: 'space-between',
     gap: '12px',
     flexShrink: 0,
+  },
+  canvasHeaderMeta: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  // Patch D — compact multi-stone group line ("N אבנים · מרכזית: X").
+  groupIndicator: {
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    fontWeight: 600,
+    color: reset.color.textMuted,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    minWidth: 0,
   },
   canvasHeaderTitle: {
     fontFamily: reset.font.display,

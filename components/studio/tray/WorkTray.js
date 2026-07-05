@@ -30,12 +30,21 @@ import { summarizeDraft, draftStatus } from '../../../lib/studio/designDraft';
 import TrayItemCard from './TrayItemCard';
 import ClearTrayConfirm from './ClearTrayConfirm';
 import AssetPicker from '../assets/AssetPicker';
+import InlineInventoryPicker from '../shared/InlineInventoryPicker';
 import ActiveWorkBadge from '../shared/ActiveWorkBadge';
 import { createUseDesignProjects } from '../../../lib/studio/designProjects';
 import { createUseDesignBrief } from '../../../lib/studio/designBriefStore';
 import { createUseActiveWork } from '../../../lib/studio/activeWorkStore';
 import { buildDesignSnapshot } from '../../../lib/studio/designDraft';
-import { PICKER_HE, ACTIVE_WORK_HE } from '../../../lib/studio/labels';
+import { PICKER_HE, ACTIVE_WORK_HE, USABILITY_D_HE } from '../../../lib/studio/labels';
+// Patch D — Work Tray inline add. READ-ONLY use of existing demo inventory
+// exports; additions go to the REAL Work Tray via the existing bridge
+// (toStudioTrayItem → tray.addItem). No new store, no new persistence key.
+import {
+  getDemoInventorySnapshot,
+  toStudioTrayItem,
+  getSourceLabelHe,
+} from '../../../lib/studio/demoInventoryLayer';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
@@ -88,8 +97,11 @@ function StatusStrip({ status }) {
     : TRAY_HE.status.needsRoleTitle;
   const body = ready ? TRAY_HE.status.readyBody : TRAY_HE.status.needsRoleBody;
 
+  // Patch D — text reduction: the explanatory body is no longer always
+  // visible; it moves to a hover tooltip (title attr). Nothing removed —
+  // same strings, relocated.
   return (
-    <div style={stripStyle} dir="rtl">
+    <div style={stripStyle} dir="rtl" title={body}>
       <span
         style={{
           ...styles.statusDot,
@@ -99,7 +111,6 @@ function StatusStrip({ status }) {
       />
       <div style={styles.statusText}>
         <span style={styles.statusTitle}>{title}</span>
-        <span style={styles.statusBody}>{body}</span>
       </div>
     </div>
   );
@@ -114,8 +125,44 @@ export default function WorkTray() {
   const activeWork = useActiveWork();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Patch D — inline inventory add: overlay picker state + a read-only demo
+  // inventory snapshot loaded when (and only when) the picker opens.
+  const [invPickerOpen, setInvPickerOpen] = useState(false);
+  const [invItems, setInvItems] = useState([]);
   const [workName, setWorkName] = useState('');
   const [workToast, setWorkToast] = useState(null);
+
+  const openInvPicker = () => {
+    setInvItems(getDemoInventorySnapshot());
+    setInvPickerOpen(true);
+  };
+
+  // Generic display entries for the presentational picker. `raw` keeps the
+  // original demo item so add can go through the EXISTING bridge unchanged.
+  const invEntries = invItems.map((item) => ({
+    id: item.id,
+    title: item.titleHe || item.title || '—',
+    subtitle: [
+      item.shapeHe,
+      item.estimatedCarat != null ? `${item.estimatedCarat}ct` : null,
+      item.color,
+      getSourceLabelHe(item.sourceType),
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    image: item.thumbImage || item.boxImage || null,
+    raw: item,
+  }));
+
+  const invTrayIds = new Set((tray.items || []).map((it) => it.id));
+
+  const onInvAdd = (entry) => {
+    const trayItem = toStudioTrayItem(entry.raw);
+    if (trayItem) tray.addItem(trayItem);
+  };
+  const onInvRemove = (entry) => {
+    tray.remove(entry.id);
+  };
 
   const flashWork = (m) => {
     setWorkToast(m);
@@ -169,10 +216,12 @@ export default function WorkTray() {
 
   return (
     <div dir="rtl" style={isMobile ? styles.rootMobile : undefined}>
+      {/* Patch D — text reduction: the draft-nature explanation is now a
+          hover tooltip on the title instead of an always-visible paragraph.
+          Same string (TRAY_HE.draftNote), relocated. */}
       <header style={styles.header}>
         <span style={styles.eyebrow}>{TRAY_HE.eyebrow}</span>
-        <h1 style={styles.title}>{TRAY_HE.title}</h1>
-        <p style={styles.draftNote}>{TRAY_HE.draftNote}</p>
+        <h1 style={styles.title} title={TRAY_HE.draftNote}>{TRAY_HE.title}</h1>
       </header>
 
       {tray.hydrated && <ActiveWorkBadge />}
@@ -185,11 +234,16 @@ export default function WorkTray() {
           <div style={styles.emptyMark} aria-hidden="true">
             ▤
           </div>
-          <h2 style={styles.emptyTitle}>{TRAY_HE.empty}</h2>
-          <p style={styles.emptyHint}>{TRAY_HE.emptyHint}</p>
+          <h2 style={styles.emptyTitle} title={TRAY_HE.emptyHint}>{TRAY_HE.empty}</h2>
+          {/* Patch D — the primary way to fill an empty tray is now the
+              inline inventory picker (no route jump). The Asset Library
+              picker and the Inventory route stay available, untouched. */}
           <div style={styles.emptyActions}>
-            <button type="button" onClick={() => setPickerOpen(true)} style={styles.primaryBtn}>
-              <PickIcon /> {PICKER_HE.openFromTray}
+            <button type="button" onClick={openInvPicker} style={styles.primaryBtn}>
+              <PickIcon /> {USABILITY_D_HE.addItems}
+            </button>
+            <button type="button" onClick={() => setPickerOpen(true)} style={styles.secondaryBtn}>
+              {PICKER_HE.openFromTray}
             </button>
             <button type="button" onClick={goInventory} style={styles.secondaryBtn}>
               <BackIcon /> {TRAY_HE.backToInventory}
@@ -201,8 +255,17 @@ export default function WorkTray() {
           <div style={styles.metaRow}>
             <span style={styles.count}>{TRAY_HE.itemsCount(total)}</span>
             <div style={styles.metaActions}>
-              <button type="button" onClick={() => setPickerOpen(true)} style={styles.pickBtn}>
-                <PickIcon /> {PICKER_HE.openFromTray}
+              {/* Patch D — add more items from INSIDE the tray, no route jump. */}
+              <button type="button" onClick={openInvPicker} style={styles.pickBtn}>
+                <PickIcon /> {USABILITY_D_HE.addItems}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                style={styles.pickBtn}
+                title={PICKER_HE.openFromTray}
+              >
+                {PICKER_HE.openFromTray}
               </button>
               <button
                 type="button"
@@ -295,6 +358,18 @@ export default function WorkTray() {
         tray={tray}
         projectsStore={projectsStore}
         currentProjectId={null}
+      />
+
+      {/* Patch D — inline inventory add. Presentational picker; membership
+          truth and all writes go through the REAL Work Tray hook only. */}
+      <InlineInventoryPicker
+        open={invPickerOpen}
+        title={USABILITY_D_HE.pickerTitle}
+        items={invEntries}
+        selectedIds={invTrayIds}
+        onAdd={onInvAdd}
+        onRemove={onInvRemove}
+        onClose={() => setInvPickerOpen(false)}
       />
     </div>
   );

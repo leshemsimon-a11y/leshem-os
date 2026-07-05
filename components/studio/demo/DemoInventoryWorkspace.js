@@ -2,56 +2,43 @@
 // LESHEM.S OS — clean temporary Demo Inventory screen.
 // No Airtable writes, no schema changes.
 //
-// Command Center + Unified App Frame pass: this screen now mounts INSIDE the
-// shared app-level StudioShell (see pages/studio/inventory.js and
-// inventory-demo.js) instead of standalone, so it finally has the same
-// NavRail/navigation every other studio screen already has. The only change
-// needed here was the outer page wrapper: it used to own the full viewport
-// (minHeight: 100vh) since it rendered alone; now it fills and scrolls
-// within the shell's content slot instead (height: 100%, overflowY: auto).
-// Every state, handler, and data-flow call below — persist/updateActive/
-// toggleTray/resetDemo, the filtering logic, every import from
-// lib/studio/demoInventoryLayer.js — is byte-identical to before.
-//
-// Global Visual Upgrade V1 (Clean 5E-Global): visual/layout pass only. All
-// state, handlers, and data flow below are UNCHANGED from the previous
-// version — persist/updateActive/toggleTray/resetDemo, the filtering logic,
-// and every import from lib/studio/demoInventoryLayer.js are identical. What
-// changed:
-//   • Now uses the shared components/studio/shared/tokens.js palette instead
-//     of its own hardcoded hex literals, so it matches the rest of the app
-//     and the Design Studio Layout Reset direction (near-white/graphite,
-//     less gold, tighter radius).
-//   • Stone images: square contain frames (was a 1/0.78 cropped "cover"
-//     rectangle) — the full gemstone is now always visible, never cropped.
-//   • Tray actions get a small inline icon alongside their existing label
-//     (icons for actions, per the visual upgrade brief) — same onClick,
-//     same behavior.
-
-// Core Workflow Wiring V1 — "One Tray" (Patch A): "הוסף למגש עבודה" now writes
-// to the REAL Work Tray store (lib/studio/workTray.js) via the EXISTING
-// exported hook (createUseWorkTray → tray.addItem / tray.remove) and the
-// EXISTING demo bridge (toStudioTrayItem from lib/studio/demoInventoryLayer.js).
-// The demo layer remains as SEED DATA only; tray membership is real:
-//   • "in tray" card/inspector state derives from real tray membership
-//     (tray.has), not from the demo selectedForTray flag.
-//   • The demo selectedForTray flag is kept as a MIRROR of real membership
-//     (synced on mount + on toggle, via the same existing persist path), so
-//     read-only demo consumers (Dashboard Inventory Pulse, demo activity
-//     feed) converge to the truth without being edited.
-// No new store, no new persistence keys, no protected-file edits. Filters,
-// inspect/edit fields, and reset-demo behavior are unchanged.
+// Patch D — Inventory / Tray / Studio Usability V1: this screen is reworked
+// into a familiar, compact CATALOG/product-grid browser (image-first cards,
+// chip filters, drawer details, mobile-safe) instead of the previous wide
+// 3-column workspace. WHAT DID NOT CHANGE — the entire data flow is
+// preserved from the Patch A ("One Tray") version, byte-for-byte where it
+// matters:
+//   • persist / updateActive / toggleTray / resetDemo
+//   • the one-time reconcile of the demo selectedForTray flag against REAL
+//     Work Tray membership (same existing persist path)
+//   • REAL tray membership (tray.has via trayIds) is still the single source
+//     of truth for the "in tray" state
+//   • every import from lib/studio/demoInventoryLayer.js and the
+//     createUseWorkTray hook wiring
+// WHAT CHANGED (visual/structural only):
+//   • Compact catalog grid: square contain images, short title, one metadata
+//     line (shape · carat · color), small source/status chips, icon actions
+//     (inspect / add-remove tray / start design).
+//   • Details + the existing edit fields moved into an overlay DRAWER
+//     (side panel on desktop, bottom sheet on mobile) — cards stay short.
+//   • Filters became chips: stone type visible, source/status collapsed
+//     behind a "סינון" toggle. Filtering logic extended locally (additive).
+//   • Mobile: 2-column grid, sticky bottom action bar for the active item,
+//     no desktop-only side panels squeezing content.
+//   • Text reduction: the subtitle paragraph, the activity feed row, the
+//     stats row, and the explanatory note box are gone from the main screen;
+//     status feedback became a small toast.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
-import { TRAY_HE, STUDIO_5D_HE } from '../../../lib/studio/labels';
+import useIsMobile from '../shared/useIsMobile';
+import { TRAY_HE, STUDIO_5D_HE, USABILITY_D_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
 import {
   getDemoInventorySnapshot,
   saveDemoInventorySnapshot,
   resetDemoInventorySnapshot,
-  getDemoActivityFeed,
   getSourceLabelHe,
   getSourceContextBadge,
   getStatusLabelHe,
@@ -144,6 +131,28 @@ function CheckIcon({ size = 14 }) {
     </svg>
   );
 }
+function EyeIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" />
+      <circle cx="12" cy="12" r="2.6" />
+    </svg>
+  );
+}
+function CloseIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+function FilterIcon({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </svg>
+  );
+}
 
 function Field({ label, children }) {
   return (
@@ -154,16 +163,29 @@ function Field({ label, children }) {
   );
 }
 
-function Stat({ label, value }) {
+function Chip({ active, onClick, children }) {
   return (
-    <div style={styles.stat}>
-      <span style={styles.statValue}>{value}</span>
-      <span style={styles.statLabel}>{label}</span>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ ...styles.chip, ...(active ? styles.chipActive : null) }}
+    >
+      {children}
+    </button>
   );
 }
 
-function StoneCard({ item, active, inTray, onClick, onToggleTray }) {
+// Compact, image-first catalog card. Short title, ONE metadata line, small
+// source/status chips, icon actions. Details live in the drawer, never here.
+function CatalogCard({ item, active, inTray, onInspect, onToggleTray, onDesign }) {
+  const meta = [
+    item.shapeHe,
+    item.estimatedCarat != null ? `${item.estimatedCarat}ct` : null,
+    item.color,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <article
       style={{
@@ -171,18 +193,14 @@ function StoneCard({ item, active, inTray, onClick, onToggleTray }) {
         ...(inTray ? styles.cardInTray : null),
         ...(active ? styles.cardActive : null),
       }}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
       dir="rtl"
     >
-      <div style={styles.cardImageWrap}>
+      <button
+        type="button"
+        style={styles.cardImageWrap}
+        onClick={onInspect}
+        aria-label={`${USABILITY_D_HE.invInspect}: ${item.titleHe || ''}`}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={item.boxImage || item.thumbImage} alt="" style={styles.cardImage} />
         <span style={styles.cardDemoPill}>DEMO</span>
@@ -191,32 +209,51 @@ function StoneCard({ item, active, inTray, onClick, onToggleTray }) {
             <CheckIcon size={11} />
           </span>
         ) : null}
-      </div>
+      </button>
       <div style={styles.cardBody}>
         <div style={styles.cardTopLine}>
           <span style={styles.inventoryNo}>{item.inventoryNo}</span>
           <span style={styles.price}>{currency(item.askingPriceUsd)}</span>
         </div>
         <h3 style={styles.cardTitle}>{item.titleHe}</h3>
-        <p style={styles.cardSub}>{item.estimatedCarat}ct · {item.color}</p>
+        <p style={styles.cardSub}>{meta || '\u00A0'}</p>
         <div style={styles.pills}>
           <span style={styles.pill}>{getSourceLabelHe(item.sourceType)}</span>
-          {getSourceContextBadge(item.sourceType) ? (
-            <span style={styles.pill}>{getSourceContextBadge(item.sourceType)}</span>
-          ) : null}
           <span style={styles.pill}>{getStatusLabelHe(item.status)}</span>
         </div>
-        <button
-          type="button"
-          style={{ ...styles.trayBtn, ...(inTray ? styles.trayBtnOn : null) }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleTray(item.id);
-          }}
-        >
-          {inTray ? <RemoveIcon /> : <TrayIcon />}
-          {inTray ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
-        </button>
+        <div style={styles.cardActions}>
+          <button
+            type="button"
+            style={styles.iconBtn}
+            onClick={onInspect}
+            title={USABILITY_D_HE.invInspect}
+            aria-label={USABILITY_D_HE.invInspect}
+          >
+            <EyeIcon />
+          </button>
+          <button
+            type="button"
+            style={{ ...styles.iconBtn, ...(inTray ? styles.iconBtnOn : null) }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleTray(item.id);
+            }}
+            title={inTray ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
+            aria-label={inTray ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
+            aria-pressed={inTray ? 'true' : 'false'}
+          >
+            {inTray ? <RemoveIcon /> : <TrayIcon />}
+          </button>
+          <button
+            type="button"
+            style={styles.iconBtn}
+            onClick={onDesign}
+            title={STUDIO_5D_HE.startDesign}
+            aria-label={STUDIO_5D_HE.startDesign}
+          >
+            <DesignIcon size={14} />
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -224,11 +261,17 @@ function StoneCard({ item, active, inTray, onClick, onToggleTray }) {
 
 export default function DemoInventoryWorkspace() {
   const router = useRouter();
+  const isMobile = useIsMobile(880);
   const tray = useWorkTray();
   const [items, setItems] = React.useState([]);
   const [activeId, setActiveId] = React.useState(null);
   const [query, setQuery] = React.useState('');
   const [typeFilter, setTypeFilter] = React.useState('all');
+  // Patch D — additive chip filters (local filtering only, no store logic).
+  const [sourceFilter, setSourceFilter] = React.useState('all');
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [status, setStatus] = React.useState('ready');
 
   React.useEffect(() => {
@@ -269,9 +312,7 @@ export default function DemoInventoryWorkspace() {
     saveDemoInventorySnapshot(cloneItems(next));
   }, [tray.hydrated, items, trayIds]);
 
-  const activity = React.useMemo(() => getDemoActivityFeed(), [items.length, tray.count]);
   const activeItem = items.find((item) => item.id === activeId) || items[0] || null;
-  const totalValue = items.reduce((sum, item) => sum + (Number(item.askingPriceUsd) || 0), 0);
 
   const filtered = items.filter((item) => {
     const q = query.trim().toLowerCase();
@@ -281,7 +322,9 @@ export default function DemoInventoryWorkspace() {
       .toLowerCase()
       .includes(q);
     const matchesType = typeFilter === 'all' || item.stoneType === typeFilter;
-    return matchesQuery && matchesType;
+    const matchesSource = sourceFilter === 'all' || item.sourceType === sourceFilter;
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+    return matchesQuery && matchesType && matchesSource && matchesStatus;
   });
 
   const persist = React.useCallback((nextItems, message) => {
@@ -339,107 +382,145 @@ export default function DemoInventoryWorkspace() {
     window.setTimeout(() => setStatus('ready'), 1800);
   }, []);
 
+  const openInspect = (id) => {
+    setActiveId(id);
+    setDrawerOpen(true);
+  };
+
+  const goDesign = () => router.push('/studio/design');
+  const goTray = () => router.push('/studio/tray');
+
+  const advancedFiltersActive = sourceFilter !== 'all' || statusFilter !== 'all';
+
   return (
-    <main style={styles.page} dir="rtl">
+    <main style={{ ...styles.page, ...(isMobile ? styles.pageMobile : null) }} dir="rtl">
+      {/* Compact header — title + counters + two actions. No paragraphs. */}
       <section style={styles.header}>
-        <div>
-          <span style={styles.kicker}>LESHEM.S OS · Demo Inventory</span>
-          <h1 style={styles.title}>מלאי אבנים — שכבת דמו פעילה</h1>
-          <p style={styles.subtitle}>
-            מסך לבחירה ובדיקה של אבני דמו. שינויים נשמרים בדפדפן בלבד.
-          </p>
+        <div style={styles.headerTitleWrap}>
+          <h1 style={styles.title}>{USABILITY_D_HE.invTitle}</h1>
+          <span style={styles.countPill}>{USABILITY_D_HE.invItemsCount(items.length)}</span>
+          <button type="button" style={styles.trayCountPill} onClick={goTray} title={USABILITY_D_HE.invOpenTray}>
+            <TrayIcon size={12} /> {tray.hydrated ? USABILITY_D_HE.invInTrayCount(tray.count) : '—'}
+          </button>
         </div>
         <div style={styles.headerActions}>
-          <button type="button" style={styles.secondaryBtn} onClick={resetDemo}>
-            <ResetIcon /> אפס דמו
+          <button
+            type="button"
+            style={styles.iconHeaderBtn}
+            onClick={resetDemo}
+            title={USABILITY_D_HE.invResetDemo}
+            aria-label={USABILITY_D_HE.invResetDemo}
+          >
+            <ResetIcon />
           </button>
-          <button type="button" style={styles.primaryBtn} onClick={() => router.push('/studio/design')}>
-            <DesignIcon /> פתח Design Studio
+          <button type="button" style={styles.primaryBtn} onClick={goDesign}>
+            <DesignIcon /> {USABILITY_D_HE.invOpenStudio}
           </button>
         </div>
       </section>
 
-      <section style={styles.statsRow}>
-        <Stat label="אבנים במלאי דמו" value={items.length || '—'} />
-        <Stat label="במגש העבודה" value={tray.hydrated ? tray.count : '—'} />
-        <Stat label="שווי דמו מוצג" value={currency(totalValue)} />
-        <Stat label="סטטוס" value={status === 'ready' ? 'מוכן' : status} />
+      {/* Toolbar — prominent-but-compact search + chip filters. */}
+      <section style={styles.toolbar}>
+        <div style={styles.searchWrap}>
+          <span style={styles.searchIcon} aria-hidden="true"><SearchIcon /></span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="חפש אבן, צבע, מספר מלאי…"
+            style={styles.searchInput}
+            dir="rtl"
+          />
+        </div>
+        <div style={styles.chipRow}>
+          {TYPE_FILTERS.map((filter) => (
+            <Chip
+              key={filter.value}
+              active={typeFilter === filter.value}
+              onClick={() => setTypeFilter(filter.value)}
+            >
+              {filter.label}
+            </Chip>
+          ))}
+          <Chip active={filtersOpen || advancedFiltersActive} onClick={() => setFiltersOpen((v) => !v)}>
+            <FilterIcon /> {USABILITY_D_HE.invFilters}
+          </Chip>
+        </div>
+        {filtersOpen && (
+          <div style={styles.advancedFilters}>
+            <div style={styles.chipGroup}>
+              <span style={styles.chipGroupLabel}>{USABILITY_D_HE.invFilterSource}</span>
+              <Chip active={sourceFilter === 'all'} onClick={() => setSourceFilter('all')}>
+                {USABILITY_D_HE.invAll}
+              </Chip>
+              {SOURCE_OPTIONS.map((opt) => (
+                <Chip key={opt.value} active={sourceFilter === opt.value} onClick={() => setSourceFilter(opt.value)}>
+                  {opt.label}
+                </Chip>
+              ))}
+            </div>
+            <div style={styles.chipGroup}>
+              <span style={styles.chipGroupLabel}>{USABILITY_D_HE.invFilterStatus}</span>
+              <Chip active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>
+                {USABILITY_D_HE.invAll}
+              </Chip>
+              {STATUS_OPTIONS.map((opt) => (
+                <Chip key={opt.value} active={statusFilter === opt.value} onClick={() => setStatusFilter(opt.value)}>
+                  {opt.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
-      <section style={styles.activityRow}>
-        {activity.slice(0, 4).map((entry) => (
-          <div key={entry.id} style={styles.activityItem}>
-            <span style={styles.activityDot} />
-            <span>{entry.textHe}</span>
-          </div>
-        ))}
-      </section>
-
-      <section style={styles.workspace}>
-        <aside style={styles.leftPanel}>
-          <div style={styles.panelHead}>
-            <span style={styles.panelTitle}>סינון מהיר</span>
-            <span style={styles.softBadge}>Temporary</span>
-          </div>
-          <div style={styles.searchWrap}>
-            <span style={styles.searchIcon} aria-hidden="true"><SearchIcon /></span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="חפש אבן, צבע, מספר מלאי…"
-              style={styles.searchInput}
-            />
-          </div>
-          <div style={styles.filterList}>
-            {TYPE_FILTERS.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => setTypeFilter(filter.value)}
-                style={{ ...styles.filterBtn, ...(typeFilter === filter.value ? styles.filterBtnActive : null) }}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-          <div style={styles.noteBox}>
-            <strong>מה זה עושה?</strong>
-            <span>הוספה כאן נכנסת למגש העבודה האמיתי — אותן אבנים בדיוק יופיעו במגש העבודה ובסטודיו העיצוב.</span>
-          </div>
-        </aside>
-
-        <section style={styles.gridPanel}>
-          <div style={styles.gridHead}>
-            <span style={styles.gridTitle}>אבני מלאי</span>
-            <span style={styles.gridCount}>{filtered.length} פריטים</span>
-          </div>
-          <div style={styles.grid}>
+      {/* Catalog grid — familiar product-grid behavior, image-first. */}
+      <section style={styles.gridPanel}>
+        {filtered.length === 0 ? (
+          <div style={styles.gridEmpty}>{USABILITY_D_HE.invEmpty}</div>
+        ) : (
+          <div style={{ ...styles.grid, ...(isMobile ? styles.gridMobile : null) }}>
             {filtered.map((item) => (
-              <StoneCard
+              <CatalogCard
                 key={item.id}
                 item={item}
                 active={activeItem && item.id === activeItem.id}
                 inTray={trayIds.has(item.id)}
-                onClick={() => setActiveId(item.id)}
+                onInspect={() => openInspect(item.id)}
                 onToggleTray={toggleTray}
+                onDesign={goDesign}
               />
             ))}
           </div>
-        </section>
+        )}
+      </section>
 
-        <aside style={styles.inspector}>
-          {activeItem ? (
-            <>
+      {/* Details / edit DRAWER — side panel on desktop, bottom sheet on
+          mobile. Holds the existing edit fields (same updateActive wiring),
+          never inflating the cards. */}
+      {drawerOpen && activeItem && (
+        <div style={styles.drawerOverlay} dir="rtl" role="dialog" aria-modal="true" aria-label={USABILITY_D_HE.invInspect}>
+          <button type="button" style={styles.drawerBackdrop} onClick={() => setDrawerOpen(false)} aria-label={USABILITY_D_HE.invClose} />
+          <div style={{ ...styles.drawer, ...(isMobile ? styles.drawerMobile : null) }}>
+            <div style={styles.drawerHead}>
+              <div style={styles.drawerHeadText}>
+                <span style={styles.inventoryNo}>{activeItem.inventoryNo}</span>
+                <h2 style={styles.drawerTitle}>{activeItem.titleHe}</h2>
+              </div>
+              <button
+                type="button"
+                style={styles.iconHeaderBtn}
+                onClick={() => setDrawerOpen(false)}
+                title={USABILITY_D_HE.invClose}
+                aria-label={USABILITY_D_HE.invClose}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div style={styles.drawerScroll}>
               <div style={styles.inspectImageWrap}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={activeItem.inspectImage || activeItem.boxImage} alt="" style={styles.inspectImage} />
-                <span style={styles.inspectPill}>INSPECT VIEW</span>
-              </div>
-
-              <div style={styles.inspectHead}>
-                <span style={styles.inventoryNo}>{activeItem.inventoryNo}</span>
-                <h2 style={styles.inspectTitle}>{activeItem.titleHe}</h2>
-                <p style={styles.inspectSub}>{activeItem.title} · {activeItem.shape}</p>
               </div>
 
               <div style={styles.pillsWide}>
@@ -448,9 +529,10 @@ export default function DemoInventoryWorkspace() {
                   <span style={styles.pill}>{getSourceContextBadge(activeItem.sourceType)}</span>
                 ) : null}
                 <span style={styles.pill}>{getStatusLabelHe(activeItem.status)}</span>
-                <span style={styles.pill}>Demo Asset</span>
+                <span style={styles.pill}>DEMO</span>
               </div>
 
+              <span style={styles.drawerSectionLabel}>{USABILITY_D_HE.invEdit}</span>
               <div style={styles.formGrid}>
                 <Field label="שם תצוגה">
                   <input style={styles.input} value={activeItem.titleHe || ''} onChange={(e) => updateActive({ titleHe: e.target.value })} />
@@ -481,22 +563,47 @@ export default function DemoInventoryWorkspace() {
                   </select>
                 </Field>
               </div>
+            </div>
 
-              <div style={styles.inspectActions}>
-                <button type="button" style={styles.primaryBtnFull} onClick={() => toggleTray(activeItem.id)}>
-                  {trayIds.has(activeItem.id) ? <RemoveIcon /> : <TrayIcon />}
-                  {trayIds.has(activeItem.id) ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
-                </button>
-                <button type="button" style={styles.secondaryBtnFull} onClick={() => router.push('/studio/design')}>
-                  <DesignIcon /> עבור לעיצוב עם האבנים
-                </button>
-              </div>
-            </>
-          ) : (
-            <div style={styles.emptyInspector}>בחר אבן כדי לערוך אותה.</div>
-          )}
-        </aside>
-      </section>
+            <div style={styles.drawerActions}>
+              <button type="button" style={styles.primaryBtnFull} onClick={() => toggleTray(activeItem.id)}>
+                {trayIds.has(activeItem.id) ? <RemoveIcon /> : <TrayIcon />}
+                {trayIds.has(activeItem.id) ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
+              </button>
+              <button type="button" style={styles.secondaryBtnFull} onClick={goDesign}>
+                <DesignIcon /> {STUDIO_5D_HE.startDesign}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile — sticky bottom action bar for the active item (thumb reach). */}
+      {isMobile && !drawerOpen && activeItem && tray.hydrated && (
+        <div style={styles.stickyBar}>
+          <span style={styles.stickyTitle}>{activeItem.titleHe}</span>
+          <button
+            type="button"
+            style={styles.stickySecondary}
+            onClick={() => setDrawerOpen(true)}
+          >
+            {USABILITY_D_HE.invInspect}
+          </button>
+          <button
+            type="button"
+            style={{ ...styles.stickyPrimary, ...(trayIds.has(activeItem.id) ? styles.stickyPrimaryOn : null) }}
+            onClick={() => toggleTray(activeItem.id)}
+          >
+            {trayIds.has(activeItem.id) ? <RemoveIcon /> : <TrayIcon />}
+            {trayIds.has(activeItem.id) ? TRAY_HE.removeFromTray : TRAY_HE.addToTray}
+          </button>
+        </div>
+      )}
+
+      {/* Save/reset feedback — small toast instead of a permanent stats row. */}
+      {status !== 'ready' && (
+        <div style={styles.toast} role="status">{status}</div>
+      )}
     </main>
   );
 }
@@ -511,95 +618,217 @@ const styles = {
     color: tokens.color.charcoal,
     fontFamily: tokens.font.body,
   },
+  pageMobile: {
+    padding: '12px',
+    // Leave room so the sticky bottom bar never covers the last cards.
+    paddingBottom: '112px',
+  },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: '20px',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
     maxWidth: '1480px',
-    margin: '0 auto 14px',
+    margin: '0 auto 12px',
   },
-  kicker: { fontSize: '10px', letterSpacing: '0.14em', fontWeight: 700, color: tokens.color.gold },
-  title: { margin: '4px 0 4px', fontSize: '24px', lineHeight: 1.15, fontFamily: tokens.font.display, fontWeight: 700, color: tokens.color.charcoal },
-  subtitle: { margin: 0, color: tokens.color.inkSoft, maxWidth: '640px', lineHeight: 1.5, fontSize: '13px' },
-  headerActions: { display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 },
+  headerTitleWrap: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', minWidth: 0 },
+  title: { margin: 0, fontSize: '21px', lineHeight: 1.15, fontFamily: tokens.font.display, fontWeight: 700, color: tokens.color.charcoal },
+  countPill: {
+    display: 'inline-flex', alignItems: 'center', height: '26px', padding: '0 10px',
+    borderRadius: tokens.radius.sm, background: tokens.color.pearl, color: tokens.color.inkSoft,
+    fontSize: '11px', fontWeight: 700,
+  },
+  trayCountPill: {
+    display: 'inline-flex', alignItems: 'center', gap: '6px', height: '26px', padding: '0 10px',
+    borderRadius: tokens.radius.sm, background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`,
+    color: tokens.color.charcoal, fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: tokens.font.body,
+  },
+  headerActions: { display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 },
+  iconHeaderBtn: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px',
+    border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.canvas, color: tokens.color.inkSoft,
+    borderRadius: tokens.radius.sm, cursor: 'pointer', flexShrink: 0,
+  },
   primaryBtn: {
     display: 'inline-flex', alignItems: 'center', gap: '7px', border: 'none', background: tokens.color.charcoal,
-    color: tokens.color.ivory, borderRadius: tokens.radius.md, padding: '10px 16px', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
+    color: tokens.color.ivory, borderRadius: tokens.radius.md, padding: '9px 15px', fontWeight: 700, fontSize: '13px',
+    cursor: 'pointer', minHeight: '38px', fontFamily: tokens.font.body,
   },
-  secondaryBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: '7px', border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.canvas,
-    color: tokens.color.charcoal, borderRadius: tokens.radius.md, padding: '10px 16px', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
-  },
-  statsRow: { maxWidth: '1480px', margin: '0 auto 10px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' },
-  stat: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.md, padding: '11px 14px', boxShadow: tokens.shadow.soft },
-  statValue: { display: 'block', fontSize: '17px', fontWeight: 700, color: tokens.color.charcoal },
-  statLabel: { display: 'block', marginTop: '2px', fontSize: '10.5px', color: tokens.color.inkFaint, fontWeight: 600 },
-  activityRow: { maxWidth: '1480px', margin: '0 auto 10px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' },
-  activityItem: { display: 'flex', alignItems: 'center', gap: '8px', background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.sm, padding: '9px 11px', fontSize: '11.5px', fontWeight: 600, color: tokens.color.inkSoft },
-  activityDot: { width: '6px', height: '6px', borderRadius: '50%', background: tokens.color.gold, flexShrink: 0 },
-  workspace: { maxWidth: '1480px', margin: '0 auto', display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr) 340px', gap: '12px', alignItems: 'start' },
-  leftPanel: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, padding: '14px', position: 'sticky', top: '14px' },
-  panelHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' },
-  panelTitle: { fontSize: '13px', fontWeight: 700, color: tokens.color.charcoal },
-  softBadge: { fontSize: '9.5px', fontWeight: 700, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '3px 7px', background: tokens.color.goldFaint, color: tokens.color.inkSoft },
-  searchWrap: { position: 'relative', display: 'flex', alignItems: 'center' },
+
+  toolbar: { maxWidth: '1480px', margin: '0 auto 12px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  searchWrap: { position: 'relative', display: 'flex', alignItems: 'center', maxWidth: '460px' },
   searchIcon: { position: 'absolute', insetInlineStart: '10px', color: tokens.color.inkFaint, display: 'inline-flex', pointerEvents: 'none' },
-  searchInput: { width: '100%', boxSizing: 'border-box', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, padding: '10px 12px 10px 32px', fontSize: '12.5px', outline: 'none', fontFamily: tokens.font.body },
-  filterList: { display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' },
-  filterBtn: { minHeight: '36px', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, color: tokens.color.inkSoft, fontWeight: 600, fontSize: '13px', cursor: 'pointer', textAlign: 'right', padding: '8px 12px', fontFamily: tokens.font.body },
-  filterBtnActive: { background: tokens.color.charcoal, color: tokens.color.ivory, borderColor: tokens.color.charcoal },
-  noteBox: { marginTop: '14px', padding: '11px', borderRadius: tokens.radius.sm, background: tokens.color.pearl, color: tokens.color.inkSoft, display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11.5px', lineHeight: 1.5 },
-  gridPanel: { minWidth: 0 },
-  gridHead: { height: '38px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 2px' },
-  gridTitle: { fontSize: '14px', fontWeight: 700, color: tokens.color.charcoal, fontFamily: tokens.font.display },
-  gridCount: { fontSize: '11.5px', color: tokens.color.inkFaint, fontWeight: 600 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' },
-  card: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, overflow: 'hidden', cursor: 'pointer', boxShadow: tokens.shadow.soft },
-  // "In tray" (REAL Work Tray membership) and "active/inspecting" are two distinct,
-  // composable states shown through different visual channels so they never
-  // compete or get lost when both apply to the same card at once:
+  searchInput: {
+    width: '100%', boxSizing: 'border-box', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`,
+    background: tokens.color.canvas, padding: '10px 32px 10px 12px', fontSize: '13px', outline: 'none',
+    fontFamily: tokens.font.body, minHeight: '40px',
+  },
+  chipRow: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' },
+  chip: {
+    display: 'inline-flex', alignItems: 'center', gap: '5px', minHeight: '32px', padding: '6px 12px',
+    borderRadius: '999px', border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.canvas,
+    color: tokens.color.inkSoft, fontWeight: 600, fontSize: '12px', cursor: 'pointer', fontFamily: tokens.font.body,
+    whiteSpace: 'nowrap',
+  },
+  chipActive: { background: tokens.color.charcoal, color: tokens.color.ivory, borderColor: tokens.color.charcoal },
+  advancedFilters: {
+    display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px',
+    background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.md,
+  },
+  chipGroup: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' },
+  chipGroupLabel: { fontSize: '10.5px', fontWeight: 700, color: tokens.color.inkFaint, flexShrink: 0, minWidth: '38px' },
+
+  gridPanel: { maxWidth: '1480px', margin: '0 auto', minWidth: 0 },
+  gridEmpty: {
+    padding: '48px 0', textAlign: 'center', color: tokens.color.inkFaint, fontWeight: 600, fontSize: '13px',
+  },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '10px' },
+  gridMobile: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' },
+  card: {
+    background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg,
+    overflow: 'hidden', boxShadow: tokens.shadow.soft, display: 'flex', flexDirection: 'column',
+  },
+  // "In tray" (REAL Work Tray membership) and "active/inspecting" are two
+  // distinct, composable states shown through different visual channels:
   //   • in tray  → sage top accent bar + a small checkmark badge on the image
-  //   • active   → a stronger charcoal border (unchanged from before)
+  //   • active   → a stronger charcoal border
   cardInTray: { borderTop: `3px solid ${tokens.color.sage}` },
   cardActive: { border: `1.5px solid ${tokens.color.charcoal}`, boxShadow: tokens.shadow.lift },
-  // Global Visual Upgrade V1 — square, contain image frame (was a 1/0.78
-  // cropped "cover" rectangle). Full gemstone always visible, never cropped.
-  cardImageWrap: { position: 'relative', aspectRatio: '1 / 1', background: tokens.color.pearl, overflow: 'hidden' },
+  // Square, contain image frame — the full gemstone always visible, never
+  // cropped. The image itself is the "inspect" tap target.
+  cardImageWrap: {
+    position: 'relative', aspectRatio: '1 / 1', background: tokens.color.pearl, overflow: 'hidden',
+    border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%',
+  },
   cardImage: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
-  cardDemoPill: { position: 'absolute', top: '8px', insetInlineEnd: '8px', background: 'rgba(255,255,255,0.9)', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '3px 7px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em' },
+  cardDemoPill: {
+    position: 'absolute', top: '7px', insetInlineEnd: '7px', background: 'rgba(255,255,255,0.9)',
+    border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.xs || tokens.radius.sm,
+    padding: '2px 6px', fontSize: '8px', fontWeight: 700, letterSpacing: '0.08em',
+  },
   cardInTrayBadge: {
-    position: 'absolute', bottom: '8px', insetInlineEnd: '8px',
-    width: '22px', height: '22px', borderRadius: '50%',
+    position: 'absolute', bottom: '7px', insetInlineEnd: '7px',
+    width: '21px', height: '21px', borderRadius: '50%',
     background: tokens.color.sage, color: tokens.color.ivory,
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     boxShadow: tokens.shadow.soft,
   },
-  cardBody: { padding: '11px', display: 'flex', flexDirection: 'column', gap: '6px' },
+  cardBody: { padding: '9px 10px 10px', display: 'flex', flexDirection: 'column', gap: '5px' },
   cardTopLine: { display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' },
-  inventoryNo: { fontSize: '10.5px', color: tokens.color.gold, fontWeight: 700, letterSpacing: '0.04em' },
-  price: { fontSize: '11.5px', color: tokens.color.charcoal, fontWeight: 700 },
-  cardTitle: { margin: 0, fontSize: '15px', color: tokens.color.charcoal, fontFamily: tokens.font.display, fontWeight: 700 },
-  cardSub: { margin: 0, fontSize: '11.5px', color: tokens.color.inkSoft },
-  pills: { display: 'flex', flexWrap: 'wrap', gap: '5px' },
+  inventoryNo: { fontSize: '10px', color: tokens.color.gold, fontWeight: 700, letterSpacing: '0.04em' },
+  price: { fontSize: '11px', color: tokens.color.charcoal, fontWeight: 700 },
+  cardTitle: {
+    margin: 0, fontSize: '13.5px', color: tokens.color.charcoal, fontFamily: tokens.font.display, fontWeight: 700,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  cardSub: {
+    margin: 0, fontSize: '11px', color: tokens.color.inkSoft,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  pills: { display: 'flex', flexWrap: 'wrap', gap: '4px' },
   pillsWide: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
-  pill: { background: tokens.color.pearl, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '10px', color: tokens.color.inkSoft, fontWeight: 600 },
-  trayBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px', border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, color: tokens.color.charcoal, borderRadius: tokens.radius.sm, minHeight: '34px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
-  trayBtnOn: { background: tokens.color.sage, color: tokens.color.ivory, borderColor: tokens.color.sage },
-  inspector: { background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, padding: '14px', position: 'sticky', top: '14px', boxShadow: tokens.shadow.soft },
-  // Global Visual Upgrade V1 — square, contain (same reasoning as cardImage).
-  inspectImageWrap: { position: 'relative', borderRadius: tokens.radius.md, overflow: 'hidden', background: tokens.color.pearl, aspectRatio: '1 / 1', border: `1px solid ${tokens.color.cardEdge}` },
+  pill: {
+    background: tokens.color.pearl, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '3px 7px',
+    fontSize: '9.5px', color: tokens.color.inkSoft, fontWeight: 600,
+  },
+  cardActions: { display: 'flex', gap: '6px', marginTop: '3px' },
+  iconBtn: {
+    flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '34px',
+    border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, color: tokens.color.charcoal,
+    borderRadius: tokens.radius.sm, cursor: 'pointer',
+  },
+  iconBtnOn: { background: tokens.color.sage, color: tokens.color.ivory, borderColor: tokens.color.sage },
+
+  // Drawer — desktop side panel / mobile bottom sheet.
+  drawerOverlay: { position: 'fixed', inset: 0, zIndex: 55, display: 'flex', justifyContent: 'flex-start' },
+  drawerBackdrop: {
+    position: 'absolute', inset: 0, background: 'rgba(43,40,36,0.42)', border: 'none', cursor: 'pointer',
+    padding: 0, margin: 0,
+  },
+  drawer: {
+    position: 'relative', width: 'min(400px, 92vw)', height: '100%', display: 'flex', flexDirection: 'column',
+    background: tokens.color.canvas, borderInlineEnd: `1px solid ${tokens.color.cardEdge}`,
+    boxShadow: tokens.shadow.lift, boxSizing: 'border-box', overflow: 'hidden',
+  },
+  drawerMobile: {
+    width: '100%', height: 'auto', maxHeight: '86vh', marginTop: 'auto',
+    borderInlineEnd: 'none', borderTop: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: `${tokens.radius.lg} ${tokens.radius.lg} 0 0`,
+  },
+  drawerHead: {
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px',
+    padding: '14px 16px 10px', flexShrink: 0,
+  },
+  drawerHeadText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  drawerTitle: {
+    margin: 0, fontSize: '17px', color: tokens.color.charcoal, fontFamily: tokens.font.display, fontWeight: 700,
+    lineHeight: 1.25,
+  },
+  drawerScroll: {
+    flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px',
+    padding: '0 16px 12px',
+  },
+  drawerSectionLabel: { fontSize: '10.5px', fontWeight: 700, color: tokens.color.inkFaint, letterSpacing: '0.06em' },
+  inspectImageWrap: {
+    position: 'relative', borderRadius: tokens.radius.md, overflow: 'hidden', background: tokens.color.pearl,
+    aspectRatio: '1 / 1', border: `1px solid ${tokens.color.cardEdge}`, flexShrink: 0,
+  },
   inspectImage: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
-  inspectPill: { position: 'absolute', top: '9px', insetInlineEnd: '9px', background: 'rgba(255,255,255,0.9)', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.xs || tokens.radius.sm, padding: '4px 8px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em' },
-  inspectHead: { marginTop: '12px' },
-  inspectTitle: { margin: '4px 0 2px', fontSize: '19px', color: tokens.color.charcoal, fontFamily: tokens.font.display, fontWeight: 700 },
-  inspectSub: { margin: 0, color: tokens.color.inkSoft, fontSize: '12.5px' },
-  formGrid: { marginTop: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
+  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
   field: { display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 },
   fieldLabel: { fontSize: '10.5px', fontWeight: 700, color: tokens.color.inkFaint },
-  input: { minHeight: '36px', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`, background: tokens.color.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none', boxSizing: 'border-box', width: '100%', fontFamily: tokens.font.body, color: tokens.color.charcoal },
-  inspectActions: { display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '14px' },
-  primaryBtnFull: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '42px', border: 'none', borderRadius: tokens.radius.sm, background: tokens.color.charcoal, color: tokens.color.ivory, fontWeight: 700, fontSize: '13px', cursor: 'pointer' },
-  secondaryBtnFull: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '42px', border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.sm, background: tokens.color.ivory, color: tokens.color.charcoal, fontWeight: 700, fontSize: '13px', cursor: 'pointer' },
-  emptyInspector: { minHeight: '280px', display: 'grid', placeItems: 'center', color: tokens.color.inkFaint, fontWeight: 600, fontSize: '13px' },
+  input: {
+    minHeight: '36px', borderRadius: tokens.radius.sm, border: `1px solid ${tokens.color.cardEdge}`,
+    background: tokens.color.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none', boxSizing: 'border-box',
+    width: '100%', fontFamily: tokens.font.body, color: tokens.color.charcoal,
+  },
+  drawerActions: {
+    display: 'grid', gridTemplateColumns: '1fr', gap: '8px', flexShrink: 0,
+    padding: '10px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
+    borderTop: `1px solid ${tokens.color.cardEdge}`,
+  },
+  primaryBtnFull: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '44px',
+    border: 'none', borderRadius: tokens.radius.sm, background: tokens.color.charcoal, color: tokens.color.ivory,
+    fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: tokens.font.body,
+  },
+  secondaryBtnFull: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '44px',
+    border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.sm, background: tokens.color.ivory,
+    color: tokens.color.charcoal, fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: tokens.font.body,
+  },
+
+  // Mobile sticky action bar.
+  stickyBar: {
+    position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 25,
+    display: 'flex', alignItems: 'center', gap: '8px',
+    background: tokens.color.ivory, borderTop: `1px solid ${tokens.color.cardEdge}`,
+    boxShadow: '0 -8px 24px rgba(43,40,36,0.06)',
+    padding: '10px 12px calc(10px + env(safe-area-inset-bottom, 0px))',
+  },
+  stickyTitle: {
+    flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 700, color: tokens.color.charcoal,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  stickySecondary: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', padding: '10px 14px',
+    fontSize: '13px', fontWeight: 700, color: tokens.color.charcoal, background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.md, cursor: 'pointer',
+    fontFamily: tokens.font.body, whiteSpace: 'nowrap', flexShrink: 0,
+  },
+  stickyPrimary: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '44px',
+    padding: '10px 16px', fontSize: '13px', fontWeight: 700, color: tokens.color.ivory,
+    background: tokens.color.charcoal, border: 'none', borderRadius: tokens.radius.md, cursor: 'pointer',
+    fontFamily: tokens.font.body, whiteSpace: 'nowrap', flexShrink: 0,
+  },
+  stickyPrimaryOn: { background: tokens.color.sage },
+
+  toast: {
+    position: 'fixed', left: '50%', bottom: '86px', transform: 'translateX(-50%)',
+    fontFamily: tokens.font.body, fontSize: '13px', fontWeight: 600,
+    color: tokens.color.ivory, background: tokens.color.charcoal,
+    padding: '9px 18px', borderRadius: tokens.radius.md, zIndex: 70, pointerEvents: 'none',
+  },
 };

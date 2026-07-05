@@ -18,7 +18,10 @@
 // ./studioResetStyle.js. No data, props, or click behavior changed.
 
 import * as React from 'react';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, USABILITY_D_HE } from '../../../../lib/studio/labels';
+// Patch D — multi-stone clarity: role badges on chips + a stone count, via
+// EXISTING designDraft exports only (no store internals touched).
+import { roleHe, normalizeRole, DESIGN_ROLE } from '../../../../lib/studio/designDraft';
 import { getStoneThumbFallback } from '../../../../lib/studio/assetPack';
 import { getGemstoneThumbFallback } from '../../../../lib/studio/demoGemstoneAssets';
 import { getStatusLabelHe } from '../../../../lib/studio/demoInventoryLayer';
@@ -52,6 +55,11 @@ function statusLabelFor(item) {
 function StoneChip({ item, selected, onSelect, demoMode }) {
   const s = item.snapshot || {};
   const parcel = isParcel(item);
+  // Patch D — show the design role (center / side / accent — אבנים נוספות)
+  // as a tiny badge; hidden while unassigned to avoid chip noise.
+  const role = normalizeRole(item.role);
+  const roleLabel = role !== DESIGN_ROLE.UNASSIGNED ? roleHe(role) : null;
+  const isCenter = role === DESIGN_ROLE.CENTER_STONE;
   const carat = typeof s.caratWeight === 'number' ? `${s.caratWeight}${STUDIO_5D_HE.caratSuffix}` : '';
   const color = typeof s.color === 'string' && s.color.trim() ? s.color.trim() : '';
   const realImg = typeof s.primaryImage === 'string' && s.primaryImage.trim() ? s.primaryImage : null;
@@ -96,6 +104,11 @@ function StoneChip({ item, selected, onSelect, demoMode }) {
         <span style={styles.sub}>
           {[carat, color].filter(Boolean).join(' · ') || '\u00A0'}
         </span>
+        {roleLabel ? (
+          <span style={{ ...styles.roleTag, ...(isCenter ? styles.roleTagCenter : null) }}>
+            {roleLabel}
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -131,7 +144,13 @@ export default function StudioStoneStrip({ trayItems, onAddStones, onSelectItem,
 
   return (
     <div style={styles.strip} dir="rtl">
-      <span style={styles.stripLabel}>{STUDIO_5D_HE.stonesTitle}</span>
+      <span style={styles.stripLabel}>
+        {STUDIO_5D_HE.stonesTitle}
+        {/* Patch D — make the session's multi-stone nature explicit. */}
+        {items.length > 1 ? (
+          <span style={styles.stripCount}>{USABILITY_D_HE.stonesCount(items.length)}</span>
+        ) : null}
+      </span>
       <div style={styles.scroller}>
         {demoMode ? <span style={styles.demoModePill}>DEMO</span> : null}
         {items.map((it) => (
@@ -283,6 +302,37 @@ const styles = {
     fontFamily: reset.font.body,
     fontSize: '10.5px',
     fontWeight: 500,
+    color: reset.color.textMuted,
+    whiteSpace: 'nowrap',
+  },
+  // Patch D — tiny role badge (center / side / accent) on each chip.
+  roleTag: {
+    alignSelf: 'flex-start',
+    marginTop: '2px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    height: '15px',
+    padding: '0 6px',
+    borderRadius: reset.radius.xs,
+    background: reset.color.page,
+    border: `1px solid ${reset.color.border}`,
+    color: reset.color.textMuted,
+    fontFamily: reset.font.body,
+    fontSize: '9px',
+    fontWeight: 700,
+    whiteSpace: 'nowrap',
+  },
+  roleTagCenter: {
+    borderColor: reset.color.borderStrong,
+    color: reset.color.text,
+  },
+  // Patch D — stone count beside the strip label.
+  stripCount: {
+    display: 'block',
+    marginTop: '2px',
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: 0,
     color: reset.color.textMuted,
     whiteSpace: 'nowrap',
   },

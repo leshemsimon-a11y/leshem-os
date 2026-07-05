@@ -31,7 +31,10 @@
 //     strip, unchanged.
 
 import * as React from 'react';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, DESIGN_HE, USABILITY_D_HE } from '../../../../lib/studio/labels';
+// Patch D — multi-stone session summary via the EXISTING summarizeDraft
+// export (no designDraft internals touched).
+import { summarizeDraft } from '../../../../lib/studio/designDraft';
 import { buildStoneCore, buildStoneAdvanced } from './stoneView';
 import {
   CenterStoneIcon,
@@ -113,11 +116,25 @@ export default function StudioInspectorDrawer({
   selectedItem,
   selectedDemoStone,
   demoMode,
+  // Patch D — the full work-session tray list, for the multi-stone summary.
+  // Optional and read-only; older callers that omit it lose only the summary.
+  trayItems,
 }) {
   const L = STUDIO_5D_HE;
 
-  // Stone-selected state (no design direction chosen yet). Generalized to
-  // work for a real Work Tray selection OR a Demo Operating Layer stone.
+  // Stone-selected state (no design direction chosen yet).
+  //
+  // Patch D — de-duplication: the ACTIVE stone's image + core rows already
+  // live on the LEFT panel (StudioStonePanel, via the same buildStoneCore
+  // view-model). This drawer no longer repeats that card. It is now
+  // DETAILS-focused:
+  //   • work-session summary — total stones + per-role counts (multi-stone
+  //     awareness, computed with the existing summarizeDraft export and
+  //     rendered with the existing DESIGN_HE.summary Hebrew labels)
+  //   • the active stone by NAME only (one compact row, no image)
+  //   • advanced gem details, collapsed (existing buildStoneAdvanced)
+  // The shared stoneView view-model is unchanged; only what THIS panel
+  // chooses to render changed.
   if (!concept && (selectedItem || selectedDemoStone)) {
     const core = buildStoneCore(selectedItem, selectedDemoStone);
     const advanced = buildStoneAdvanced(selectedDemoStone);
@@ -133,40 +150,35 @@ export default function StudioInspectorDrawer({
       );
     }
 
+    const summary = summarizeDraft(Array.isArray(trayItems) ? trayItems : []);
+    const summaryRows = [
+      { key: 'total', label: DESIGN_HE.summary.totalStones, value: summary.total },
+      { key: 'center', label: DESIGN_HE.summary.centerStones, value: summary.centerStoneCount },
+      { key: 'side', label: DESIGN_HE.summary.sideStones, value: summary.sideStoneCount },
+      { key: 'accent', label: DESIGN_HE.summary.accentStones, value: summary.accentStoneCount },
+      { key: 'pairs', label: DESIGN_HE.summary.pairs, value: summary.pairCount },
+      { key: 'parcels', label: DESIGN_HE.summary.parcels, value: summary.parcelCount },
+      { key: 'components', label: DESIGN_HE.summary.components, value: summary.componentCount },
+      { key: 'unassigned', label: DESIGN_HE.summary.unassigned, value: summary.unassigned },
+    ].filter((r) => r.key === 'total' || r.value > 0);
+
     return (
       <aside style={styles.drawer} dir="rtl">
         <div style={styles.scroll}>
           <div style={styles.head}>
-            <span style={styles.drawerTitle}>{L.inspectorTitle}</span>
-            <span style={styles.conceptName}>{core.title}</span>
+            <span style={styles.drawerTitle}>{USABILITY_D_HE.sessionDetailsTitle}</span>
           </div>
 
-          {core.image ? (
-            <div style={styles.demoImageWrap}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={core.image} alt="" style={styles.demoImage} />
-              {demoMode ? (
-                <span style={styles.demoPill} title={L.demoThumbBadge}>
-                  {L.demoThumbBadge}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-
-          {core.badges.length > 0 && (
-            <div style={styles.demoBadges}>
-              {core.badges.map((b, i) => (
-                <span key={i} style={styles.demoBadgeText}>
-                  {b}
-                </span>
+          {summary.total > 0 && (
+            <div style={styles.compactRows}>
+              {summaryRows.map((r) => (
+                <CompactRow key={r.key} label={r.label} value={String(r.value)} />
               ))}
             </div>
           )}
 
           <div style={styles.compactRows}>
-            {core.rows.map((r) => (
-              <CompactRow key={r.key} label={r.label} value={r.value} />
-            ))}
+            <CompactRow label={USABILITY_D_HE.activeStoneLabel} value={core.title} />
           </div>
 
           {advanced.length > 0 && (

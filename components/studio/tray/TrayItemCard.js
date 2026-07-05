@@ -120,21 +120,23 @@ export default function TrayItemCard({ item, onRole, onRemove }) {
           )}
         </div>
 
+        {/* Patch D — text reduction: icon-only remove (label stays as the
+            accessible name + tooltip); tap target unchanged (44px min). */}
         <button
           type="button"
           onClick={() => onRemove && onRemove(item.id)}
           style={styles.remove}
           aria-label={`${TRAY_HE.remove}: ${title}`}
+          title={TRAY_HE.remove}
         >
           <RemoveIcon />
-          {TRAY_HE.remove}
         </button>
       </div>
 
       <div style={styles.controls}>
+        {/* Patch D — the "role can change anytime" hint moves to a tooltip. */}
         <div style={styles.roleCaptionRow}>
-          <span style={styles.roleCaption}>{TRAY_HE.roleLabel}</span>
-          <span style={styles.roleHint}>{TRAY_HE.roleChangeHint}</span>
+          <span style={styles.roleCaption} title={TRAY_HE.roleChangeHint}>{TRAY_HE.roleLabel}</span>
         </div>
         <RoleChips
           value={role}
@@ -286,9 +288,11 @@ const styles = {
   remove: {
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: '6px',
     minHeight: '44px',
-    padding: '10px 16px',
+    minWidth: '44px',
+    padding: '10px 12px',
     fontFamily: tokens.font.body,
     fontSize: '13px',
     fontWeight: 600,
