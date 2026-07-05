@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -89,6 +89,8 @@ import AssetPicker from '../../assets/AssetPicker';
 
 import StudioCommandBar from './StudioCommandBar';
 import StudioWorkflowRail from './StudioWorkflowRail';
+// Clean 5E — Design Intent Layer: compact drawer + summary line.
+import StudioIntentDrawer, { intentSummaryText } from './StudioIntentDrawer';
 import StudioStoneStrip from './StudioStoneStrip';
 import StudioStonePanel from './StudioStonePanel';
 import StudioCanvas from './StudioCanvas';
@@ -138,6 +140,9 @@ export default function StudioShell() {
 
   const [activeStep, setActiveStep] = React.useState('design');
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  // Clean 5E — "כוונת עיצוב" drawer open state (UI-only; brief edits persist
+  // through the existing designBriefStore, never through local state here).
+  const [intentOpen, setIntentOpen] = React.useState(false);
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
 
@@ -218,6 +223,8 @@ export default function StudioShell() {
 
   const selected = getSelectedConcept(brief);
   const output = getActiveOutput(brief);
+  // Clean 5E — compact intent summary for the canvas header (pure, Hebrew).
+  const intentSummary = intentSummaryText(brief);
   const conceptsStale = conceptsAreStale(brief, realTrayItems);
   const outStale = outputIsStale(brief, realTrayItems);
   const outputState = output ? (outStale ? 'stale' : 'ready') : 'none';
@@ -432,6 +439,15 @@ export default function StudioShell() {
           <div style={styles.canvasHeader}>
             <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} />
             <span style={styles.canvasHeaderMeta}>
+              {/* Clean 5E — compact intent summary; tap to edit the intent. */}
+              <button
+                type="button"
+                onClick={() => setIntentOpen(true)}
+                style={styles.intentChip}
+                title={intentSummary || INTENT_HE.summaryEmpty}
+              >
+                {intentSummary || INTENT_HE.openIntent}
+              </button>
               {/* Patch D — group indicator: this session designs around N stones. */}
               {groupIndicator ? (
                 <span style={styles.groupIndicator} title={groupIndicator}>
@@ -482,6 +498,13 @@ export default function StudioShell() {
         tray={tray}
         projectsStore={projectsStore}
         currentProjectId={activeWorkId}
+      />
+
+      {/* Clean 5E — Design Intent drawer (bottom sheet on narrow). */}
+      <StudioIntentDrawer
+        open={intentOpen}
+        onClose={() => setIntentOpen(false)}
+        narrow={narrow}
       />
 
       {toast && (
@@ -571,6 +594,27 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '10px',
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  // Clean 5E — tappable intent summary chip ("טבעת · יוקרתי · … · מאוזן").
+  intentChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    maxWidth: '340px',
+    minHeight: '28px',
+    padding: '4px 11px',
+    borderRadius: '999px',
+    border: `1px solid ${reset.color.borderStrong}`,
+    background: reset.color.panel,
+    color: reset.color.text,
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
     minWidth: 0,
     flexShrink: 1,
   },
