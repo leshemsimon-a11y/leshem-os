@@ -29,8 +29,9 @@
 // children), same 4 mode branches, same business-logic-free framing role.
 
 import * as React from 'react';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
-import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, TrayIcon } from './StudioIcons';
+import { STUDIO_5D_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
+import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, ProductIcon, UploadIcon } from './StudioIcons';
+import ConceptSketch from './ConceptSketch';
 import {
   getEmptyStateIllustration,
   getBlueprintPlaceholder,
@@ -118,16 +119,27 @@ function HeroIllustration({ src, title }) {
 
 // One large tappable choice card for the guided start state. `desc` is a
 // hover tooltip + accessible name, not a second always-visible line.
-function HeroChoiceCard({ Icon, title, desc, onClick, primary }) {
+// Clean 6A (additive): `disabled` renders an HONEST future placeholder —
+// visibly quieter, non-clickable, with a small "בקרוב" badge. Nothing is
+// faked; the card promises nothing it cannot do.
+function HeroChoiceCard({ Icon, title, desc, onClick, primary, disabled }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      style={{ ...styles.heroCard, ...(primary ? styles.heroCardPrimary : null) }}
+      onClick={disabled ? undefined : onClick}
+      disabled={Boolean(disabled)}
+      style={{
+        ...styles.heroCard,
+        ...(primary ? styles.heroCardPrimary : null),
+        ...(disabled ? styles.heroCardDisabled : null),
+      }}
       dir="rtl"
       title={desc}
       aria-label={desc ? `${title} — ${desc}` : title}
     >
+      {disabled ? (
+        <span style={styles.heroSoonBadge}>{STUDIO_6A_HE.hero.soonBadge}</span>
+      ) : null}
       <span style={{ ...styles.heroCardIcon, ...(primary ? styles.heroCardIconPrimary : null) }} aria-hidden="true">
         <Icon size={24} />
       </span>
@@ -143,12 +155,25 @@ export default function StudioCanvas({
   hasStones,
   onChooseStones,
   onChooseNoStones,
-  onOpenTray,
+  // Clean 6A — additive hero props. `onUploadAsset` opens the existing
+  // AssetPicker/upload flow; `resumeChip` ({ text, title, onClick } | null)
+  // renders the small SECONDARY "המשך תיק עבודה" context chip — deliberately
+  // NOT one of the four primary start actions.
+  onUploadAsset,
+  resumeChip = null,
+  // Clean 6A — the selected-direction blueprint pane can show a derived
+  // concept sketch; the caller passes the current tray stone shapes.
+  stoneShapes = [],
+  fallbackProductType = null,
   children,
 }) {
   const H = STUDIO_5D_HE.hero;
+  const H6 = STUDIO_6A_HE.hero;
 
-  // 0) Guided empty start (State A) — exactly 3 large choices, never blank.
+  // 0) Guided empty start (State A) — Clean 6A: exactly 4 primary creation
+  //    actions (never blank), plus an optional small resume chip. The old
+  //    third card ("פתח מגש עבודה") is replaced per the approved 6A spec —
+  //    the tray stays reachable from the app nav and the stone strip.
   if (mode === 'hero') {
     return (
       <section style={styles.canvas} dir="rtl">
@@ -162,24 +187,40 @@ export default function StudioCanvas({
           <div style={styles.heroChoices}>
             <HeroChoiceCard
               Icon={StoneIcon}
-              title={H.stonesTitle}
-              desc={H.stonesDesc}
+              title={H6.pickStonesTitle}
+              desc={H6.pickStonesDesc}
               onClick={onChooseStones}
               primary
             />
             <HeroChoiceCard
-              Icon={MetalIcon}
-              title={H.noStonesTitle}
-              desc={H.noStonesDesc}
-              onClick={onChooseNoStones}
+              Icon={UploadIcon}
+              title={H6.uploadTitle}
+              desc={H6.uploadDesc}
+              onClick={onUploadAsset}
             />
             <HeroChoiceCard
-              Icon={TrayIcon}
-              title={H.trayTitle}
-              desc={H.trayDesc}
-              onClick={onOpenTray}
+              Icon={ProductIcon}
+              title={H6.fromModelTitle}
+              desc={H6.fromModelDesc}
+              disabled
+            />
+            <HeroChoiceCard
+              Icon={MetalIcon}
+              title={H6.noStonesTitle}
+              desc={H6.noStonesDesc}
+              onClick={onChooseNoStones}
             />
           </div>
+          {resumeChip ? (
+            <button
+              type="button"
+              onClick={resumeChip.onClick}
+              style={styles.heroResumeChip}
+              title={resumeChip.title || resumeChip.text}
+            >
+              {resumeChip.text}
+            </button>
+          ) : null}
         </div>
       </section>
     );
@@ -200,8 +241,30 @@ export default function StudioCanvas({
             </span>
           </div>
           <div style={styles.blueprintPane}>
-            <span style={styles.paneTag}>{STUDIO_5D_HE.canvasBlueprint}</span>
-            <BlueprintVisual src={getBlueprintPlaceholder()} />
+            {/* Clean 6A — the selected direction shows its DERIVED schematic
+                concept sketch (render-time only, nothing stored). Falls back
+                to the original blueprint placeholder if the concept is
+                somehow missing — the pane is never blank. */}
+            {selected && selected.conceptId ? (
+              <>
+                <span style={styles.paneTag}>{STUDIO_6A_HE.sketch.paneTag}</span>
+                <div style={styles.sketchArt} aria-hidden="false">
+                  <ConceptSketch
+                    concept={selected}
+                    fallbackProductType={fallbackProductType}
+                    stoneShapes={stoneShapes}
+                    size={240}
+                    title={STUDIO_6A_HE.sketch.thumbTitle(selected.conceptName)}
+                  />
+                </div>
+                <span style={styles.sketchNote}>{STUDIO_6A_HE.sketch.schematicNote}</span>
+              </>
+            ) : (
+              <>
+                <span style={styles.paneTag}>{STUDIO_5D_HE.canvasBlueprint}</span>
+                <BlueprintVisual src={getBlueprintPlaceholder()} />
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -327,14 +390,17 @@ const styles = {
     color: reset.color.text,
     lineHeight: 1.2,
   },
+  // Clean 6A — 4 primary actions; auto-fit lets the grid wrap 4→2→1 on
+  // narrow viewports without a media query or a viewport prop.
   heroChoices: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(170px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(158px, 1fr))',
     gap: '12px',
     width: '100%',
-    maxWidth: '720px',
+    maxWidth: '760px',
   },
   heroCard: {
+    position: 'relative',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -346,6 +412,45 @@ const styles = {
     border: `1px solid ${reset.color.border}`,
     borderRadius: reset.radius.md,
     cursor: 'pointer',
+    justifyContent: 'center',
+  },
+  // Clean 6A — honest future placeholder: quieter, non-interactive.
+  heroCardDisabled: {
+    cursor: 'default',
+    opacity: 0.55,
+  },
+  heroSoonBadge: {
+    position: 'absolute',
+    top: '8px',
+    insetInlineStart: '8px',
+    fontFamily: reset.font.body,
+    fontSize: '9.5px',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    color: reset.color.textMuted,
+    border: `1px solid ${reset.color.border}`,
+    borderRadius: '999px',
+    padding: '2px 8px',
+    background: reset.color.page,
+  },
+  // Clean 6A — small SECONDARY resume chip (never one of the 4 main cards).
+  heroResumeChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: '32px',
+    padding: '6px 14px',
+    borderRadius: '999px',
+    border: `1px solid ${reset.color.borderStrong}`,
+    background: reset.color.panel,
+    color: reset.color.text,
+    fontFamily: reset.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    maxWidth: '92%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   heroCardPrimary: {
     border: `1.5px solid ${reset.color.text}`,
@@ -447,6 +552,26 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
+  },
+  // Clean 6A — derived concept sketch pane (selected direction).
+  sketchArt: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: '280px',
+    aspectRatio: '1 / 1',
+    color: reset.color.textMuted,
+    borderRadius: reset.radius.md,
+    border: `1px dashed ${reset.color.border}`,
+    background: reset.color.page,
+    overflow: 'hidden',
+  },
+  sketchNote: {
+    fontFamily: reset.font.body,
+    fontSize: '10.5px',
+    color: reset.color.textFaint,
+    marginTop: '8px',
   },
 
   // ---- starter (State B) ----

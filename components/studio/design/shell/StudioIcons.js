@@ -230,4 +230,22 @@ export const MoreIcon = ({ size = 20, style }) => (
   </svg>
 );
 
+// ---- Clean 6A — Studio Entry + Composition (additive) ----
+
+// Upload arrow into a tray — the "העלה אבן / נכס" start action.
+export const UploadIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
+    <path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" />
+  </Icon>
+);
+
+// Stacked layers — the Composition Board (לוח קומפוזיציה) toggle.
+export const LayersIcon = (p) => (
+  <Icon {...p}>
+    <path d="M12 3l9 5-9 5-9-5 9-5z" />
+    <path d="M3 13l9 5 9-5" />
+  </Icon>
+);
+
 export default Icon;

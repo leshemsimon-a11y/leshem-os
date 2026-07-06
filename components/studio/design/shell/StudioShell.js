@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -96,9 +96,21 @@ import StudioStonePanel from './StudioStonePanel';
 import StudioCanvas from './StudioCanvas';
 import StudioInspectorDrawer from './StudioInspectorDrawer';
 import StudioBottomStrip from './StudioBottomStrip';
-import { AlertIcon } from './StudioIcons';
+// Clean 6A — Studio Entry + Multi-Stone Composition + Concept Sketches.
+import CompositionBoard from './CompositionBoard';
+import InlineInventoryPicker from '../../shared/InlineInventoryPicker';
+import { AlertIcon, LayersIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
-import { getDemoInspectStoneFromTrayItem } from '../../../../lib/studio/demoInventoryLayer';
+// Clean 6A — the in-Studio "בחר אבנים מהמלאי" picker uses the SAME read-only
+// demo-inventory exports + the SAME bridge (toStudioTrayItem → tray.addItem)
+// the Work Tray's inline add already uses (Patch D). No new store, no new
+// persistence key — additions go to the REAL Work Tray only.
+import {
+  getDemoInspectStoneFromTrayItem,
+  getDemoInventorySnapshot,
+  toStudioTrayItem,
+  getSourceLabelHe,
+} from '../../../../lib/studio/demoInventoryLayer';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
@@ -140,6 +152,12 @@ export default function StudioShell() {
 
   const [activeStep, setActiveStep] = React.useState('design');
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  // Clean 6A — in-Studio inventory picker (UI-only state; a read-only demo
+  // inventory snapshot is loaded when — and only when — the picker opens).
+  const [invPickerOpen, setInvPickerOpen] = React.useState(false);
+  const [invItems, setInvItems] = React.useState([]);
+  // Clean 6A — Composition Board open state (UI-only).
+  const [boardOpen, setBoardOpen] = React.useState(false);
   // Clean 5E — "כוונת עיצוב" drawer open state (UI-only; brief edits persist
   // through the existing designBriefStore, never through local state here).
   const [intentOpen, setIntentOpen] = React.useState(false);
@@ -355,21 +373,93 @@ export default function StudioShell() {
     canvasBody = <DesignConceptPanel view="concepts" onToast={showToast} suppressStaleBanner />;
   }
 
-  // Clean 5D-R3 guided-start actions, One Tray revision: "choose stones"
-  // now routes to the Inventory screen — which writes to the REAL Work Tray
-  // as of this patch — so the guided empty state leads to the true stone
-  // source. (Its label already says "בחרו אבנים מהמלאי".) The metal-only and
-  // open-tray choices are unchanged, and the AssetPicker stays reachable via
-  // the stone strip's add button. No new stores, no new routes.
-  const onHeroChooseStones = () => {
-    router.push('/studio/inventory');
+  // ------------------------------------------------------------------
+  // Clean 6A — Studio Entry: 4-action start panel wiring.
+  // ------------------------------------------------------------------
+  // "בחר אבנים מהמלאי" now opens an IN-STUDIO inventory picker (the approved
+  // preferred path) using the exact Patch-D Work-Tray pattern: read-only
+  // demo-inventory snapshot → generic display entries → the presentational
+  // InlineInventoryPicker → additions through the EXISTING bridge
+  // (toStudioTrayItem → tray.addItem). Membership truth is always the real
+  // Work Tray. No routing away from the Studio, no new store, no new key.
+  const openInStudioInventoryPicker = () => {
+    setInvItems(getDemoInventorySnapshot());
+    setInvPickerOpen(true);
   };
+  const onHeroChooseStones = openInStudioInventoryPicker;
+  // "העלה אבן / נכס" — the EXISTING AssetPicker/upload flow, same instance
+  // the stone strip's add button already opens.
+  const onHeroUploadAsset = () => setPickerOpen(true);
+  // "התחל ללא אבנים" — the existing metal-only flow, unchanged.
   const onHeroChooseNoStones = () => {
     setHeroDismissed(true);
   };
-  const onHeroOpenTray = () => {
-    router.push('/studio/tray');
+
+  // Clean 6A — generic display entries for the presentational picker. `raw`
+  // keeps the original item so add goes through the EXISTING bridge unchanged
+  // (identical mapping to the Work Tray's Patch-D inline add).
+  const invEntries = invItems.map((item) => ({
+    id: item.id,
+    title: item.titleHe || item.title || '—',
+    subtitle: [
+      item.shapeHe,
+      item.estimatedCarat != null ? `${item.estimatedCarat}ct` : null,
+      item.color,
+      getSourceLabelHe(item.sourceType),
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    image: item.thumbImage || item.boxImage || null,
+    raw: item,
+  }));
+  const invTrayIds = new Set(realTrayItems.map((it) => it.id));
+  const onInvAdd = (entry) => {
+    const trayItem = toStudioTrayItem(entry.raw);
+    if (trayItem) tray.addItem(trayItem);
   };
+  const onInvRemove = (entry) => {
+    tray.remove(entry.id);
+  };
+
+  // Clean 6A — small SECONDARY resume chip on the hero (never one of the 4
+  // primary actions). Shown only when a resumable saved session exists:
+  // the Active Work project if set, otherwise the most recently touched
+  // active project. Restoring uses the SAME store calls as the Command
+  // Center's openProject flow (tray.replace + briefStore.set +
+  // setActiveWork) — all existing exports, no navigation needed since we
+  // are already in the Studio.
+  const activeProject =
+    activeWorkId && projectsStore.hydrated
+      ? projectsStore.projects.find((p) => p.id === activeWorkId)
+      : null;
+  const latestProject =
+    projectsStore.hydrated && Array.isArray(projectsStore.active)
+      ? projectsStore.active.reduce(
+          (best, p) => (!best || (p.updatedAt || 0) > (best.updatedAt || 0) ? p : best),
+          null
+        )
+      : null;
+  const resumableProject = activeProject || latestProject;
+  const onResumeProject = () => {
+    if (!resumableProject) return;
+    tray.replace(resumableProject.trayItems || []);
+    briefStore.set(resumableProject.brief || {});
+    setActiveWork(resumableProject.id);
+  };
+  const resumeChip =
+    heroActive && resumableProject
+      ? {
+          text: STUDIO_6A_HE.hero.resumeChip,
+          title: resumableProject.name || STUDIO_6A_HE.hero.resumeChip,
+          onClick: onResumeProject,
+        }
+      : null;
+
+  // Clean 6A — canonical stone shapes of the current composition, for the
+  // derived concept sketches (render-time only; nothing stored).
+  const stoneShapes = realTrayItems
+    .map((it) => (it.snapshot && it.snapshot.axes ? it.snapshot.axes.shape : null))
+    .filter(Boolean);
 
   const staleBanners = (
     <>
@@ -454,6 +544,19 @@ export default function StudioShell() {
                   {groupIndicator}
                 </span>
               ) : null}
+              {/* Clean 6A — Composition Board toggle (visible once the
+                  session has stones). Opens the role-grouped board. */}
+              {hasStones ? (
+                <button
+                  type="button"
+                  onClick={() => setBoardOpen(true)}
+                  style={styles.boardChip}
+                  title={STUDIO_6A_HE.board.title}
+                >
+                  <LayersIcon size={13} />
+                  <span>{STUDIO_6A_HE.board.openLabel}</span>
+                </button>
+              ) : null}
               <span style={styles.canvasHeaderTitle}>{STUDIO_5D_HE.rail[activeStep] || ''}</span>
             </span>
           </div>
@@ -467,7 +570,10 @@ export default function StudioShell() {
             hasStones={hasStones}
             onChooseStones={onHeroChooseStones}
             onChooseNoStones={onHeroChooseNoStones}
-            onOpenTray={onHeroOpenTray}
+            onUploadAsset={onHeroUploadAsset}
+            resumeChip={resumeChip}
+            stoneShapes={stoneShapes}
+            fallbackProductType={brief.productType || null}
           >
             {canvasBody}
           </StudioCanvas>
@@ -479,6 +585,8 @@ export default function StudioShell() {
             primaryLabel={primaryLabel}
             primaryDisabled={primaryDisabled}
             onPrimary={onPrimary}
+            stoneShapes={stoneShapes}
+            fallbackProductType={brief.productType || null}
           />
         </div>
 
@@ -505,6 +613,31 @@ export default function StudioShell() {
         open={intentOpen}
         onClose={() => setIntentOpen(false)}
         narrow={narrow}
+      />
+
+      {/* Clean 6A — Composition Board: role-grouped view of the current
+          Work Tray composition. Role edits go through the EXISTING
+          tray.setRole; adding stones opens the same in-Studio picker. */}
+      <CompositionBoard
+        open={boardOpen}
+        onClose={() => setBoardOpen(false)}
+        narrow={narrow}
+        trayItems={realTrayItems}
+        onSetRole={(id, role) => tray.setRole(id, role)}
+        onAddStones={openInStudioInventoryPicker}
+      />
+
+      {/* Clean 6A — in-Studio inventory add. Presentational picker;
+          membership truth and all writes go through the REAL Work Tray
+          hook only (same contract as the Work Tray's Patch-D inline add). */}
+      <InlineInventoryPicker
+        open={invPickerOpen}
+        title={USABILITY_D_HE.pickerTitle}
+        items={invEntries}
+        selectedIds={invTrayIds}
+        onAdd={onInvAdd}
+        onRemove={onInvRemove}
+        onClose={() => setInvPickerOpen(false)}
       />
 
       {toast && (
@@ -617,6 +750,24 @@ const styles = {
     whiteSpace: 'nowrap',
     minWidth: 0,
     flexShrink: 1,
+  },
+  // Clean 6A — Composition Board toggle chip (canvas header).
+  boardChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    minHeight: '28px',
+    padding: '4px 11px',
+    borderRadius: '999px',
+    border: `1px solid ${reset.color.borderStrong}`,
+    background: reset.color.panel,
+    color: reset.color.text,
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   // Patch D — compact multi-stone group line ("N אבנים · מרכזית: X").
   groupIndicator: {

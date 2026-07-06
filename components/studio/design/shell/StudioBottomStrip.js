@@ -17,23 +17,30 @@
 // changed.
 
 import * as React from 'react';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
 import { CheckIcon } from './StudioIcons';
+import ConceptSketch from './ConceptSketch';
 import { reset } from './studioResetStyle';
 
-function Variant({ concept, selected, onSelect }) {
+// Clean 6A — each variant thumb shows the direction's DERIVED schematic
+// sketch (render-time only, deterministic per conceptId) instead of one
+// generic gem glyph, so directions read visually distinct at a glance.
+function Variant({ concept, selected, onSelect, stoneShapes, fallbackProductType }) {
   return (
     <button
       type="button"
       onClick={() => onSelect && onSelect(concept.conceptId)}
       style={{ ...styles.variant, ...(selected ? styles.variantSelected : null) }}
       dir="rtl"
-      title={concept.conceptName}
+      title={STUDIO_6A_HE.sketch.thumbTitle(concept.conceptName)}
     >
       <span style={styles.variantThumb} aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
-          <path d="M6 3h12l3 6-9 12L3 9l3-6z" />
-        </svg>
+        <ConceptSketch
+          concept={concept}
+          fallbackProductType={fallbackProductType}
+          stoneShapes={stoneShapes}
+          size={26}
+        />
         {selected ? (
           <span style={styles.selDot}>
             <CheckIcon size={11} />
@@ -60,6 +67,10 @@ export default function StudioBottomStrip({
   primaryLabel,
   primaryDisabled,
   onPrimary,
+  // Clean 6A — additive, optional: current tray stone shapes + brief product
+  // type so each thumb's derived sketch reflects the real composition.
+  stoneShapes = [],
+  fallbackProductType = null,
 }) {
   const list = Array.isArray(concepts) ? concepts : [];
   return (
@@ -75,6 +86,8 @@ export default function StudioBottomStrip({
                   concept={c}
                   selected={c.conceptId === selectedId}
                   onSelect={onSelectVariant}
+                  stoneShapes={stoneShapes}
+                  fallbackProductType={fallbackProductType}
                 />
               ))}
         </div>
@@ -133,8 +146,8 @@ const styles = {
   },
   variantThumb: {
     position: 'relative',
-    width: '24px',
-    height: '24px',
+    width: '28px',
+    height: '28px',
     borderRadius: reset.radius.xs,
     background: reset.color.panel,
     border: `1px solid ${reset.color.border}`,
