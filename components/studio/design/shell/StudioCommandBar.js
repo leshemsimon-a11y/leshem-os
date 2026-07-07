@@ -11,9 +11,20 @@
 // direction (see ./studioResetStyle.js). No status logic changed.
 
 import * as React from 'react';
-import { STUDIO_5D_HE } from '../../../../lib/studio/labels';
-import { DotIcon, HomeIcon } from './StudioIcons';
+import { STUDIO_5D_HE, STUDIO_6B_HE } from '../../../../lib/studio/labels';
+import { DotIcon, HomeIcon, StoneIcon, TrayNavIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
+
+// Clean 6B — one calm breadcrumb escape: icon-only, quiet, always visible.
+function NavBtn({ Icon: Ic, label, title, onClick, narrow }) {
+  if (typeof onClick !== 'function') return null;
+  return (
+    <button type="button" onClick={onClick} title={title} aria-label={title} style={styles.navBtn}>
+      <Ic size={14} />
+      {!narrow && <span style={styles.navLabel}>{label}</span>}
+    </button>
+  );
+}
 
 export default function StudioCommandBar({
   hasActiveWork,
@@ -21,6 +32,11 @@ export default function StudioCommandBar({
   onExit,
   onSaveSession,
   canSaveSession,
+  // Clean 6B — always-visible escape navigation (plain callbacks from the
+  // shell; presentation only). `narrow` collapses labels to icons.
+  onGoInventory,
+  onGoTray,
+  narrow,
 }) {
   const L = STUDIO_5D_HE;
   // Patch B — Session Save. Presentation only: the shell owns the save
@@ -54,6 +70,24 @@ export default function StudioCommandBar({
         </span>
         <span style={styles.name}>{L.appName}</span>
       </div>
+      {/* Clean 6B — calm escape breadcrumb: מלאי · מגש עבודה. Exit to לוח
+          הבקרה stays as the existing Home control in the right cluster. */}
+      <nav style={styles.crumbs} aria-label={STUDIO_6B_HE.nav.dashboardTitle}>
+        <NavBtn
+          Icon={StoneIcon}
+          label={STUDIO_6B_HE.nav.inventory}
+          title={STUDIO_6B_HE.nav.inventoryTitle}
+          onClick={onGoInventory}
+          narrow={narrow}
+        />
+        <NavBtn
+          Icon={TrayNavIcon}
+          label={STUDIO_6B_HE.nav.tray}
+          title={STUDIO_6B_HE.nav.trayTitle}
+          onClick={onGoTray}
+          narrow={narrow}
+        />
+      </nav>
       <div style={styles.right}>
         {showSave && (
           <button
@@ -77,8 +111,8 @@ export default function StudioCommandBar({
           <button
             type="button"
             onClick={onExit}
-            title={L.exitStudio}
-            aria-label={L.aria.exitStudio}
+            title={STUDIO_6B_HE.nav.dashboardTitle}
+            aria-label={STUDIO_6B_HE.nav.dashboardTitle}
             style={styles.exitBtn}
           >
             <HomeIcon size={16} />
@@ -130,6 +164,31 @@ const styles = {
     minWidth: 0,
   },
   right: { display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 },
+  // Clean 6B — breadcrumb escape cluster.
+  crumbs: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  navBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    minHeight: '28px',
+    padding: '4px 9px',
+    borderRadius: reset.radius.sm,
+    border: `1px solid ${reset.color.border}`,
+    background: reset.color.page,
+    color: reset.color.textMuted,
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  navLabel: { display: 'inline-block' },
   // Patch B — compact primary save action (שמור תיק עבודה).
   saveBtn: {
     minHeight: '28px',

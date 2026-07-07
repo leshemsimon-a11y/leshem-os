@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE, STUDIO_6B_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -158,6 +158,10 @@ export default function StudioShell() {
   const [invItems, setInvItems] = React.useState([]);
   // Clean 6A — Composition Board open state (UI-only).
   const [boardOpen, setBoardOpen] = React.useState(false);
+  // Clean 6B — browse-directions flag (UI-only): while true, the concepts
+  // palette is shown even though a direction is selected — the selection is
+  // KEPT (the panel shows its "כיוון נבחר" badge). Never a trap.
+  const [browseDirections, setBrowseDirections] = React.useState(false);
   // Clean 5E — "כוונת עיצוב" drawer open state (UI-only; brief edits persist
   // through the existing designBriefStore, never through local state here).
   const [intentOpen, setIntentOpen] = React.useState(false);
@@ -369,7 +373,9 @@ export default function StudioShell() {
     canvasMode = 'output';
     canvasBody = <DesignOutputPanel onToast={showToast} suppressStaleBanner />;
   } else {
-    canvasMode = heroActive ? 'hero' : selected ? 'selected' : 'concepts';
+    // Clean 6B — browseDirections forces the palette view while a direction
+    // is selected (selection kept; the panel shows its chosen badge).
+    canvasMode = heroActive ? 'hero' : selected && !browseDirections ? 'selected' : 'concepts';
     canvasBody = <DesignConceptPanel view="concepts" onToast={showToast} suppressStaleBanner />;
   }
 
@@ -461,6 +467,43 @@ export default function StudioShell() {
     .map((it) => (it.snapshot && it.snapshot.axes ? it.snapshot.axes.shape : null))
     .filter(Boolean);
 
+  // ------------------------------------------------------------------
+  // Clean 6B — Studio Flow Clarity wiring.
+  // ------------------------------------------------------------------
+  // Escape navigation (plain route pushes; the command bar renders them).
+  const onGoInventory = () => router.push('/studio/inventory');
+  const onGoTray = () => router.push('/studio/tray');
+  // Directions never trap: browse keeps the selection; clear uses the
+  // EXISTING briefStore export with null (deselect); regenerate routes to
+  // the same design step the primary CTA already uses.
+  const onBrowseDirections = () => setBrowseDirections(true);
+  const onBackToSelected = () => setBrowseDirections(false);
+  const onClearSelection = () => {
+    briefStore.selectConcept(null);
+    setBrowseDirections(false);
+  };
+  const onRegenerateDirections = () => {
+    setBrowseDirections(false);
+    setActiveStep('design');
+  };
+  React.useEffect(() => {
+    // Leaving the selected state by any path resets the browse flag so the
+    // next selection starts clean.
+    if (!selected && browseDirections) setBrowseDirections(false);
+  }, [selected, browseDirections]);
+
+  // One calm next-step hint (state machine mirrors the real flow).
+  const intentDefined = Boolean(
+    brief.productType || brief.styleDirection || brief.metalPreference || brief.stoneUsage || brief.designGoal
+  );
+  let nextHint = STUDIO_6B_HE.next.pickDirection;
+  if (heroActive) nextHint = STUDIO_6B_HE.next.noStones;
+  else if (!intentDefined) nextHint = STUDIO_6B_HE.next.noIntent;
+  else if (!hasConcepts) nextHint = STUDIO_6B_HE.next.noDirections;
+  else if (conceptsStale) nextHint = STUDIO_6B_HE.next.staleDirections;
+  else if (!selected) nextHint = STUDIO_6B_HE.next.pickDirection;
+  else nextHint = STUDIO_6B_HE.next.haveSelected;
+
   const staleBanners = (
     <>
       {conceptsStale && (
@@ -496,6 +539,9 @@ export default function StudioShell() {
           hasActiveWork={Boolean(activeWorkId)}
           outputState={outputState}
           onExit={() => router.push('/studio')}
+          onGoInventory={onGoInventory}
+          onGoTray={onGoTray}
+          narrow={narrow}
           onSaveSession={onSaveSession}
           canSaveSession={canSaveSession}
         />
@@ -557,6 +603,18 @@ export default function StudioShell() {
                   <span>{STUDIO_6A_HE.board.openLabel}</span>
                 </button>
               ) : null}
+              {/* Clean 6B — while browsing all directions with a live
+                  selection, one calm way back to the selected direction. */}
+              {browseDirections && selected ? (
+                <button
+                  type="button"
+                  onClick={onBackToSelected}
+                  style={styles.boardChip}
+                  title={STUDIO_6B_HE.directions.backToSelected}
+                >
+                  <span>{STUDIO_6B_HE.directions.backToSelected}</span>
+                </button>
+              ) : null}
               <span style={styles.canvasHeaderTitle}>{STUDIO_5D_HE.rail[activeStep] || ''}</span>
             </span>
           </div>
@@ -572,6 +630,8 @@ export default function StudioShell() {
             onChooseNoStones={onHeroChooseNoStones}
             onUploadAsset={onHeroUploadAsset}
             resumeChip={resumeChip}
+            onBrowseDirections={onBrowseDirections}
+            onClearSelection={onClearSelection}
             stoneShapes={stoneShapes}
             fallbackProductType={brief.productType || null}
           >
@@ -587,6 +647,8 @@ export default function StudioShell() {
             onPrimary={onPrimary}
             stoneShapes={stoneShapes}
             fallbackProductType={brief.productType || null}
+            onRegenerate={onRegenerateDirections}
+            nextHint={nextHint}
           />
         </div>
 

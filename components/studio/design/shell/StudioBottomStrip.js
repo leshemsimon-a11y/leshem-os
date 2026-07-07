@@ -17,8 +17,8 @@
 // changed.
 
 import * as React from 'react';
-import { STUDIO_5D_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
-import { CheckIcon } from './StudioIcons';
+import { STUDIO_5D_HE, STUDIO_6A_HE, STUDIO_6B_HE } from '../../../../lib/studio/labels';
+import { CheckIcon, RefreshIcon } from './StudioIcons';
 import ConceptSketch from './ConceptSketch';
 import { reset } from './studioResetStyle';
 
@@ -71,12 +71,27 @@ export default function StudioBottomStrip({
   // type so each thumb's derived sketch reflects the real composition.
   stoneShapes = [],
   fallbackProductType = null,
+  // Clean 6B — additive: a small "צור כיוונים חדשים" icon action beside the
+  // palette, and one calm next-step hint line ("מה השלב הבא?").
+  onRegenerate,
+  nextHint = '',
 }) {
   const list = Array.isArray(concepts) ? concepts : [];
   return (
     <div style={styles.strip} dir="rtl">
       <div style={styles.variants}>
         <span style={styles.variantsLabel}>{STUDIO_5D_HE.variantsTitle}</span>
+        {list.length > 0 && typeof onRegenerate === 'function' && (
+          <button
+            type="button"
+            onClick={onRegenerate}
+            style={styles.regenBtn}
+            title={STUDIO_6B_HE.directions.regenerateTitle}
+            aria-label={STUDIO_6B_HE.directions.regenerate}
+          >
+            <RefreshIcon size={13} />
+          </button>
+        )}
         <div style={styles.variantScroller}>
           {list.length === 0
             ? [0, 1, 2].map((i) => <EmptySlot key={i} />)
@@ -93,19 +108,60 @@ export default function StudioBottomStrip({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onPrimary}
-        disabled={primaryDisabled}
-        style={{ ...styles.primary, ...(primaryDisabled ? styles.primaryDisabled : null) }}
-      >
-        {primaryLabel}
-      </button>
+      <div style={styles.primaryWrap}>
+        {nextHint ? (
+          <span style={styles.nextHint} title={nextHint}>
+            <span style={styles.nextHintPrefix}>{STUDIO_6B_HE.next.prefix}:</span> {nextHint}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={onPrimary}
+          disabled={primaryDisabled}
+          style={{ ...styles.primary, ...(primaryDisabled ? styles.primaryDisabled : null) }}
+        >
+          {primaryLabel}
+        </button>
+      </div>
     </div>
   );
 }
 
 const styles = {
+  // Clean 6B — small icon action + hint styles.
+  regenBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '28px',
+    height: '28px',
+    borderRadius: reset.radius.sm,
+    border: `1px solid ${reset.color.border}`,
+    background: reset.color.page,
+    color: reset.color.textMuted,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  primaryWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    minWidth: 0,
+    flexShrink: 0,
+  },
+  nextHint: {
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    color: reset.color.textMuted,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '260px',
+  },
+  nextHintPrefix: {
+    fontWeight: 700,
+    color: reset.color.text,
+  },
   strip: {
     display: 'flex',
     alignItems: 'center',
