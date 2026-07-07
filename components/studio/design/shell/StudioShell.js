@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE, STUDIO_6B1_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -536,7 +536,14 @@ export default function StudioShell() {
                 style={styles.intentChip}
                 title={intentSummary || INTENT_HE.summaryEmpty}
               >
-                {intentSummary || INTENT_HE.openIntent}
+                {intentSummary ? (
+                  <>
+                    {intentSummary}
+                    <span style={styles.intentEditHint}> · {STUDIO_6B1_HE.intentCard.edit}</span>
+                  </>
+                ) : (
+                  INTENT_HE.openIntent
+                )}
               </button>
               {/* Patch D — group indicator: this session designs around N stones. */}
               {groupIndicator ? (
@@ -572,6 +579,8 @@ export default function StudioShell() {
             onChooseNoStones={onHeroChooseNoStones}
             onUploadAsset={onHeroUploadAsset}
             resumeChip={resumeChip}
+            intentSummary={intentSummary}
+            onOpenIntent={() => setIntentOpen(true)}
             stoneShapes={stoneShapes}
             fallbackProductType={brief.productType || null}
           >
@@ -750,6 +759,11 @@ const styles = {
     whiteSpace: 'nowrap',
     minWidth: 0,
     flexShrink: 1,
+  },
+  // Clean 6B.1 — quiet edit affordance inside the summary chip.
+  intentEditHint: {
+    color: reset.color.textFaint,
+    fontWeight: 700,
   },
   // Clean 6A — Composition Board toggle chip (canvas header).
   boardChip: {

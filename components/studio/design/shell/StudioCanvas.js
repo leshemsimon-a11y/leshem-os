@@ -29,7 +29,7 @@
 // children), same 4 mode branches, same business-logic-free framing role.
 
 import * as React from 'react';
-import { STUDIO_5D_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, STUDIO_6A_HE, STUDIO_6B1_HE } from '../../../../lib/studio/labels';
 import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, ProductIcon, UploadIcon } from './StudioIcons';
 import ConceptSketch from './ConceptSketch';
 import {
@@ -161,6 +161,10 @@ export default function StudioCanvas({
   // NOT one of the four primary start actions.
   onUploadAsset,
   resumeChip = null,
+  // Clean 6B.1 — the design menu (intent) is exposed in the main flow:
+  // the shell passes its existing summary + drawer opener. Presentation only.
+  intentSummary = null,
+  onOpenIntent,
   // Clean 6A — the selected-direction blueprint pane can show a derived
   // concept sketch; the caller passes the current tray stone shapes.
   stoneShapes = [],
@@ -289,6 +293,23 @@ export default function StudioCanvas({
               </span>
             </div>
           </div>
+
+          {/* Clean 6B.1 — the design menu is VISIBLE in the main flow, not
+              hidden behind a small chip. This is where the design process
+              starts: empty intent → clear invitation; intent set → the
+              compact summary with an edit action. Opens the EXISTING
+              intent drawer; no new inputs, no new logic. */}
+          {typeof onOpenIntent === 'function' && (
+            <div style={styles.intentCard} dir="rtl">
+              <span style={styles.intentCardTitle}>{STUDIO_6B1_HE.intentCard.title}</span>
+              <span style={styles.intentCardSub} title={intentSummary || STUDIO_6B1_HE.intentCard.subtitle}>
+                {intentSummary || STUDIO_6B1_HE.intentCard.subtitle}
+              </span>
+              <button type="button" onClick={onOpenIntent} style={styles.intentCardBtn}>
+                {intentSummary ? STUDIO_6B1_HE.intentCard.editMenu : STUDIO_6B1_HE.intentCard.openMenu}
+              </button>
+            </div>
+          )}
 
           {/* 3 empty preview concept slots — icon only, label on hover */}
           <div style={styles.slots}>
@@ -451,6 +472,49 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+  },
+  // Clean 6B.1 — visible design-menu card (State B, before concepts exist).
+  intentCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    gap: '8px',
+    width: '100%',
+    maxWidth: '460px',
+    padding: '16px 18px',
+    background: reset.color.panel,
+    border: `1px solid ${reset.color.borderStrong}`,
+    borderRadius: reset.radius.md,
+    boxSizing: 'border-box',
+  },
+  intentCardTitle: {
+    fontFamily: reset.font.display,
+    fontWeight: 700,
+    fontSize: '17px',
+    color: reset.color.text,
+  },
+  intentCardSub: {
+    fontFamily: reset.font.body,
+    fontSize: '12px',
+    color: reset.color.textMuted,
+    maxWidth: '100%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  intentCardBtn: {
+    marginTop: '4px',
+    minHeight: '38px',
+    padding: '8px 20px',
+    fontFamily: reset.font.body,
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: reset.color.primaryText,
+    background: reset.color.primaryBg,
+    border: 'none',
+    borderRadius: reset.radius.sm,
+    cursor: 'pointer',
   },
   heroCardPrimary: {
     border: `1.5px solid ${reset.color.text}`,
