@@ -22,9 +22,6 @@
 
 import * as React from 'react';
 import { reset } from './studioResetStyle';
-// Clean 6B — small section icons: the intent controls read as a studio tool,
-// not a text form. Icons + the existing short labels; no control changed.
-import { ProductIcon, StyleIcon, MetalIcon, GemIcon, FreedomIcon, NoteIcon } from './StudioIcons';
 import { INTENT_HE, CONCEPT_HE, BRIEF_HE } from '../../../../lib/studio/labels';
 import {
   PRODUCT_TYPE_VALUES,
@@ -69,13 +66,10 @@ function CloseIcon({ size = 14 }) {
 
 // A chip group bound to one brief field. Tapping the selected chip clears it
 // back to null ("לא הוחלט") — same toggle contract as the concept panel.
-function ChipGroup({ label, options, labelMap, value, onChange, Icon: Ic }) {
+function ChipGroup({ label, options, labelMap, value, onChange }) {
   return (
     <div style={styles.group}>
-      <span style={styles.groupLabel}>
-        {Ic ? <span style={styles.groupIcon} aria-hidden="true"><Ic size={12} /></span> : null}
-        {label}
-      </span>
+      <span style={styles.groupLabel}>{label}</span>
       <div style={styles.chips}>
         {options.map((opt) => {
           const selected = value === opt;
@@ -102,10 +96,7 @@ function FreedomPicker({ value, onChange }) {
   const current = value || DEFAULT_FREEDOM_LEVEL;
   return (
     <div style={styles.group}>
-      <span style={styles.groupLabel}>
-        <span style={styles.groupIcon} aria-hidden="true"><FreedomIcon size={12} /></span>
-        {INTENT_HE.freedomLabel}
-      </span>
+      <span style={styles.groupLabel}>{INTENT_HE.freedomLabel}</span>
       <div style={styles.freedomList} role="radiogroup" aria-label={INTENT_HE.freedomLabel}>
         {FREEDOM_LEVEL_VALUES.map((lvl) => {
           const selected = current === lvl;
@@ -154,7 +145,6 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
         <div style={styles.scroll}>
           <ChipGroup
             label={INTENT_HE.jewelryTypeLabel}
-            Icon={ProductIcon}
             options={PRODUCT_TYPE_VALUES}
             labelMap={CONCEPT_HE.productType}
             value={brief.productType}
@@ -162,7 +152,6 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
           />
           <ChipGroup
             label={INTENT_HE.styleLabel}
-            Icon={StyleIcon}
             options={STYLE_PREFERENCE_VALUES}
             labelMap={BRIEF_HE.style}
             value={brief.styleDirection}
@@ -170,7 +159,6 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
           />
           <ChipGroup
             label={INTENT_HE.metalLabel}
-            Icon={MetalIcon}
             options={METAL_PREFERENCE_VALUES}
             labelMap={BRIEF_HE.metal}
             value={brief.metalPreference}
@@ -178,7 +166,6 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
           />
           <ChipGroup
             label={INTENT_HE.stoneUsageLabel}
-            Icon={GemIcon}
             options={STONE_USAGE_VALUES}
             labelMap={CONCEPT_HE.stoneUsage}
             value={brief.stoneUsage}
@@ -191,10 +178,7 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
           />
 
           <div style={styles.group}>
-            <span style={styles.groupLabel}>
-              <span style={styles.groupIcon} aria-hidden="true"><NoteIcon size={12} /></span>
-              {INTENT_HE.noteLabel}
-            </span>
+            <span style={styles.groupLabel}>{INTENT_HE.noteLabel}</span>
             <textarea
               value={brief.designGoal || ''}
               onChange={(e) => set({ designGoal: e.target.value })}
@@ -304,14 +288,6 @@ const styles = {
     fontWeight: 700,
     letterSpacing: '0.05em',
     color: reset.color.textFaint,
-  },
-  // Clean 6B — small leading icon on each section label.
-  groupIcon: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    marginInlineEnd: '6px',
-    color: reset.color.textFaint,
-    verticalAlign: 'middle',
   },
   chips: { display: 'flex', flexWrap: 'wrap', gap: '7px' },
   chip: {

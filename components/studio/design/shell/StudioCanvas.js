@@ -29,8 +29,8 @@
 // children), same 4 mode branches, same business-logic-free framing role.
 
 import * as React from 'react';
-import { STUDIO_5D_HE, STUDIO_6A_HE, STUDIO_6B_HE } from '../../../../lib/studio/labels';
-import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, ProductIcon, UploadIcon, GridViewIcon, ClearIcon } from './StudioIcons';
+import { STUDIO_5D_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
+import { RingSilhouette, StoneFacets, StoneIcon, MetalIcon, ProductIcon, UploadIcon } from './StudioIcons';
 import ConceptSketch from './ConceptSketch';
 import {
   getEmptyStateIllustration,
@@ -161,10 +161,6 @@ export default function StudioCanvas({
   // NOT one of the four primary start actions.
   onUploadAsset,
   resumeChip = null,
-  // Clean 6B — the selected state never traps the user: calm actions to
-  // return to the full directions palette (selection kept) or clear it.
-  onBrowseDirections,
-  onClearSelection,
   // Clean 6A — the selected-direction blueprint pane can show a derived
   // concept sketch; the caller passes the current tray stone shapes.
   stoneShapes = [],
@@ -232,25 +228,9 @@ export default function StudioCanvas({
 
   // 1) Selected direction → large split preview (State D).
   if (mode === 'selected' && selected) {
-    const D = STUDIO_6B_HE.directions;
     return (
       <section style={styles.canvas} dir="rtl">
         <div style={styles.blueprint} aria-hidden="true" />
-        {/* Clean 6B — always-visible way OUT of the selected state. */}
-        <div style={styles.directionActions}>
-          {typeof onBrowseDirections === 'function' && (
-            <button type="button" onClick={onBrowseDirections} style={styles.dirBtn} title={D.backToAllTitle}>
-              <GridViewIcon size={13} />
-              <span>{D.backToAll}</span>
-            </button>
-          )}
-          {typeof onClearSelection === 'function' && (
-            <button type="button" onClick={onClearSelection} style={{ ...styles.dirBtn, ...styles.dirBtnQuiet }} title={D.clearSelectionTitle}>
-              <ClearIcon size={13} />
-              <span>{D.clearSelection}</span>
-            </button>
-          )}
-        </div>
         <div style={styles.split}>
           <div style={styles.previewPane}>
             <span style={styles.paneTag}>{STUDIO_5D_HE.canvasRender}</span>
@@ -471,35 +451,6 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-  },
-  // Clean 6B — selected-state escape actions (calm chips, top of canvas).
-  directionActions: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    flexWrap: 'wrap',
-    padding: '10px 14px 0',
-  },
-  dirBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    minHeight: '30px',
-    padding: '5px 12px',
-    borderRadius: '999px',
-    border: `1px solid ${reset.color.borderStrong}`,
-    background: reset.color.panel,
-    color: reset.color.text,
-    fontFamily: reset.font.body,
-    fontSize: '11.5px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  dirBtnQuiet: {
-    border: `1px solid ${reset.color.border}`,
-    color: reset.color.textMuted,
   },
   heroCardPrimary: {
     border: `1.5px solid ${reset.color.text}`,
