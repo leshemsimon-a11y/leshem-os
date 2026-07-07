@@ -268,14 +268,7 @@ export const GridViewIcon = (p) => (
   </Icon>
 );
 
-// Refresh arrows — "צור כיוונים חדשים".
-export const RefreshIcon = (p) => (
-  <Icon {...p}>
-    <path d="M20 11a8 8 0 10.7 4" />
-    <path d="M20 5v6h-6" />
-  </Icon>
-);
-
+// RefreshIcon already exists above; Clean 6B reuses that export.
 // Clear/deselect — "בטל בחירה".
 export const ClearIcon = (p) => (
   <Icon {...p}>
@@ -292,14 +285,7 @@ export const GemIcon = (p) => (
   </Icon>
 );
 
-// Brush stroke — style section marker.
-export const StyleIcon = (p) => (
-  <Icon {...p}>
-    <path d="M15 5l4 4L8 20H4v-4L15 5z" />
-    <path d="M13 7l4 4" />
-  </Icon>
-);
-
+// StyleIcon already exists above; Clean 6B reuses that export.
 // Compass — freedom-level section marker.
 export const FreedomIcon = (p) => (
   <Icon {...p}>
