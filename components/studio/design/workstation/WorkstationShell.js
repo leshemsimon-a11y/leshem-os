@@ -40,7 +40,11 @@ import { ws } from './wsStyle';
 import { WS_HE } from './wsLabels';
 import { FLOW_HE, USABILITY_D_HE, CONCEPT_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
-import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
+import {
+  createUseDesignBrief,
+  setConcepts as persistConcepts,
+  selectConcept as persistSelectedConcept,
+} from '../../../../lib/studio/designBriefStore';
 import { updateProject, createUseDesignProjects } from '../../../../lib/studio/designProjects';
 import { getActiveWorkId, setActiveWorkId } from '../../../../lib/studio/activeWorkStore';
 import {
@@ -68,6 +72,7 @@ import WorkstationMenu from './WorkstationMenu';
 import WorkstationDirections from './WorkstationDirections';
 import WorkstationProcessStrip, { PROCESS_LABELS } from './WorkstationProcessStrip';
 import WorkstationSaveBar from './WorkstationSaveBar';
+import WorkstationActiveWork from './WorkstationActiveWork';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
@@ -170,20 +175,20 @@ export default function WorkstationShell() {
   const handleGenerate = () => {
     const next = generateConcepts(tray.items, brief);
     const sig = computeInputSignature(brief, tray.items);
-    const nextBrief = briefStore.setConcepts(next, sig);
+    const nextBrief = persistConcepts(next, sig);
     syncActiveWork(nextBrief);
     showToast(FLOW_HE.toast.conceptsCreated);
   };
 
   const handleSelectDirection = (conceptId) => {
     const nextId = conceptId === brief.selectedConceptId ? null : conceptId;
-    const nextBrief = briefStore.selectConcept(nextId);
+    const nextBrief = persistSelectedConcept(nextId);
     syncActiveWork(nextBrief);
     showToast(nextId ? FLOW_HE.toast.conceptChosen : FLOW_HE.toast.conceptCanceled);
   };
 
   const handleClearSelection = () => {
-    const nextBrief = briefStore.selectConcept(null);
+    const nextBrief = persistSelectedConcept(null);
     syncActiveWork(nextBrief);
     showToast(FLOW_HE.toast.conceptCanceled);
   };
@@ -219,6 +224,19 @@ export default function WorkstationShell() {
       showToast(WS_HE.save.successToast);
     }
   };
+
+  // ------------------------------------------------------------------
+  // Clean 6F — resolve the current Active Work for the context banner.
+  // Read-only: existing getActiveWorkId + the projects list already loaded by
+  // the existing hook. Runs client-side only (this point is only reached
+  // after hydration). No tray/brief hydration, no update/replace logic —
+  // the banner is context + navigation only.
+  // ------------------------------------------------------------------
+  const activeWorkIdNow = getActiveWorkId();
+  const activeProject =
+    projectsStore.hydrated && activeWorkIdNow
+      ? projectsStore.projects.find((p) => p && p.id === activeWorkIdNow) || null
+      : null;
 
   // ------------------------------------------------------------------
   // Inventory add — identical Clean 6A pattern (read-only snapshot →
@@ -281,7 +299,13 @@ export default function WorkstationShell() {
   const showMenuColumn = menuOpen && !narrow;
 
   return (
-    <div style={styles.root} dir="rtl">
+    <div
+      style={{
+        ...styles.root,
+        ...(activeProject ? styles.rootWithBanner : null),
+      }}
+      dir="rtl"
+    >
       <div style={styles.glow} aria-hidden="true" />
 
       {/* Header — prototype identity + quick way back to the stable Studio */}
@@ -304,6 +328,18 @@ export default function WorkstationShell() {
           {WS_HE.backToStableStudio}
         </button>
       </div>
+
+      {/* Clean 6F — Active Work context banner (only when one exists) */}
+      {activeProject ? (
+        <WorkstationActiveWork
+          name={activeProject.name}
+          itemsCount={Array.isArray(activeProject.trayItems) ? activeProject.trayItems.length : 0}
+          hasSelectedDirection={Boolean(activeProject.brief && activeProject.brief.selectedConceptId)}
+          onOpenProjects={() => router.push('/studio/projects')}
+          onSaveNew={handleSaveWorkFile}
+          canSaveNew={canSaveWorkFile}
+        />
+      ) : null}
 
       {/* Zone 1 — top stone/material ribbon */}
       <WorkstationRibbon
@@ -397,6 +433,10 @@ const styles = {
     boxSizing: 'border-box',
     background: ws.color.page,
     overflow: 'auto',
+  },
+  // Clean 6F — one extra auto row when the Active Work banner is shown.
+  rootWithBanner: {
+    gridTemplateRows: 'auto auto auto minmax(0, 1fr) auto',
   },
   glow: {
     position: 'absolute',

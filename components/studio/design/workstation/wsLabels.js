@@ -81,4 +81,13 @@ export const WS_HE = Object.freeze({
     openProjects: 'פתח תיקי עבודה',
     namePrefix: 'תיק עיצוב',
   }),
+
+  // Clean 6F — compact Active Work context banner (shown only when an
+  // Active Work exists; read-only context, no tray hydration).
+  activeWork: Object.freeze({
+    badge: 'תיק פעיל',
+    subtitle: 'נפתח להמשך עבודה',
+    saveNew: 'שמור גרסה חדשה',
+    noDirection: 'ללא כיוון נבחר',
+  }),
 });
