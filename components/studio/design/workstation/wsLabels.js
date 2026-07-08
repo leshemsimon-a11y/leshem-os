@@ -71,4 +71,14 @@ export const WS_HE = Object.freeze({
   toast: Object.freeze({
     removedFromTray: 'האבן הוסרה ממגש העבודה',
   }),
+
+  // Clean 6E — save the current workstation state as a Work File
+  // (Design Project) through the EXISTING projects store.
+  save: Object.freeze({
+    action: 'שמור כתיק עבודה',
+    emptyGuard: 'צריך לבחור לפחות אבן אחת לפני שמירת תיק עבודה',
+    successToast: 'העבודה נשמרה כתיק עבודה',
+    openProjects: 'פתח תיקי עבודה',
+    namePrefix: 'תיק עיצוב',
+  }),
 });

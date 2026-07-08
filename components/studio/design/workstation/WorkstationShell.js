@@ -38,15 +38,11 @@ import * as React from 'react';
 import { useRouter } from 'next/router';
 import { ws } from './wsStyle';
 import { WS_HE } from './wsLabels';
-import { FLOW_HE, USABILITY_D_HE } from '../../../../lib/studio/labels';
+import { FLOW_HE, USABILITY_D_HE, CONCEPT_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
-import {
-  createUseDesignBrief,
-  setConcepts as persistConcepts,
-  selectConcept as persistSelectedConcept,
-} from '../../../../lib/studio/designBriefStore';
-import { updateProject } from '../../../../lib/studio/designProjects';
-import { getActiveWorkId } from '../../../../lib/studio/activeWorkStore';
+import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
+import { updateProject, createUseDesignProjects } from '../../../../lib/studio/designProjects';
+import { getActiveWorkId, setActiveWorkId } from '../../../../lib/studio/activeWorkStore';
 import {
   getSelectedConcept,
   getActiveOutput,
@@ -71,9 +67,11 @@ import WorkstationCanvas from './WorkstationCanvas';
 import WorkstationMenu from './WorkstationMenu';
 import WorkstationDirections from './WorkstationDirections';
 import WorkstationProcessStrip, { PROCESS_LABELS } from './WorkstationProcessStrip';
+import WorkstationSaveBar from './WorkstationSaveBar';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
+const useDesignProjects = createUseDesignProjects(React);
 
 function useViewport() {
   const [narrow, setNarrow] = React.useState(false);
@@ -90,6 +88,7 @@ function useViewport() {
 export default function WorkstationShell() {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
+  const projectsStore = useDesignProjects(); // Clean 6E — EXISTING projects hook
   const router = useRouter();
   const narrow = useViewport();
 
@@ -97,6 +96,10 @@ export default function WorkstationShell() {
   const [view, setView] = React.useState('table');
   const [menuOpen, setMenuOpen] = React.useState(true); // desktop default: visible
   const [selectedItemId, setSelectedItemId] = React.useState(null);
+
+  // Clean 6E — remembers the last save in THIS session only (UI state, never
+  // persisted) so the "פתח תיקי עבודה" follow-up action can appear.
+  const [savedWorkId, setSavedWorkId] = React.useState(null);
 
   // In-workstation inventory add (identical Clean 6A pattern — UI-only state,
   // read-only demo snapshot loaded only when the picker opens).
@@ -167,22 +170,54 @@ export default function WorkstationShell() {
   const handleGenerate = () => {
     const next = generateConcepts(tray.items, brief);
     const sig = computeInputSignature(brief, tray.items);
-    const nextBrief = persistConcepts(next, sig);
+    const nextBrief = briefStore.setConcepts(next, sig);
     syncActiveWork(nextBrief);
     showToast(FLOW_HE.toast.conceptsCreated);
   };
 
   const handleSelectDirection = (conceptId) => {
     const nextId = conceptId === brief.selectedConceptId ? null : conceptId;
-    const nextBrief = persistSelectedConcept(nextId);
+    const nextBrief = briefStore.selectConcept(nextId);
     syncActiveWork(nextBrief);
     showToast(nextId ? FLOW_HE.toast.conceptChosen : FLOW_HE.toast.conceptCanceled);
   };
 
   const handleClearSelection = () => {
-    const nextBrief = persistSelectedConcept(null);
+    const nextBrief = briefStore.selectConcept(null);
     syncActiveWork(nextBrief);
     showToast(FLOW_HE.toast.conceptCanceled);
+  };
+
+  // ------------------------------------------------------------------
+  // Clean 6E — save the current workstation state as a NEW Work File
+  // (Design Project) through the EXISTING public API only:
+  // projectsStore.save({ name, trayItems, brief, snapshot }) →
+  // setActiveWorkId(saved.id). Deliberately simple by spec: always a new
+  // Work File, then it becomes the Active Work — no update/replace logic.
+  // ------------------------------------------------------------------
+  const canSaveWorkFile = hasStones; // empty guard: at least one stone/item
+
+  const buildWorkFileName = () => {
+    const dateHe = new Date().toLocaleDateString('he-IL');
+    const productHe = brief.productType
+      ? CONCEPT_HE.productType[brief.productType] || null
+      : null;
+    return [WS_HE.save.namePrefix, productHe, dateHe].filter(Boolean).join(' · ');
+  };
+
+  const handleSaveWorkFile = () => {
+    if (!canSaveWorkFile) return;
+    const saved = projectsStore.save({
+      name: buildWorkFileName(),
+      trayItems: tray.items || [],
+      brief,
+      snapshot: buildDesignSnapshot(tray.items || [], brief),
+    });
+    if (saved && saved.id) {
+      setActiveWorkId(saved.id);
+      setSavedWorkId(saved.id);
+      showToast(WS_HE.save.successToast);
+    }
   };
 
   // ------------------------------------------------------------------
@@ -255,6 +290,12 @@ export default function WorkstationShell() {
         <span style={styles.badge}>{WS_HE.prototypeBadge}</span>
         <div style={styles.headerSpacer} />
         <WorkstationProcessStrip steps={processSteps} />
+        <WorkstationSaveBar
+          canSave={canSaveWorkFile}
+          saved={Boolean(savedWorkId)}
+          onSave={handleSaveWorkFile}
+          onOpenProjects={() => router.push('/studio/projects')}
+        />
         <button
           type="button"
           onClick={() => router.push('/studio/design')}
