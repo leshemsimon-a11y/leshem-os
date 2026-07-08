@@ -17,8 +17,8 @@
 // changed.
 
 import * as React from 'react';
-import { STUDIO_5D_HE, STUDIO_6A_HE } from '../../../../lib/studio/labels';
-import { CheckIcon } from './StudioIcons';
+import { STUDIO_5D_HE, STUDIO_6A_HE, STUDIO_6C_HE } from '../../../../lib/studio/labels';
+import { CheckIcon, PlusIcon } from './StudioIcons';
 import ConceptSketch from './ConceptSketch';
 import { reset } from './studioResetStyle';
 
@@ -34,12 +34,12 @@ function Variant({ concept, selected, onSelect, stoneShapes, fallbackProductType
       dir="rtl"
       title={STUDIO_6A_HE.sketch.thumbTitle(concept.conceptName)}
     >
-      <span style={styles.variantThumb} aria-hidden="true">
+      <span style={{ ...styles.variantThumb, ...(selected ? styles.variantThumbSelected : null) }} aria-hidden="true">
         <ConceptSketch
           concept={concept}
           fallbackProductType={fallbackProductType}
           stoneShapes={stoneShapes}
-          size={26}
+          size={38}
         />
         {selected ? (
           <span style={styles.selDot}>
@@ -52,11 +52,16 @@ function Variant({ concept, selected, onSelect, stoneShapes, fallbackProductType
   );
 }
 
-function EmptySlot() {
+// Clean 6C — a calm "+" card at the end of the palette; the shell routes it
+// to the EXISTING direction-generation step. Presentation only.
+function GenerateNewTile({ onClick }) {
   return (
-    <span style={styles.slot} aria-hidden="true">
-      <span style={styles.slotDot} />
-    </span>
+    <button type="button" onClick={onClick} style={styles.genTile} dir="rtl" title={STUDIO_6C_HE.strip.generateNew}>
+      <span style={styles.genTileThumb} aria-hidden="true">
+        <PlusIcon size={15} />
+      </span>
+      <span style={styles.variantName}>{STUDIO_6C_HE.strip.generateNew}</span>
+    </button>
   );
 }
 
@@ -71,6 +76,8 @@ export default function StudioBottomStrip({
   // type so each thumb's derived sketch reflects the real composition.
   stoneShapes = [],
   fallbackProductType = null,
+  // Clean 6C — optional: routes to the existing generation step.
+  onGenerateNew,
 }) {
   const list = Array.isArray(concepts) ? concepts : [];
   return (
@@ -90,6 +97,9 @@ export default function StudioBottomStrip({
                   fallbackProductType={fallbackProductType}
                 />
               ))}
+          {list.length > 0 && typeof onGenerateNew === 'function' && (
+            <GenerateNewTile onClick={onGenerateNew} />
+          )}
         </div>
       </div>
 
@@ -130,31 +140,39 @@ const styles = {
   variantScroller: { display: 'flex', gap: '7px', overflowX: 'auto', minWidth: 0, padding: '2px' },
   variant: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: '8px',
-    minHeight: '38px',
-    padding: '5px 14px 5px 5px',
+    gap: '5px',
+    padding: '7px 8px 5px',
+    minWidth: '76px',
+    maxWidth: '96px',
     background: reset.color.page,
     border: `1px solid ${reset.color.border}`,
-    borderRadius: reset.radius.sm,
+    borderRadius: reset.radius.md,
     cursor: 'pointer',
     flexShrink: 0,
   },
   variantSelected: {
-    border: `1.5px solid ${reset.color.text}`,
+    border: `1px solid ${reset.color.borderStrong}`,
     background: reset.color.panel,
+    boxShadow: reset.shadow.lift,
   },
   variantThumb: {
     position: 'relative',
-    width: '28px',
-    height: '28px',
-    borderRadius: reset.radius.xs,
-    background: reset.color.panel,
-    border: `1px solid ${reset.color.border}`,
+    width: '44px',
+    height: '44px',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: reset.radius.sm,
+    border: `1px solid ${reset.color.border}`,
+    background: reset.color.panel,
     color: reset.color.textMuted,
+    overflow: 'hidden',
+  },
+  variantThumbSelected: {
+    color: reset.color.text,
+    border: `1px solid ${reset.color.borderStrong}`,
   },
   selDot: {
     color: reset.color.text,
@@ -182,10 +200,38 @@ const styles = {
   },
   variantName: {
     fontFamily: reset.font.body,
-    fontSize: '12px',
-    fontWeight: 600,
-    color: reset.color.text,
+    fontSize: '10px',
+    fontWeight: 700,
+    color: reset.color.textMuted,
+    maxWidth: '88px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    textAlign: 'center',
+  },
+  genTile: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '7px 8px 5px',
+    minWidth: '76px',
+    maxWidth: '96px',
+    background: 'transparent',
+    border: `1px dashed ${reset.color.borderStrong}`,
+    borderRadius: reset.radius.md,
+    cursor: 'pointer',
+    flexShrink: 0,
+    color: reset.color.textMuted,
+  },
+  genTileThumb: {
+    width: '44px',
+    height: '44px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: reset.radius.sm,
+    border: `1px dashed ${reset.color.border}`,
   },
   primary: {
     minHeight: '44px',

@@ -248,4 +248,24 @@ export const LayersIcon = (p) => (
   </Icon>
 );
 
+// ---- Clean 6C — Studio North Star Workstation (additive) ----
+
+// Grid of direction cards — כיווני עיצוב.
+export const DirectionsIcon = (p) => (
+  <Icon {...p}>
+    <rect x="4" y="4" width="7" height="7" rx="1.5" />
+    <rect x="13" y="4" width="7" height="7" rx="1.5" />
+    <rect x="4" y="13" width="7" height="7" rx="1.5" />
+    <rect x="13" y="13" width="7" height="7" rx="1.5" />
+  </Icon>
+);
+
+// Chosen direction — a marked card.
+export const ChosenIcon = (p) => (
+  <Icon {...p}>
+    <rect x="4" y="4" width="16" height="16" rx="2.5" />
+    <path d="M8.5 12.5l2.5 2.5 4.5-5" />
+  </Icon>
+);
+
 export default Icon;
