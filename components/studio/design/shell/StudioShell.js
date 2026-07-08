@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE, STUDIO_6B1_HE, STUDIO_6C_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE, STUDIO_6B1_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -90,7 +90,7 @@ import AssetPicker from '../../assets/AssetPicker';
 import StudioCommandBar from './StudioCommandBar';
 import StudioWorkflowRail from './StudioWorkflowRail';
 // Clean 5E — Design Intent Layer: compact drawer + summary line.
-import StudioIntentDrawer, { intentSummaryText, DesignMenuBody } from './StudioIntentDrawer';
+import StudioIntentDrawer, { intentSummaryText } from './StudioIntentDrawer';
 import StudioStoneStrip from './StudioStoneStrip';
 import StudioStonePanel from './StudioStonePanel';
 import StudioCanvas from './StudioCanvas';
@@ -99,8 +99,7 @@ import StudioBottomStrip from './StudioBottomStrip';
 // Clean 6A — Studio Entry + Multi-Stone Composition + Concept Sketches.
 import CompositionBoard from './CompositionBoard';
 import InlineInventoryPicker from '../../shared/InlineInventoryPicker';
-import { AlertIcon, LayersIcon, HomeIcon, StoneIcon, TrayIcon } from './StudioIcons';
-import StudioProcessStrip from './StudioProcessStrip';
+import { AlertIcon, LayersIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
 // Clean 6A — the in-Studio "בחר אבנים מהמלאי" picker uses the SAME read-only
 // demo-inventory exports + the SAME bridge (toStudioTrayItem → tray.addItem)
@@ -159,10 +158,6 @@ export default function StudioShell() {
   const [invItems, setInvItems] = React.useState([]);
   // Clean 6A — Composition Board open state (UI-only).
   const [boardOpen, setBoardOpen] = React.useState(false);
-  // Clean 6C — docked design menu (desktop). Visible by default per the
-  // North Star; collapse is UI-only state, nothing persisted.
-  const [menuDocked, setMenuDocked] = React.useState(true);
-  const dockRef = React.useRef(null);
   // Clean 5E — "כוונת עיצוב" drawer open state (UI-only; brief edits persist
   // through the existing designBriefStore, never through local state here).
   const [intentOpen, setIntentOpen] = React.useState(false);
@@ -466,46 +461,6 @@ export default function StudioShell() {
     .map((it) => (it.snapshot && it.snapshot.axes ? it.snapshot.axes.shape : null))
     .filter(Boolean);
 
-  // ------------------------------------------------------------------
-  // Clean 6C — Studio North Star Workstation wiring.
-  // ------------------------------------------------------------------
-  // One opener for the design menu: on wide, the DOCKED panel is the single
-  // desktop surface (expand + bring into view); on narrow, the existing
-  // bottom-sheet drawer opens exactly as before. No new mobile pattern.
-  const openDesignMenu = () => {
-    if (narrow) {
-      setIntentOpen(true);
-      return;
-    }
-    setMenuDocked(true);
-    if (dockRef.current && typeof dockRef.current.scrollIntoView === 'function') {
-      dockRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  };
-
-  // Process strip — DERIVED from existing state only. 'stones' also counts
-  // as passed when the person explicitly chose the metal-only start.
-  const intentDefined = Boolean(
-    brief.productType || brief.styleDirection || brief.metalPreference || brief.stoneUsage || brief.designGoal
-  );
-  const processSteps = {
-    stones: hasStones || heroDismissed,
-    menu: intentDefined,
-    directions: hasConcepts,
-    chosen: Boolean(selected),
-    brief: Boolean(output),
-  };
-
-  // Calm quick actions (plain route pushes; presentation lives below).
-  const quickActions = [
-    { key: 'inventory', Icon: StoneIcon, label: STUDIO_6C_HE.actions.inventory, go: () => router.push('/studio/inventory') },
-    { key: 'tray', Icon: TrayIcon, label: STUDIO_6C_HE.actions.tray, go: () => router.push('/studio/tray') },
-    { key: 'dashboard', Icon: HomeIcon, label: STUDIO_6C_HE.actions.dashboard, go: () => router.push('/studio') },
-  ];
-
-  // Directions strip: "+" tile routes to the EXISTING generation step.
-  const onGenerateNew = () => setActiveStep('design');
-
   const staleBanners = (
     <>
       {conceptsStale && (
@@ -577,7 +532,7 @@ export default function StudioShell() {
               {/* Clean 5E — compact intent summary; tap to edit the intent. */}
               <button
                 type="button"
-                onClick={openDesignMenu}
+                onClick={() => setIntentOpen(true)}
                 style={styles.intentChip}
                 title={intentSummary || INTENT_HE.summaryEmpty}
               >
@@ -625,7 +580,7 @@ export default function StudioShell() {
             onUploadAsset={onHeroUploadAsset}
             resumeChip={resumeChip}
             intentSummary={intentSummary}
-            onOpenIntent={openDesignMenu}
+            onOpenIntent={() => setIntentOpen(true)}
             stoneShapes={stoneShapes}
             fallbackProductType={brief.productType || null}
           >
@@ -641,56 +596,17 @@ export default function StudioShell() {
             onPrimary={onPrimary}
             stoneShapes={stoneShapes}
             fallbackProductType={brief.productType || null}
-            onGenerateNew={onGenerateNew}
           />
-
-          {/* Clean 6C — derived process strip (status only, never nav). */}
-          <StudioProcessStrip steps={processSteps} />
         </div>
 
-        <div style={styles.rightColumn}>
-          {/* Clean 6C — the docked design menu (תפריט עיצוב): the North Star
-              right panel, visible by default on wide. Same DesignMenuBody
-              the drawer renders; every tap writes through the EXISTING
-              brief store exports, so all surfaces stay live-synced. */}
-          {!narrow && (
-            <section ref={dockRef} style={styles.dockMenu} aria-label={STUDIO_6C_HE.dock.title}>
-              <button
-                type="button"
-                onClick={() => setMenuDocked((v) => !v)}
-                style={styles.dockHead}
-                title={menuDocked ? STUDIO_6C_HE.dock.collapse : STUDIO_6C_HE.dock.expand}
-              >
-                <span style={styles.dockTitle}>{STUDIO_6C_HE.dock.title}</span>
-                <span style={styles.dockToggle} aria-hidden="true">{menuDocked ? '−' : '+'}</span>
-              </button>
-              {menuDocked && (
-                <div style={styles.dockBody}>
-                  <DesignMenuBody />
-                </div>
-              )}
-            </section>
-          )}
-
-          <StudioInspectorDrawer
-            concept={selected}
-            output={output}
-            selectedItem={!selected ? selectedTrayItem : null}
-            selectedDemoStone={!selected ? selectedDemoStone : null}
-            demoMode={Boolean(selectedDemoStone)}
-            trayItems={realTrayItems}
-          />
-
-          {/* Clean 6C — calm quick actions (studio orientation). */}
-          <div style={styles.quickActions} role="navigation" aria-label={STUDIO_6C_HE.actions.title}>
-            {quickActions.map((a) => (
-              <button key={a.key} type="button" onClick={a.go} style={styles.quickBtn} title={a.label}>
-                <a.Icon size={13} />
-                <span style={styles.quickLabel}>{a.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <StudioInspectorDrawer
+          concept={selected}
+          output={output}
+          selectedItem={!selected ? selectedTrayItem : null}
+          selectedDemoStone={!selected ? selectedDemoStone : null}
+          demoMode={Boolean(selectedDemoStone)}
+          trayItems={realTrayItems}
+        />
       </div>
 
       <AssetPicker
@@ -703,7 +619,7 @@ export default function StudioShell() {
 
       {/* Clean 5E — Design Intent drawer (bottom sheet on narrow). */}
       <StudioIntentDrawer
-        open={intentOpen && narrow}
+        open={intentOpen}
         onClose={() => setIntentOpen(false)}
         narrow={narrow}
       />
@@ -801,77 +717,6 @@ const styles = {
     gridAutoRows: 'min-content',
   },
 
-  // Clean 6C — right column: docked menu + inspector + quick actions.
-  rightColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: GAP,
-    minHeight: 0,
-    minWidth: 0,
-  },
-  dockMenu: {
-    display: 'flex',
-    flexDirection: 'column',
-    background: reset.color.panel,
-    border: `1px solid ${reset.color.borderStrong}`,
-    borderRadius: reset.radius.md,
-    boxShadow: reset.shadow.lift,
-    overflow: 'hidden',
-    flexShrink: 0,
-  },
-  dockHead: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '8px',
-    padding: '10px 14px',
-    background: 'transparent',
-    border: 'none',
-    borderBottom: `1px solid ${reset.color.border}`,
-    cursor: 'pointer',
-  },
-  dockTitle: {
-    fontFamily: reset.font.display,
-    fontWeight: 700,
-    fontSize: '13.5px',
-    color: reset.color.text,
-  },
-  dockToggle: {
-    fontFamily: reset.font.body,
-    fontWeight: 700,
-    fontSize: '14px',
-    color: reset.color.textMuted,
-    lineHeight: 1,
-  },
-  dockBody: {
-    padding: '12px 14px',
-    overflowY: 'auto',
-    maxHeight: '46vh',
-  },
-  quickActions: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    flexShrink: 0,
-  },
-  quickBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    minHeight: '32px',
-    padding: '6px 12px',
-    borderRadius: reset.radius.sm,
-    border: `1px solid ${reset.color.border}`,
-    background: reset.color.page,
-    color: reset.color.textMuted,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  quickLabel: {
-    fontFamily: reset.font.body,
-    fontSize: '11px',
-    fontWeight: 700,
-  },
   canvasColumn: {
     display: 'flex',
     flexDirection: 'column',

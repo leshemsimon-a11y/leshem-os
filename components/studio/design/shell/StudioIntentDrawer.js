@@ -122,73 +122,13 @@ function FreedomPicker({ value, onChange }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Clean 6C — DesignMenuBody: the drawer's control stack as a reusable,
-// self-contained surface (ADDITIVE export). It reads via the same
-// useDesignBrief hook and writes every tap through the same existing
-// updateBrief export — multiple mounted surfaces stay live-synced through
-// the store's existing pub/sub, exactly like the drawer + concept panel do
-// today. No new store, no new persistence key, no chrome.
-// ---------------------------------------------------------------------------
-export function DesignMenuBody() {
-  const briefStore = useDesignBrief();
-  const brief = briefStore.brief;
-  const set = (patch) => updateBrief(patch);
-  return (
-    <div style={styles.bodyStack}>
-      <ChipGroup
-        label={INTENT_HE.jewelryTypeLabel}
-        options={PRODUCT_TYPE_VALUES}
-        labelMap={CONCEPT_HE.productType}
-        value={brief.productType}
-        onChange={(v) => set({ productType: v })}
-      />
-      <ChipGroup
-        label={INTENT_HE.styleLabel}
-        options={STYLE_PREFERENCE_VALUES}
-        labelMap={BRIEF_HE.style}
-        value={brief.styleDirection}
-        onChange={(v) => set({ styleDirection: v })}
-      />
-      <ChipGroup
-        label={INTENT_HE.metalLabel}
-        options={METAL_PREFERENCE_VALUES}
-        labelMap={BRIEF_HE.metal}
-        value={brief.metalPreference}
-        onChange={(v) => set({ metalPreference: v })}
-      />
-      <ChipGroup
-        label={INTENT_HE.stoneUsageLabel}
-        options={STONE_USAGE_VALUES}
-        labelMap={CONCEPT_HE.stoneUsage}
-        value={brief.stoneUsage}
-        onChange={(v) => set({ stoneUsage: v })}
-      />
-      <FreedomPicker
-        value={brief.freedomLevel}
-        onChange={(v) => set({ freedomLevel: v })}
-      />
-      <div style={styles.group}>
-        <span style={styles.groupLabel}>{INTENT_HE.noteLabel}</span>
-        <textarea
-          value={brief.designGoal || ''}
-          onChange={(e) => set({ designGoal: e.target.value })}
-          placeholder={INTENT_HE.notePlaceholder}
-          style={styles.note}
-          rows={2}
-          dir="rtl"
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function StudioIntentDrawer({ open, onClose, narrow }) {
   const briefStore = useDesignBrief();
   const brief = briefStore.brief;
 
   if (!open) return null;
 
+  const set = (patch) => updateBrief(patch);
   const summary = intentSummaryText(brief);
 
   return (
@@ -203,7 +143,51 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
         </div>
 
         <div style={styles.scroll}>
-          <DesignMenuBody />
+          <ChipGroup
+            label={INTENT_HE.jewelryTypeLabel}
+            options={PRODUCT_TYPE_VALUES}
+            labelMap={CONCEPT_HE.productType}
+            value={brief.productType}
+            onChange={(v) => set({ productType: v })}
+          />
+          <ChipGroup
+            label={INTENT_HE.styleLabel}
+            options={STYLE_PREFERENCE_VALUES}
+            labelMap={BRIEF_HE.style}
+            value={brief.styleDirection}
+            onChange={(v) => set({ styleDirection: v })}
+          />
+          <ChipGroup
+            label={INTENT_HE.metalLabel}
+            options={METAL_PREFERENCE_VALUES}
+            labelMap={BRIEF_HE.metal}
+            value={brief.metalPreference}
+            onChange={(v) => set({ metalPreference: v })}
+          />
+          <ChipGroup
+            label={INTENT_HE.stoneUsageLabel}
+            options={STONE_USAGE_VALUES}
+            labelMap={CONCEPT_HE.stoneUsage}
+            value={brief.stoneUsage}
+            onChange={(v) => set({ stoneUsage: v })}
+          />
+
+          <FreedomPicker
+            value={brief.freedomLevel}
+            onChange={(v) => set({ freedomLevel: v })}
+          />
+
+          <div style={styles.group}>
+            <span style={styles.groupLabel}>{INTENT_HE.noteLabel}</span>
+            <textarea
+              value={brief.designGoal || ''}
+              onChange={(e) => set({ designGoal: e.target.value })}
+              placeholder={INTENT_HE.notePlaceholder}
+              style={styles.note}
+              rows={2}
+              dir="rtl"
+            />
+          </div>
         </div>
 
         <div style={styles.foot}>
@@ -222,12 +206,6 @@ export default function StudioIntentDrawer({ open, onClose, narrow }) {
 }
 
 const styles = {
-  // Clean 6C — DesignMenuBody internal stack (matches the drawer's rhythm).
-  bodyStack: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
   overlay: {
     position: 'fixed',
     inset: 0,
