@@ -129,6 +129,15 @@ const QUICK_LAUNCH = [
   { key: 'assets', route: '/studio/assets', Icon: AssetsGlyph },
 ];
 
+// Clean 6G — Stable Studio Product Loop: the primary Studio action opens the
+// stable /studio/design (route unchanged) with product-loop wording. Local
+// override only — lib/studio/labels.js untouched, and deliberately NO
+// dashboard entry for /studio/workstation (sandbox, direct URL only).
+const STUDIO_CTA_HE = Object.freeze({
+  label: 'פתח סטודיו עיצוב',
+  helper: 'עבודה על אבנים נבחרות, כיווני עיצוב ושמירת תיק עבודה',
+});
+
 export default function UnifiedDashboard() {
   const router = useRouter();
   const active = useActiveWork();
@@ -263,7 +272,12 @@ export default function UnifiedDashboard() {
               <span style={{ ...styles.quickGlyph, ...(primary ? styles.quickGlyphPrimary : null) }} aria-hidden="true">
                 <Icon />
               </span>
-              <span style={styles.quickLabel}>{C.quickLaunch[key]}</span>
+              <span style={styles.quickLabel}>
+                {primary ? STUDIO_CTA_HE.label : C.quickLaunch[key]}
+              </span>
+              {primary ? (
+                <span style={styles.quickHelper}>{STUDIO_CTA_HE.helper}</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -471,6 +485,8 @@ const styles = {
   },
   quickGlyphPrimary: { color: tokens.color.charcoal, background: tokens.color.ivory },
   quickLabel: { fontFamily: tokens.font.body, fontSize: '12px', fontWeight: 700, color: tokens.color.charcoal, textAlign: 'center' },
+  // Clean 6G — one-line helper under the primary Studio tile label only.
+  quickHelper: { fontFamily: tokens.font.body, fontSize: '10.5px', fontWeight: 500, color: tokens.color.inkSoft, textAlign: 'center', lineHeight: 1.45, maxWidth: '180px' },
   quickSoon: { fontFamily: tokens.font.body, fontSize: '9px', fontWeight: 700, color: tokens.color.inkFaint, letterSpacing: '0.04em' },
 
   twoCol: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', alignItems: 'start' },

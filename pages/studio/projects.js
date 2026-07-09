@@ -7,10 +7,11 @@
 // Local only — localStorage-backed projects, no Airtable, no writes, no
 // network, no new packages.
 //
-// Clean 6F — Continue Work File Flow: a compact "תיקי עבודה" strip above the
-// (untouched) library. Each saved Work File gets a "המשך עבודה" action that
-// ONLY sets the Active Work (existing setActiveWorkId) and routes to
-// /studio/workstation, and the current Active Work is marked "תיק פעיל"
+// Clean 6F/6G — Continue Work File Flow: a compact "תיקי עבודה" strip above
+// the (untouched) library. Each saved Work File gets a "המשך עבודה" action
+// that ONLY sets the Active Work (existing setActiveWorkId) and — since
+// Clean 6G — routes to the STABLE Studio at /studio/design; the current
+// Active Work is marked "תיק פעיל"
 // (existing getActiveWorkId). Deliberately NO tray/brief hydration here —
 // per the Clean 6F spec the continue loop is context-only. The existing
 // "פתיחה בסטודיו" flow inside the library is unchanged.
@@ -41,7 +42,8 @@ function ProjectsContent() {
     if (!project || !project.id) return;
     setActiveWorkId(project.id);
     setActiveId(project.id);
-    router.push('/studio/workstation');
+    // Clean 6G — the product loop continues in the STABLE Studio.
+    router.push('/studio/design');
   };
 
   return (

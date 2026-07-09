@@ -24,7 +24,7 @@ import { PROJECTS_HE } from '../../../lib/studio/labels';
 // Clean 6F strip-only Hebrew chrome (native literals; app UI only).
 export const CONTINUE_HE = Object.freeze({
   title: 'תיקי עבודה',
-  hint: 'בחירת תיק ממשיכה את העבודה בשולחן העבודה — בלי לשנות את המגש הנוכחי.',
+  hint: 'בחירת תיק ממשיכה את העבודה בסטודיו — בלי לשנות את המגש הנוכחי.',
   continueAction: 'המשך עבודה',
   activeBadge: 'תיק פעיל',
   empty: 'אין עדיין תיקי עבודה שמורים — אפשר לשמור משולחן העבודה.',
