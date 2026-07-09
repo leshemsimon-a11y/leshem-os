@@ -234,8 +234,16 @@ export default function UnifiedDashboard() {
         </div>
         <div style={styles.headerActions}>
           {activeProject ? (
-            <button type="button" onClick={() => openProject(activeProject, '/studio/design')} style={styles.primaryBtn}>
-              <DesignGlyph size={15} /> {C.continueWork}
+            <button
+              type="button"
+              onClick={() => openProject(activeProject, '/studio/design')}
+              style={styles.primaryBtn}
+              title={activeProject.name || ''}
+            >
+              {/* Clean 6H — clearer wording for the ACTIVE-work branch only.
+                  Same button, same existing openProject flow, same route.
+                  Local literal (labels.js outside this milestone's list). */}
+              <DesignGlyph size={15} /> {'המשך תיק פעיל'}
             </button>
           ) : realTrayItems.length > 0 ? (
             <button type="button" onClick={() => go('/studio/design')} style={styles.primaryBtn}>

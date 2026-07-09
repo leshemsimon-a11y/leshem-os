@@ -29,6 +29,11 @@ export default function StudioCommandBar({
   // explained via a short tooltip, never a fake placeholder control.
   const showSave = typeof onSaveSession === 'function';
   const saveDisabled = !canSaveSession;
+  // Clean 6H — save clarity: the shell's save ALREADY updates the active
+  // project when one exists (Patch B + 6G semantics, unchanged); the label
+  // now says so. Local native literal — labels.js is outside this
+  // milestone's approved file list. Same button, no duplicate action.
+  const saveLabel = hasActiveWork ? 'שמור עדכון בתיק פעיל' : L.saveSession;
 
   let statusText = L.statusDraft;
   let dot = reset.color.textFaint;
@@ -60,14 +65,14 @@ export default function StudioCommandBar({
             type="button"
             onClick={saveDisabled ? undefined : onSaveSession}
             disabled={saveDisabled}
-            title={saveDisabled ? L.saveSessionEmptyHint : L.saveSession}
+            title={saveDisabled ? L.saveSessionEmptyHint : saveLabel}
             aria-label={L.saveSessionAria}
             style={{
               ...styles.saveBtn,
               ...(saveDisabled ? styles.saveBtnDisabled : null),
             }}
           >
-            {L.saveSession}
+            {saveLabel}
           </button>
         )}
         <span style={styles.status} title={statusText} aria-label={statusText} role="status">

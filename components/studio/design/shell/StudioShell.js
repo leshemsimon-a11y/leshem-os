@@ -70,7 +70,9 @@ import {
   getProject,
   updateProject,
 } from '../../../../lib/studio/designProjects';
-import { createUseActiveWork } from '../../../../lib/studio/activeWorkStore';
+import { createUseActiveWork, clearActiveWork } from '../../../../lib/studio/activeWorkStore';
+// Clean 6H — Active Work banner (presentational; shell wires existing APIs).
+import ActiveWorkBanner from './ActiveWorkBanner';
 import {
   getSelectedConcept,
   getActiveOutput,
@@ -507,6 +509,19 @@ export default function StudioShell() {
           demoMode={false}
         />
       </div>
+
+      {/* Clean 6H — Active Work banner: visible whenever a תיק פעיל
+          exists. Reads the SAVED project record via the existing getProject
+          export; actions use existing public APIs only (router push +
+          clearActiveWork). No hydration in this milestone. Additive block —
+          the shell structure around it is untouched. */}
+      {activeWorkId && getProject(activeWorkId) ? (
+        <ActiveWorkBanner
+          project={getProject(activeWorkId)}
+          onOpenProjects={() => router.push('/studio/projects')}
+          onClear={() => clearActiveWork()}
+        />
+      ) : null}
 
       {/* MIDDLE: left stone panel | center canvas | right inspector */}
       <div
