@@ -123,6 +123,8 @@ function CheckGlyph({ size = 12 }) {
 // No dead tiles, no duplicated navigation.
 const QUICK_LAUNCH = [
   { key: 'newDesign', route: '/studio/design', Icon: DesignGlyph, primary: true },
+  // Clean 8A — guided creation flow (the /studio/design entry above stays).
+  { key: 'createFlow', route: '/studio/create', Icon: CreateGlyph, createCta: true },
   { key: 'inventory', route: '/studio/inventory', Icon: InventoryGlyph },
   { key: 'workTray', route: '/studio/tray', Icon: TrayGlyph },
   { key: 'projects', route: '/studio/projects', Icon: ProjectsGlyph },
@@ -137,6 +139,22 @@ const STUDIO_CTA_HE = Object.freeze({
   label: 'פתח סטודיו עיצוב',
   helper: 'עבודה על אבנים נבחרות, כיווני עיצוב ושמירת תיק עבודה',
 });
+
+// Clean 8A — Create Flow MVP: a clear guided-creation entry. The existing
+// /studio/design entry stays untouched; still no workstation promotion.
+const CREATE_CTA_HE = Object.freeze({
+  label: 'צור תכשיט חדש',
+  helper: 'מסלול מהיר לבחירת אבנים, רפרנסים, כיווני עיצוב ושמירת תיק עבודה',
+});
+
+function CreateGlyph({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l7 6-7 12L5 9l7-6z" />
+      <path d="M12 9v6M9 12h6" />
+    </svg>
+  );
+}
 
 export default function UnifiedDashboard() {
   const router = useRouter();
@@ -262,21 +280,26 @@ export default function UnifiedDashboard() {
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>{C.quickLaunchTitle}</h2>
         <div style={styles.quickRow}>
-          {QUICK_LAUNCH.map(({ key, route, Icon, primary }) => (
+          {QUICK_LAUNCH.map(({ key, route, Icon, primary, createCta }) => (
             <button
               key={key}
               type="button"
               onClick={() => go(route)}
-              style={{ ...styles.quickTile, ...(primary ? styles.quickTilePrimary : null) }}
+              style={{
+                ...styles.quickTile,
+                ...(primary || createCta ? styles.quickTilePrimary : null),
+              }}
             >
-              <span style={{ ...styles.quickGlyph, ...(primary ? styles.quickGlyphPrimary : null) }} aria-hidden="true">
+              <span style={{ ...styles.quickGlyph, ...(primary || createCta ? styles.quickGlyphPrimary : null) }} aria-hidden="true">
                 <Icon />
               </span>
               <span style={styles.quickLabel}>
-                {primary ? STUDIO_CTA_HE.label : C.quickLaunch[key]}
+                {primary ? STUDIO_CTA_HE.label : createCta ? CREATE_CTA_HE.label : C.quickLaunch[key]}
               </span>
               {primary ? (
                 <span style={styles.quickHelper}>{STUDIO_CTA_HE.helper}</span>
+              ) : createCta ? (
+                <span style={styles.quickHelper}>{CREATE_CTA_HE.helper}</span>
               ) : null}
             </button>
           ))}
