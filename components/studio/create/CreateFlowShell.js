@@ -28,7 +28,8 @@ import {
   generateCreateDirections,
   buildCreateBrief,
   buildCreateOutputPack,
-  buildCreateWorkFileName,
+  productHe,
+  styleHe,
 } from '../../../lib/studio/createFlow';
 
 const useWorkTray = createUseWorkTray(React);
@@ -40,6 +41,11 @@ export const CREATE_HE = Object.freeze({
   back: 'חזרה',
   next: 'המשך',
   step1: 'מה ניצור?',
+  // Clean 8B — Work File name (near the beginning of the flow).
+  nameLabel: 'שם תיק העבודה',
+  namePlaceholder: 'לדוגמה: טבעת קלאסטר אמרלד ללקוחה',
+  nameHelper: 'אפשר להשאיר ריק — ניצור שם חכם לפי הבחירות.',
+  savedAsPrefix: 'נשמר בשם',
   step2: 'באיזה סגנון?',
   step3: 'אבני עבודה',
   stonesEmpty: 'עדיין לא נבחרו אבנים. אפשר להמשיך עם רעיון כללי או לחזור למלאי.',
@@ -78,6 +84,7 @@ export default function CreateFlowShell() {
   const projectsStore = useDesignProjects();
 
   const [step, setStep] = React.useState(1);
+  const [workFileName, setWorkFileName] = React.useState(''); // Clean 8B
   const [product, setProduct] = React.useState(null);
   const [style, setStyle] = React.useState(null);
   const [referenceText, setReferenceText] = React.useState('');
@@ -85,6 +92,7 @@ export default function CreateFlowShell() {
   const [directions, setDirections] = React.useState([]);
   const [selectedDirectionId, setSelectedDirectionId] = React.useState(null);
   const [savedId, setSavedId] = React.useState(null);
+  const [savedName, setSavedName] = React.useState(null); // Clean 8B
 
   if (!tray.hydrated) {
     return <div style={styles.loading}>{CREATE_HE.loading}</div>;
@@ -101,10 +109,22 @@ export default function CreateFlowShell() {
     setSelectedDirectionId(null);
   };
 
+  // Clean 8B — the user's name wins; otherwise a smart default from the
+  // choices: "תיק עיצוב · [סוג] · [סגנון]" (date/time fallback keeps names
+  // meaningful when nothing was chosen yet).
+  const resolveWorkFileName = () => {
+    if (workFileName && workFileName.trim()) return workFileName.trim();
+    const pHe = productHe(product);
+    const sHe = styleHe(style);
+    if (pHe || sHe) return ['תיק עיצוב', pHe, sHe].filter(Boolean).join(' · ');
+    return `תיק עיצוב · ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   const handleSave = () => {
     const brief = buildCreateBrief(input, directions, selectedDirectionId);
+    const name = resolveWorkFileName();
     const saved = projectsStore.save({
-      name: buildCreateWorkFileName(input),
+      name,
       trayItems,
       brief,
       snapshot: buildDesignSnapshot(trayItems, brief),
@@ -112,11 +132,13 @@ export default function CreateFlowShell() {
     if (saved && saved.id) {
       setActiveWorkId(saved.id);
       setSavedId(saved.id);
+      setSavedName(saved.name || name);
     }
   };
 
   const resetFlow = () => {
     setStep(1);
+    setWorkFileName('');
     setProduct(null);
     setStyle(null);
     setReferenceText('');
@@ -124,6 +146,7 @@ export default function CreateFlowShell() {
     setDirections([]);
     setSelectedDirectionId(null);
     setSavedId(null);
+    setSavedName(null);
   };
 
   const canNext =
@@ -139,6 +162,11 @@ export default function CreateFlowShell() {
       <div style={styles.page} dir="rtl">
         <div style={styles.successCard}>
           <span style={styles.successTitle}>{CREATE_HE.saveSuccess}</span>
+          {savedName ? (
+            <span style={styles.successName}>
+              {CREATE_HE.savedAsPrefix}: {savedName}
+            </span>
+          ) : null}
           <div style={styles.successActions}>
             <button type="button" style={styles.primaryBtn} onClick={() => router.push('/studio/projects')}>
               {CREATE_HE.openProjects}
@@ -164,19 +192,37 @@ export default function CreateFlowShell() {
   if (step === 1) {
     stepTitle = CREATE_HE.step1;
     body = (
-      <div style={styles.chips}>
-        {CREATE_PRODUCT_OPTIONS.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            onClick={() => setProduct(product === o.key ? null : o.key)}
-            style={{ ...styles.chip, ...(product === o.key ? styles.chipOn : null) }}
-            aria-pressed={product === o.key ? 'true' : 'false'}
-          >
-            {o.he}
-          </button>
-        ))}
-      </div>
+      <>
+        {/* Clean 8B — Work File name, right at the beginning of the flow */}
+        <div style={styles.nameGroup}>
+          <label style={styles.nameLabel} htmlFor="cf-work-file-name">
+            {CREATE_HE.nameLabel}
+          </label>
+          <input
+            id="cf-work-file-name"
+            type="text"
+            value={workFileName}
+            onChange={(e) => setWorkFileName(e.target.value)}
+            placeholder={CREATE_HE.namePlaceholder}
+            style={styles.nameInput}
+            dir="rtl"
+          />
+          <span style={styles.helper}>{CREATE_HE.nameHelper}</span>
+        </div>
+        <div style={styles.chips}>
+          {CREATE_PRODUCT_OPTIONS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => setProduct(product === o.key ? null : o.key)}
+              style={{ ...styles.chip, ...(product === o.key ? styles.chipOn : null) }}
+              aria-pressed={product === o.key ? 'true' : 'false'}
+            >
+              {o.he}
+            </button>
+          ))}
+        </div>
+      </>
     );
   } else if (step === 2) {
     stepTitle = CREATE_HE.step2;
@@ -432,6 +478,34 @@ const styles = {
     color: tokens.color.charcoal,
   },
   chips: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  // Clean 8B — Work File name field + success name line.
+  nameGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  nameLabel: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 800,
+    color: tokens.color.gold,
+  },
+  nameInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    minHeight: '42px',
+    padding: '9px 13px',
+    borderRadius: tokens.radius.sm,
+    border: `1px solid ${tokens.color.goldFaint}`,
+    background: tokens.color.pearl,
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '13.5px',
+    fontWeight: 600,
+    outline: 'none',
+  },
+  successName: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 700,
+    color: tokens.color.inkSoft,
+  },
   chip: {
     minHeight: '40px',
     padding: '8px 16px',

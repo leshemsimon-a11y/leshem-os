@@ -119,6 +119,15 @@ const useDesignProjects = createUseDesignProjects(React);
 // Clean 7A — Active Work chip label (local literal; labels.js untouched.
 // 'תיק פעיל' is the canonical Work-File badge used across /studio/projects).
 const ACTIVE_WORK_CHIP_HE = Object.freeze({ badge: 'תיק פעיל' });
+
+// Clean 8B — Work Session Management (local literals; string values only).
+const SESSION_HE = Object.freeze({
+  openProjects: 'פתח תיקי עבודה',
+  clearStudio: 'נקה סטודיו',
+  clearConfirm:
+    'ניקוי הסטודיו יסיר את העבודה הפעילה, האבנים, תפריט העיצוב וכיווני העיצוב מהמסך. תיקי עבודה שמורים לא יימחקו. להמשיך?',
+  clearedToast: 'הסטודיו נוקה — תיקי העבודה השמורים לא נמחקו',
+});
 // Patch B — the shell now uses the EXISTING event-synced Active Work hook
 // (lib/studio/activeWorkStore.js) instead of a local read-once localStorage
 // read, so the command-bar status reflects a save immediately. Same key,
@@ -150,7 +159,7 @@ export default function StudioShell() {
   const tray = useWorkTray();
   const briefStore = useDesignBrief();
   const projectsStore = useDesignProjects();
-  const { activeWorkId, setActiveWork } = useActiveWork();
+  const { activeWorkId, setActiveWork, clearActiveWork } = useActiveWork();
   const { narrow, short } = useViewport();
   const router = useRouter();
 
@@ -436,6 +445,23 @@ export default function StudioShell() {
     activeWorkId && projectsStore.hydrated
       ? projectsStore.projects.find((p) => p.id === activeWorkId)
       : null;
+
+  // ------------------------------------------------------------------
+  // Clean 8B — "נקה סטודיו": clears ONLY the live session through EXISTING
+  // public APIs — the Work Tray (tray.clear → clearTray), the design brief
+  // incl. תפריט עיצוב, כיווני עיצוב, כיוון נבחר and outputs (briefStore.clear
+  // → clearBrief resets to emptyBrief), and the Active Work pointer
+  // (clearActiveWork). Saved Work Files, inventory, and uploaded assets are
+  // NOT touched — nothing is deleted from the projects/assets stores.
+  // Browser confirm is required before anything is cleared.
+  // ------------------------------------------------------------------
+  const handleClearStudio = () => {
+    if (typeof window !== 'undefined' && !window.confirm(SESSION_HE.clearConfirm)) return;
+    tray.clear();
+    briefStore.clear();
+    clearActiveWork();
+    showToast(SESSION_HE.clearedToast);
+  };
   const latestProject =
     projectsStore.hydrated && Array.isArray(projectsStore.active)
       ? projectsStore.active.reduce(
@@ -551,8 +577,20 @@ export default function StudioShell() {
                       Array.isArray(activeProject.trayItems) ? activeProject.trayItems.length : 0
                     )}
                   </span>
+                  {/* Clean 8B — the link is now explicit, not tooltip-only */}
+                  <span style={styles.activeWorkLink}>{SESSION_HE.openProjects}</span>
                 </button>
               ) : null}
+              {/* Clean 8B — clear the live session (confirm-guarded; saved
+                  Work Files / inventory / assets are never deleted). */}
+              <button
+                type="button"
+                onClick={handleClearStudio}
+                style={styles.clearStudioBtn}
+                title={SESSION_HE.clearStudio}
+              >
+                {SESSION_HE.clearStudio}
+              </button>
               {/* Clean 5E — compact intent summary; tap to edit the intent. */}
               <button
                 type="button"
@@ -802,6 +840,30 @@ const styles = {
     fontSize: '10.5px',
     fontWeight: 600,
     color: reset.color.textMuted,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  // Clean 8B — explicit open-projects link inside the chip + clear-studio.
+  activeWorkLink: {
+    fontFamily: reset.font.body,
+    fontSize: '10.5px',
+    fontWeight: 700,
+    color: reset.color.accent,
+    textDecoration: 'underline',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  clearStudioBtn: {
+    minHeight: '28px',
+    padding: '4px 12px',
+    borderRadius: '999px',
+    border: `1px solid ${reset.color.borderStrong}`,
+    background: 'transparent',
+    color: reset.color.textMuted,
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    fontWeight: 700,
+    cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
   },

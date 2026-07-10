@@ -31,6 +31,10 @@ export const WORK_FILES_HE = Object.freeze({
   noDirection: 'ללא כיוון נבחר',
   outputReady: 'בריף פלט קיים',
   outputMissing: 'ללא בריף פלט',
+  // Clean 8B — rename Work File.
+  renameAction: 'שנה שם',
+  renameSave: 'שמור שם',
+  renameCancel: 'ביטול',
 });
 
 const dateHe = (ts) =>
@@ -64,8 +68,27 @@ function statusLine(project) {
   return bits.join(' · ');
 }
 
-export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenPack }) {
+export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenPack, onRename }) {
   const list = Array.isArray(projects) ? projects : [];
+  // Clean 8B — inline rename (UI state only; persistence happens in the
+  // caller through the existing public updateProject API).
+  const [renamingId, setRenamingId] = React.useState(null);
+  const [renameValue, setRenameValue] = React.useState('');
+
+  const startRename = (p) => {
+    setRenamingId(p.id);
+    setRenameValue(p.name || '');
+  };
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue('');
+  };
+  const commitRename = (p) => {
+    const next = renameValue.trim();
+    if (next && onRename) onRename(p, next);
+    cancelRename();
+  };
+
   return (
     <section style={styles.wrap} dir="rtl" aria-label={WORK_FILES_HE.title}>
       <div style={styles.headRow}>
@@ -79,13 +102,38 @@ export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenP
         <div style={styles.rows}>
           {list.map((p) => {
             const isActive = p.id === activeId;
+            const isRenaming = renamingId === p.id;
             return (
               <div key={p.id} style={{ ...styles.row, ...(isActive ? styles.rowActive : null) }}>
                 <div style={styles.rowText}>
-                  <span style={styles.rowName}>
-                    {p.name}
-                    {isActive ? <span style={styles.activeBadge}>{WORK_FILES_HE.activeBadge}</span> : null}
-                  </span>
+                  {isRenaming ? (
+                    <span style={styles.renameRow}>
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        style={styles.renameInput}
+                        dir="rtl"
+                        aria-label={WORK_FILES_HE.renameAction}
+                      />
+                      <button type="button" onClick={() => commitRename(p)} style={styles.renameSaveBtn}>
+                        {WORK_FILES_HE.renameSave}
+                      </button>
+                      <button type="button" onClick={cancelRename} style={styles.renameCancelBtn}>
+                        {WORK_FILES_HE.renameCancel}
+                      </button>
+                    </span>
+                  ) : (
+                    <span style={styles.rowName}>
+                      {p.name}
+                      {isActive ? <span style={styles.activeBadge}>{WORK_FILES_HE.activeBadge}</span> : null}
+                      {typeof onRename === 'function' ? (
+                        <button type="button" onClick={() => startRename(p)} style={styles.renameBtn}>
+                          {WORK_FILES_HE.renameAction}
+                        </button>
+                      ) : null}
+                    </span>
+                  )}
                   <span style={styles.rowMeta}>{metaLine(p)}</span>
                   <span style={styles.rowStatus}>{statusLine(p)}</span>
                 </div>
@@ -184,6 +232,68 @@ const styles = {
     fontWeight: 700,
     whiteSpace: 'nowrap',
     flexShrink: 0,
+  },
+  // Clean 8B — inline rename controls.
+  renameBtn: {
+    padding: '2px 10px',
+    borderRadius: '999px',
+    border: `1px solid ${tokens.color.goldFaint}`,
+    background: 'transparent',
+    color: tokens.color.inkSoft,
+    fontFamily: tokens.font.body,
+    fontSize: '10.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  renameRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexWrap: 'wrap',
+    minWidth: 0,
+  },
+  renameInput: {
+    minHeight: '32px',
+    minWidth: '200px',
+    flex: '1 1 220px',
+    boxSizing: 'border-box',
+    padding: '6px 11px',
+    borderRadius: tokens.radius.sm,
+    border: `1px solid ${tokens.color.gold}`,
+    background: '#FFFFFF',
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 600,
+    outline: 'none',
+  },
+  renameSaveBtn: {
+    minHeight: '32px',
+    padding: '5px 14px',
+    borderRadius: '999px',
+    border: 'none',
+    background: tokens.color.charcoal,
+    color: '#FFFFFF',
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  renameCancelBtn: {
+    minHeight: '32px',
+    padding: '5px 12px',
+    borderRadius: '999px',
+    border: `1px solid ${tokens.color.goldFaint}`,
+    background: 'transparent',
+    color: tokens.color.inkSoft,
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   rowMeta: {
     fontFamily: tokens.font.body,

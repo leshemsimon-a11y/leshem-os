@@ -26,7 +26,7 @@ import StudioShell from '../../components/studio/shell/StudioShell';
 import DesignProjectsLibrary from '../../components/studio/projects/DesignProjectsLibrary';
 import WorkFilesPanel from '../../components/studio/projects/WorkFilesPanel';
 import OutputPackPanel from '../../components/studio/projects/OutputPackPanel';
-import { createUseDesignProjects } from '../../lib/studio/designProjects';
+import { createUseDesignProjects, updateProject } from '../../lib/studio/designProjects';
 import { getActiveWorkId, setActiveWorkId } from '../../lib/studio/activeWorkStore';
 import { createUseWorkTray } from '../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../lib/studio/designBriefStore';
@@ -77,6 +77,13 @@ function ProjectsContent() {
   const openPack = (project) => setPackProject(project || null);
   const closePack = () => setPackProject(null);
 
+  // Clean 8B — rename a Work File through the EXISTING public updateProject
+  // (the projects hook refreshes automatically via the store's own event).
+  const handleRename = (project, newName) => {
+    if (!project || !project.id || !newName || !newName.trim()) return;
+    updateProject(project.id, { name: newName.trim() });
+  };
+
   return (
     <>
       {projectsStore.hydrated ? (
@@ -85,6 +92,7 @@ function ProjectsContent() {
           activeId={activeId}
           onContinue={handleContinue}
           onOpenPack={openPack}
+          onRename={handleRename}
         />
       ) : null}
       <DesignProjectsLibrary />
