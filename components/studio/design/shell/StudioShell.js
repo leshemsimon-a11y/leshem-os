@@ -62,7 +62,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
-import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE, STUDIO_6B1_HE } from '../../../../lib/studio/labels';
+import { STUDIO_5D_HE, CONCEPT_HE, USABILITY_D_HE, INTENT_HE, STUDIO_6A_HE, STUDIO_6B1_HE, PROJECTS_HE } from '../../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../../../lib/studio/designBriefStore';
 import {
@@ -70,9 +70,7 @@ import {
   getProject,
   updateProject,
 } from '../../../../lib/studio/designProjects';
-import { createUseActiveWork, clearActiveWork } from '../../../../lib/studio/activeWorkStore';
-// Clean 6H — Active Work banner (presentational; shell wires existing APIs).
-import ActiveWorkBanner from './ActiveWorkBanner';
+import { createUseActiveWork } from '../../../../lib/studio/activeWorkStore';
 import {
   getSelectedConcept,
   getActiveOutput,
@@ -117,6 +115,10 @@ import {
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
 const useDesignProjects = createUseDesignProjects(React);
+
+// Clean 7A — Active Work chip label (local literal; labels.js untouched.
+// 'תיק פעיל' is the canonical Work-File badge used across /studio/projects).
+const ACTIVE_WORK_CHIP_HE = Object.freeze({ badge: 'תיק פעיל' });
 // Patch B — the shell now uses the EXISTING event-synced Active Work hook
 // (lib/studio/activeWorkStore.js) instead of a local read-once localStorage
 // read, so the command-bar status reflects a save immediately. Same key,
@@ -510,19 +512,6 @@ export default function StudioShell() {
         />
       </div>
 
-      {/* Clean 6H — Active Work banner: visible whenever a תיק פעיל
-          exists. Reads the SAVED project record via the existing getProject
-          export; actions use existing public APIs only (router push +
-          clearActiveWork). No hydration in this milestone. Additive block —
-          the shell structure around it is untouched. */}
-      {activeWorkId && getProject(activeWorkId) ? (
-        <ActiveWorkBanner
-          project={getProject(activeWorkId)}
-          onOpenProjects={() => router.push('/studio/projects')}
-          onClear={() => clearActiveWork()}
-        />
-      ) : null}
-
       {/* MIDDLE: left stone panel | center canvas | right inspector */}
       <div
         style={{
@@ -544,6 +533,26 @@ export default function StudioShell() {
           <div style={styles.canvasHeader}>
             <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} />
             <span style={styles.canvasHeaderMeta}>
+              {/* Clean 7A — compact Active Work indicator: badge + name +
+                  item count, tapping opens תיקי עבודה. Derived from the
+                  activeProject already resolved above — no new state, no
+                  restructure; one chip in the existing chip row. */}
+              {activeProject ? (
+                <button
+                  type="button"
+                  onClick={() => router.push('/studio/projects')}
+                  style={styles.activeWorkChip}
+                  title={`${ACTIVE_WORK_CHIP_HE.badge} · ${activeProject.name}`}
+                >
+                  <span style={styles.activeWorkBadge}>{ACTIVE_WORK_CHIP_HE.badge}</span>
+                  <span style={styles.activeWorkName}>{activeProject.name}</span>
+                  <span style={styles.activeWorkCount}>
+                    {PROJECTS_HE.itemsCount(
+                      Array.isArray(activeProject.trayItems) ? activeProject.trayItems.length : 0
+                    )}
+                  </span>
+                </button>
+              ) : null}
               {/* Clean 5E — compact intent summary; tap to edit the intent. */}
               <button
                 type="button"
@@ -755,6 +764,47 @@ const styles = {
     flexShrink: 1,
   },
   // Clean 5E — tappable intent summary chip ("טבעת · יוקרתי · … · מאוזן").
+  // Clean 7A — Active Work chip (canvas-header chip row; additive styles).
+  activeWorkChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '7px',
+    minHeight: '28px',
+    padding: '4px 11px',
+    borderRadius: '999px',
+    border: `1px solid ${reset.color.accent}`,
+    background: 'transparent',
+    cursor: 'pointer',
+    minWidth: 0,
+    flexShrink: 1,
+    overflow: 'hidden',
+  },
+  activeWorkBadge: {
+    fontFamily: reset.font.body,
+    fontSize: '10.5px',
+    fontWeight: 800,
+    color: reset.color.accent,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  activeWorkName: {
+    fontFamily: reset.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
+    color: reset.color.text,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '180px',
+  },
+  activeWorkCount: {
+    fontFamily: reset.font.body,
+    fontSize: '10.5px',
+    fontWeight: 600,
+    color: reset.color.textMuted,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
   intentChip: {
     display: 'inline-flex',
     alignItems: 'center',

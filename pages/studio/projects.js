@@ -7,55 +7,94 @@
 // Local only — localStorage-backed projects, no Airtable, no writes, no
 // network, no new packages.
 //
-// Clean 6F/6G — Continue Work File Flow: a compact "תיקי עבודה" strip above
-// the (untouched) library. Each saved Work File gets a "המשך עבודה" action
-// that ONLY sets the Active Work (existing setActiveWorkId) and — since
-// Clean 6G — routes to the STABLE Studio at /studio/design; the current
-// Active Work is marked "תיק פעיל"
-// (existing getActiveWorkId). Deliberately NO tray/brief hydration here —
-// per the Clean 6F spec the continue loop is context-only. The existing
-// "פתיחה בסטודיו" flow inside the library is unchanged.
+// Clean 7A — Work File Backbone MVP: the "תיקי עבודה" strip is superseded by
+// the richer WorkFilesPanel (the 6F ContinueWorkFilesStrip file remains on
+// disk, unused — disclosed in the changelog). Per Work File:
+//   • "המשך עבודה" — REAL continue: after a browser confirm, restores the
+//     saved tray (tray.replace) and brief (brief.set) into the live session —
+//     the exact same public-API pattern the library's own open flow uses —
+//     sets the Active Work, and routes to the stable /studio/design.
+//   • "פתח חבילת פלט" — opens the text-based Output Pack (Hebrew
+//     professional summary, English media prompt, Hebrew client description,
+//     references placeholder) built by lib/studio/outputPack from data the
+//     Work File already holds. No API, no image generation.
+// The existing DesignProjectsLibrary below is unchanged.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import StudioShell from '../../components/studio/shell/StudioShell';
 import DesignProjectsLibrary from '../../components/studio/projects/DesignProjectsLibrary';
-import ContinueWorkFilesStrip from '../../components/studio/projects/ContinueWorkFilesStrip';
+import WorkFilesPanel from '../../components/studio/projects/WorkFilesPanel';
+import OutputPackPanel from '../../components/studio/projects/OutputPackPanel';
 import { createUseDesignProjects } from '../../lib/studio/designProjects';
 import { getActiveWorkId, setActiveWorkId } from '../../lib/studio/activeWorkStore';
+import { createUseWorkTray } from '../../lib/studio/workTray';
+import { createUseDesignBrief } from '../../lib/studio/designBriefStore';
+import { buildOutputPack } from '../../lib/studio/outputPack';
 
 const useDesignProjects = createUseDesignProjects(React);
+const useWorkTray = createUseWorkTray(React);
+const useDesignBrief = createUseDesignBrief(React);
 
-// Small page-level container: owns the continue wiring so the strip itself
-// stays purely presentational. Existing public exports only.
+// Clean 7A — confirm text shown before replacing the current Studio session.
+const CONFIRM_REPLACE_HE = 'פתיחת תיק העבודה תחליף את העבודה הנוכחית בסטודיו. להמשיך?';
+
+// Page-level container: owns the continue/output wiring so both panels stay
+// purely presentational. Existing public exports only.
 function ProjectsContent() {
   const router = useRouter();
   const projectsStore = useDesignProjects();
+  const tray = useWorkTray();
+  const briefStore = useDesignBrief();
   const [activeId, setActiveId] = React.useState(null);
+  const [packProject, setPackProject] = React.useState(null);
 
   // Read the Active Work id client-side only (localStorage-backed).
   React.useEffect(() => {
     setActiveId(getActiveWorkId());
   }, []);
 
+  // Clean 7A — REAL continue: browser confirm, then restore tray + brief
+  // through the existing public APIs (tray.replace / brief.set — the exact
+  // calls the library's own doOpen uses), set Active Work, route to the
+  // stable Studio. No store internals touched.
   const handleContinue = (project) => {
     if (!project || !project.id) return;
+    const hasCurrentWork =
+      (Array.isArray(tray.items) && tray.items.length > 0) ||
+      Boolean(briefStore.brief && briefStore.brief.productType);
+    if (hasCurrentWork && typeof window !== 'undefined') {
+      const okToReplace = window.confirm(CONFIRM_REPLACE_HE);
+      if (!okToReplace) return;
+    }
+    tray.replace(project.trayItems || []);
+    briefStore.set(project.brief || {});
     setActiveWorkId(project.id);
     setActiveId(project.id);
-    // Clean 6G — the product loop continues in the STABLE Studio.
     router.push('/studio/design');
   };
+
+  const openPack = (project) => setPackProject(project || null);
+  const closePack = () => setPackProject(null);
 
   return (
     <>
       {projectsStore.hydrated ? (
-        <ContinueWorkFilesStrip
+        <WorkFilesPanel
           projects={projectsStore.active}
           activeId={activeId}
           onContinue={handleContinue}
+          onOpenPack={openPack}
         />
       ) : null}
       <DesignProjectsLibrary />
+      {packProject ? (
+        <OutputPackPanel
+          project={packProject}
+          pack={buildOutputPack(packProject)}
+          onClose={closePack}
+        />
+      ) : null}
     </>
   );
 }
