@@ -17,6 +17,7 @@ import * as React from 'react';
 import { tokens } from '../shared/tokens';
 import { PROJECTS_HE, CONCEPT_HE, BRIEF_HE } from '../../../lib/studio/labels';
 import { getSelectedConcept, getActiveOutput } from '../../../lib/studio/designDraft';
+import { countDirectLinkedAssets } from '../../../lib/studio/assetContext';
 
 export const WORK_FILES_HE = Object.freeze({
   title: 'תיקי עבודה',
@@ -39,10 +40,13 @@ const dateHe = (ts) =>
 function metaLine(project) {
   const count = Array.isArray(project.trayItems) ? project.trayItems.length : 0;
   const brief = project.brief || {};
+  // Clean 7B — asset count from EXISTING direct file linkage (sync, no loads).
+  const assetsCount = countDirectLinkedAssets(project);
   const bits = [
     PROJECTS_HE.itemsCount(count),
     brief.productType ? CONCEPT_HE.productType[brief.productType] : null,
     brief.styleDirection ? BRIEF_HE.style[brief.styleDirection] : null,
+    assetsCount > 0 ? `${assetsCount} נכסי עבודה` : null,
   ].filter(Boolean);
   return bits.join(' · ');
 }

@@ -23,6 +23,7 @@ export const OUTPUT_PACK_HE = Object.freeze({
   sectionProfessional: 'סיכום מקצועי',
   sectionPrompt: 'Media Prompt (EN)',
   sectionClient: 'תיאור ללקוח',
+  sectionAssets: 'נכסי עבודה',
   copyPrompt: 'העתק פרומפט',
   copied: 'הועתק',
   mediaNote: 'פלט טקסטואלי בלבד בשלב זה — ללא הפקת תמונה.',
@@ -89,6 +90,14 @@ export default function OutputPackPanel({ project, pack, onClose }) {
             <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionClient}</span>
             <p style={styles.clientText}>{pack.clientHe}</p>
           </section>
+
+          {/* Clean 7B — Work Assets (name · type · role · preview status) */}
+          {Array.isArray(pack.assets) && pack.assets.length > 0 ? (
+            <section style={styles.section}>
+              <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionAssets}</span>
+              <pre style={styles.textBlock}>{pack.assets.join('\n')}</pre>
+            </section>
+          ) : null}
 
           {/* References — existing linkage or honest placeholder */}
           <section style={styles.section}>

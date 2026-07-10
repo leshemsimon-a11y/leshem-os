@@ -100,6 +100,9 @@ import StudioBottomStrip from './StudioBottomStrip';
 import CompositionBoard from './CompositionBoard';
 import InlineInventoryPicker from '../../shared/InlineInventoryPicker';
 import { AlertIcon, LayersIcon } from './StudioIcons';
+// Clean 7B — Asset-Aware Context v1 (read-only; existing public exports).
+import { createUseWorkAssets } from '../../../../lib/studio/assetContext';
+import WorkAssetsPanel from '../../shared/WorkAssetsPanel';
 import { reset } from './studioResetStyle';
 // Clean 6A — the in-Studio "בחר אבנים מהמלאי" picker uses the SAME read-only
 // demo-inventory exports + the SAME bridge (toStudioTrayItem → tray.addItem)
@@ -119,6 +122,10 @@ const useDesignProjects = createUseDesignProjects(React);
 // Clean 7A — Active Work chip label (local literal; labels.js untouched.
 // 'תיק פעיל' is the canonical Work-File badge used across /studio/projects).
 const ACTIVE_WORK_CHIP_HE = Object.freeze({ badge: 'תיק פעיל' });
+
+// Clean 7B — Asset-Aware Context v1: read-only Work Assets of the Active
+// Work File (existing public getters only; empty and hidden when none).
+const useWorkAssets = createUseWorkAssets(React);
 // Patch B — the shell now uses the EXISTING event-synced Active Work hook
 // (lib/studio/activeWorkStore.js) instead of a local read-once localStorage
 // read, so the command-bar status reflects a save immediately. Same key,
@@ -444,6 +451,9 @@ export default function StudioShell() {
         )
       : null;
   const resumableProject = activeProject || latestProject;
+
+  // Clean 7B — Work Assets of the Active Work File (hidden when empty).
+  const { assets: workAssets } = useWorkAssets(activeProject);
   const onResumeProject = () => {
     if (!resumableProject) return;
     tray.replace(resumableProject.trayItems || []);
@@ -610,6 +620,11 @@ export default function StudioShell() {
           >
             {canvasBody}
           </StudioCanvas>
+
+          {/* Clean 7B — compact Work Assets area; renders ONLY when the
+              Active Work File actually has linked assets (zero impact
+              otherwise). Read-only context, no layout restructure. */}
+          {workAssets.length > 0 ? <WorkAssetsPanel assets={workAssets} compact /> : null}
 
           <StudioBottomStrip
             concepts={concepts}

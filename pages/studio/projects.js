@@ -31,6 +31,8 @@ import { getActiveWorkId, setActiveWorkId } from '../../lib/studio/activeWorkSto
 import { createUseWorkTray } from '../../lib/studio/workTray';
 import { createUseDesignBrief } from '../../lib/studio/designBriefStore';
 import { buildOutputPack } from '../../lib/studio/outputPack';
+import { collectProjectWorkAssets, withPreviewUrls } from '../../lib/studio/assetContext';
+import { getAllFiles, getAllObjects } from '../../lib/studio/assetsStore';
 
 const useDesignProjects = createUseDesignProjects(React);
 const useWorkTray = createUseWorkTray(React);
@@ -48,6 +50,7 @@ function ProjectsContent() {
   const briefStore = useDesignBrief();
   const [activeId, setActiveId] = React.useState(null);
   const [packProject, setPackProject] = React.useState(null);
+  const [packAssets, setPackAssets] = React.useState([]);
 
   // Read the Active Work id client-side only (localStorage-backed).
   React.useEffect(() => {
@@ -74,8 +77,25 @@ function ProjectsContent() {
     router.push('/studio/design');
   };
 
-  const openPack = (project) => setPackProject(project || null);
-  const closePack = () => setPackProject(null);
+  // Clean 7B — asset-aware Output Pack: collect the Work File's assets
+  // through the EXISTING public getters (read-only; guarded so environments
+  // without IndexedDB simply yield an asset-less pack).
+  const openPack = async (project) => {
+    setPackAssets([]);
+    setPackProject(project || null);
+    if (!project) return;
+    try {
+      const [allFiles, allObjects] = await Promise.all([getAllFiles(), getAllObjects()]);
+      const collected = collectProjectWorkAssets(project, allFiles, allObjects);
+      setPackAssets(await withPreviewUrls(collected));
+    } catch (e) {
+      setPackAssets([]);
+    }
+  };
+  const closePack = () => {
+    setPackProject(null);
+    setPackAssets([]);
+  };
 
   return (
     <>
@@ -91,7 +111,7 @@ function ProjectsContent() {
       {packProject ? (
         <OutputPackPanel
           project={packProject}
-          pack={buildOutputPack(packProject)}
+          pack={buildOutputPack(packProject, packAssets)}
           onClose={closePack}
         />
       ) : null}
