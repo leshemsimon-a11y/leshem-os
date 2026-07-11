@@ -99,6 +99,11 @@ import StudioBottomStrip from './StudioBottomStrip';
 // Clean 6A — Studio Entry + Multi-Stone Composition + Concept Sketches.
 import CompositionBoard from './CompositionBoard';
 import InlineInventoryPicker from '../../shared/InlineInventoryPicker';
+// Clean 8C — clearly visible Active Work Control row (badge + name + «פתח
+// תיקי עבודה» + «נקה סטודיו»), rendered as its own full-width row under the
+// top row — NOT hidden inside the small canvas-header chips. Presentational;
+// it reuses the existing 8B handleClearStudio and the router unchanged.
+import ActiveWorkControlBar from '../../shared/ActiveWorkControlBar';
 import { AlertIcon, LayersIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
 // Clean 6A — the in-Studio "בחר אבנים מהמלאי" picker uses the SAME read-only
@@ -538,6 +543,16 @@ export default function StudioShell() {
         />
       </div>
 
+      {/* Clean 8C — Active Work Control: a clearly visible control row
+          («תיק פעיל» + name, «פתח תיקי עבודה», «נקה סטודיו»). Clearing goes
+          through the SAME confirm-guarded 8B handleClearStudio above —
+          public reset APIs only; saved Work Files are never deleted. */}
+      <ActiveWorkControlBar
+        activeProjectName={activeProject ? activeProject.name : null}
+        onOpenProjects={() => router.push('/studio/projects')}
+        onClearStudio={handleClearStudio}
+      />
+
       {/* MIDDLE: left stone panel | center canvas | right inspector */}
       <div
         style={{
@@ -739,7 +754,9 @@ const GAP = '10px';
 const styles = {
   shell: {
     display: 'grid',
-    gridTemplateRows: 'auto minmax(0, 1fr) auto',
+    // Clean 8C — one extra 'auto' row for the always-rendered Active Work
+    // Control bar (top row · control bar · middle · bottom strip).
+    gridTemplateRows: 'auto auto minmax(0, 1fr) auto',
     gap: GAP,
     height: '100vh',
     padding: GAP,

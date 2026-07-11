@@ -17,6 +17,9 @@ import * as React from 'react';
 import { tokens } from '../shared/tokens';
 import { PROJECTS_HE, CONCEPT_HE, BRIEF_HE } from '../../../lib/studio/labels';
 import { getSelectedConcept, getActiveOutput } from '../../../lib/studio/designDraft';
+// Clean 8C — pure formatting helpers for the project's attached assets
+// (reads the existing `assets` array; no store, no persistence).
+import { attachedSummaryHe, attachedRoleLabelsHe } from '../../../lib/studio/attachedAssets';
 
 export const WORK_FILES_HE = Object.freeze({
   title: 'תיקי עבודה',
@@ -136,6 +139,18 @@ export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenP
                   )}
                   <span style={styles.rowMeta}>{metaLine(p)}</span>
                   <span style={styles.rowStatus}>{statusLine(p)}</span>
+                  {/* Clean 8C — compact attached-assets line: count + role
+                      chips (only when the Work File has attached assets). */}
+                  {attachedSummaryHe(p) ? (
+                    <span style={styles.attachedRow}>
+                      <span style={styles.attachedCount}>{attachedSummaryHe(p)}</span>
+                      {attachedRoleLabelsHe(p).map((label) => (
+                        <span key={label} style={styles.attachedChip}>
+                          {label}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
                 </div>
                 <div style={styles.actions}>
                   <button type="button" onClick={() => onContinue && onContinue(p)} style={styles.continueBtn}>
@@ -305,6 +320,31 @@ const styles = {
     fontFamily: tokens.font.body,
     fontSize: '11.5px',
     color: tokens.color.inkFaint,
+  },
+  // Clean 8C — attached-assets line.
+  attachedRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexWrap: 'wrap',
+    marginTop: '2px',
+  },
+  attachedCount: {
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    fontWeight: 700,
+    color: tokens.color.inkSoft,
+  },
+  attachedChip: {
+    fontFamily: tokens.font.body,
+    fontSize: '10.5px',
+    fontWeight: 600,
+    color: tokens.color.charcoal,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.sm,
+    padding: '1px 7px',
+    whiteSpace: 'nowrap',
   },
   actions: {
     display: 'inline-flex',
