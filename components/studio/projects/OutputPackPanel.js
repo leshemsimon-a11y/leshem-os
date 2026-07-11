@@ -44,9 +44,11 @@ export const OUTPUT_PACK_HE = Object.freeze({
   copySketch: 'העתק פרומפט סקיצה',
   copyPresentation: 'העתק פרומפט מצגת',
   copyProduction: 'העתק הערות ייצור',
+  // Clean 8E — Media Workflow call-to-action.
+  openMedia: 'העבר למדיה והדמיות',
 });
 
-export default function OutputPackPanel({ project, pack, onClose }) {
+export default function OutputPackPanel({ project, pack, onClose, onOpenMedia }) {
   // Clean 8D — one copied-key state serves every copy button; the pressed
   // button shows «הועתק» for a short moment (same 1800ms pattern as 7A).
   const [copiedKey, setCopiedKey] = React.useState(null);
@@ -91,9 +93,16 @@ export default function OutputPackPanel({ project, pack, onClose }) {
             <span style={styles.title}>{OUTPUT_PACK_HE.title}</span>
             <span style={styles.subtitle}>{project.name}</span>
           </div>
-          <button type="button" onClick={onClose} style={styles.closeBtn}>
-            {OUTPUT_PACK_HE.close}
-          </button>
+          <div style={styles.headActions}>
+            {typeof onOpenMedia === 'function' ? (
+              <button type="button" onClick={() => onOpenMedia(project)} style={styles.mediaCta}>
+                {OUTPUT_PACK_HE.openMedia}
+              </button>
+            ) : null}
+            <button type="button" onClick={onClose} style={styles.closeBtn}>
+              {OUTPUT_PACK_HE.close}
+            </button>
+          </div>
         </div>
 
         <div style={styles.body}>
@@ -250,6 +259,29 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     flexShrink: 0,
+  },
+  // Clean 8E — header actions + Media Workflow CTA.
+  headActions: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexShrink: 0,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  mediaCta: {
+    minHeight: '30px',
+    padding: '5px 14px',
+    borderRadius: '999px',
+    border: `1px solid ${tokens.color.gold}`,
+    background: tokens.color.goldFaint,
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
   },
   body: {
     display: 'flex',

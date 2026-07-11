@@ -20,6 +20,9 @@ import { getSelectedConcept, getActiveOutput } from '../../../lib/studio/designD
 // Clean 8C — pure formatting helpers for the project's attached assets
 // (reads the existing `assets` array; no store, no persistence).
 import { attachedSummaryHe, attachedRoleLabelsHe } from '../../../lib/studio/attachedAssets';
+// Clean 8E — compact media-workflow lines (pure reads of the project's
+// existing reserved `renders` array; no store, no persistence).
+import { mediaStatusLineHe, mediaResultsCountHe } from '../../../lib/studio/mediaWorkflow';
 
 export const WORK_FILES_HE = Object.freeze({
   title: 'תיקי עבודה',
@@ -38,6 +41,8 @@ export const WORK_FILES_HE = Object.freeze({
   renameAction: 'שנה שם',
   renameSave: 'שמור שם',
   renameCancel: 'ביטול',
+  // Clean 8E — Media Workflow.
+  mediaAction: 'מדיה והדמיות',
 });
 
 const dateHe = (ts) =>
@@ -71,7 +76,7 @@ function statusLine(project) {
   return bits.join(' · ');
 }
 
-export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenPack, onRename }) {
+export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenPack, onRename, onOpenMedia }) {
   const list = Array.isArray(projects) ? projects : [];
   // Clean 8B — inline rename (UI state only; persistence happens in the
   // caller through the existing public updateProject API).
@@ -151,6 +156,16 @@ export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenP
                       ))}
                     </span>
                   ) : null}
+                  {/* Clean 8E — compact media line: «מדיה: סטטוס» + results
+                      count (only once the media workflow was touched). */}
+                  {mediaStatusLineHe(p) ? (
+                    <span style={styles.attachedRow}>
+                      <span style={styles.attachedCount}>{mediaStatusLineHe(p)}</span>
+                      {mediaResultsCountHe(p) ? (
+                        <span style={styles.attachedChip}>{mediaResultsCountHe(p)}</span>
+                      ) : null}
+                    </span>
+                  ) : null}
                 </div>
                 <div style={styles.actions}>
                   <button type="button" onClick={() => onContinue && onContinue(p)} style={styles.continueBtn}>
@@ -159,6 +174,11 @@ export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenP
                   <button type="button" onClick={() => onOpenPack && onOpenPack(p)} style={styles.packBtn}>
                     {WORK_FILES_HE.openPackAction}
                   </button>
+                  {typeof onOpenMedia === 'function' ? (
+                    <button type="button" onClick={() => onOpenMedia(p)} style={styles.packBtn}>
+                      {WORK_FILES_HE.mediaAction}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );

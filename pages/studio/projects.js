@@ -26,6 +26,15 @@ import StudioShell from '../../components/studio/shell/StudioShell';
 import DesignProjectsLibrary from '../../components/studio/projects/DesignProjectsLibrary';
 import WorkFilesPanel from '../../components/studio/projects/WorkFilesPanel';
 import OutputPackPanel from '../../components/studio/projects/OutputPackPanel';
+// Clean 8E — Media Workflow v1 panel + pure helpers (persistence goes ONLY
+// through the existing public updateProject into the reserved `renders`
+// array; no new key, no store internals).
+import MediaWorkflowPanel from '../../components/studio/projects/MediaWorkflowPanel';
+import {
+  buildStatePatch,
+  buildMediaResultRecord,
+  buildResultPatch,
+} from '../../lib/studio/mediaWorkflow';
 import { createUseDesignProjects, updateProject } from '../../lib/studio/designProjects';
 import { getActiveWorkId, setActiveWorkId } from '../../lib/studio/activeWorkStore';
 import { createUseWorkTray } from '../../lib/studio/workTray';
@@ -77,6 +86,38 @@ function ProjectsContent() {
   const openPack = (project) => setPackProject(project || null);
   const closePack = () => setPackProject(null);
 
+  // Clean 8E — Media Workflow: track the OPEN project's id (not a snapshot)
+  // so store updates re-render the panel with fresh state/results; the hook
+  // refreshes automatically via the store's own event after updateProject.
+  const [mediaProjectId, setMediaProjectId] = React.useState(null);
+  const mediaProject = mediaProjectId
+    ? (projectsStore.projects || []).find((p) => p.id === mediaProjectId) || null
+    : null;
+
+  const openMedia = (project) => {
+    if (!project || !project.id) return;
+    setPackProject(null); // «העבר למדיה והדמיות» — focus moves to the workflow
+    setMediaProjectId(project.id);
+  };
+  const closeMedia = () => setMediaProjectId(null);
+
+  // Persist media-workflow state ONLY through the existing public
+  // updateProject; buildStatePatch upserts the single state record inside
+  // the reserved `renders` array and preserves every other record.
+  const handleUpdateMediaState = (project, partial) => {
+    if (!project || !project.id) return;
+    updateProject(project.id, buildStatePatch(project, partial));
+  };
+
+  // Persist one manual media result (metadata / URL / notes — no upload).
+  const handleSaveMediaResult = (project, fields) => {
+    if (!project || !project.id) return false;
+    const record = buildMediaResultRecord(fields);
+    if (!record) return false;
+    updateProject(project.id, buildResultPatch(project, record));
+    return true;
+  };
+
   // Clean 8B — rename a Work File through the EXISTING public updateProject
   // (the projects hook refreshes automatically via the store's own event).
   const handleRename = (project, newName) => {
@@ -93,6 +134,7 @@ function ProjectsContent() {
           onContinue={handleContinue}
           onOpenPack={openPack}
           onRename={handleRename}
+          onOpenMedia={openMedia}
         />
       ) : null}
       <DesignProjectsLibrary />
@@ -101,6 +143,16 @@ function ProjectsContent() {
           project={packProject}
           pack={buildOutputPack(packProject)}
           onClose={closePack}
+          onOpenMedia={openMedia}
+        />
+      ) : null}
+      {mediaProject ? (
+        <MediaWorkflowPanel
+          project={mediaProject}
+          pack={buildOutputPack(mediaProject)}
+          onClose={closeMedia}
+          onUpdateState={handleUpdateMediaState}
+          onSaveResult={handleSaveMediaResult}
         />
       ) : null}
     </>
