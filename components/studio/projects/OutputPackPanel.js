@@ -1,18 +1,24 @@
 // components/studio/projects/OutputPackPanel.js
 //
 // LESHEM.S OS — Clean 7A: Work File Backbone MVP — Output Pack panel.
+// Clean 8D — Output Pack Pro + Media Prep: upgraded into a professional
+// output workspace with sections A–F, a compact attached-assets view, and
+// per-section copy buttons (native clipboard API only — no package).
 //
-// A simple overlay showing the text-based Output Pack of one Work File:
-//   A. סיכום מקצועי (Hebrew professional summary)
-//   B. Media Prompt (ENGLISH ONLY — for future visualization generation)
-//   C. תיאור ללקוח (short polished Hebrew client description)
-//   + רפרנסים (existing linkage counts if present, otherwise an honest
-//     placeholder — upload is NOT part of this milestone)
+//   A. סיכום מקצועי (Hebrew professional summary)          + העתק סיכום
+//   B. תיאור ללקוח (short polished Hebrew description)     + העתק תיאור לקוח
+//      נכסים ורפרנסים (compact view — only when attached)
+//   C. Media Prompt — Realistic Render (ENGLISH ONLY)      + העתק פרומפט הדמיה
+//   D. Media Prompt — Design Concept / Sketch (EN ONLY)    + העתק פרומפט סקיצה
+//   E. Media Prompt — Client Presentation (ENGLISH ONLY)   + העתק פרומפט מצגת
+//   F. הערות ייצור (Hebrew practical production notes)     + העתק הערות ייצור
+//   + רפרנסים (existing linkage counts line — unchanged behavior)
 //
 // PRESENTATIONAL only: receives the project + the pre-built pack (from
 // lib/studio/outputPack — pure formatting over existing project data).
-// No API, no image generation, no render engine, no persistence. The single
-// copy action uses the native clipboard API (no package).
+// No API, no image generation, no render engine, no persistence. Every new
+// section renders DEFENSIVELY — only when its pack field exists — so the
+// panel stays compatible with any previously-shaped pack object.
 
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
@@ -26,23 +32,50 @@ export const OUTPUT_PACK_HE = Object.freeze({
   copyPrompt: 'העתק פרומפט',
   copied: 'הועתק',
   mediaNote: 'פלט טקסטואלי בלבד בשלב זה — ללא הפקת תמונה.',
+  // Clean 8D — Output Pack Pro labels (additive keys only).
+  sectionPromptRealistic: 'פרומפט הדמיה ריאליסטית (EN)',
+  sectionPromptSketch: 'פרומפט סקיצה / קונספט (EN)',
+  sectionPromptPresentation: 'פרומפט מצגת ללקוח (EN)',
+  sectionProduction: 'הערות ייצור',
+  sectionAssets: 'נכסים ורפרנסים',
+  copySummary: 'העתק סיכום',
+  copyClient: 'העתק תיאור לקוח',
+  copyRender: 'העתק פרומפט הדמיה',
+  copySketch: 'העתק פרומפט סקיצה',
+  copyPresentation: 'העתק פרומפט מצגת',
+  copyProduction: 'העתק הערות ייצור',
 });
 
 export default function OutputPackPanel({ project, pack, onClose }) {
-  const [copied, setCopied] = React.useState(false);
+  // Clean 8D — one copied-key state serves every copy button; the pressed
+  // button shows «הועתק» for a short moment (same 1800ms pattern as 7A).
+  const [copiedKey, setCopiedKey] = React.useState(null);
+  const timerRef = React.useRef(null);
+  React.useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
   if (!project || !pack) return null;
 
-  const copyPrompt = () => {
+  const copyText = (key, text) => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        navigator.clipboard.writeText(pack.mediaPromptEn);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1800);
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof text === 'string') {
+        navigator.clipboard.writeText(text);
+        setCopiedKey(key);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setCopiedKey(null), 1800);
       }
     } catch (e) {
       console.warn('[output-pack] clipboard unavailable', e);
     }
   };
+
+  const copyBtn = (key, label, text) => (
+    <button type="button" onClick={() => copyText(key, text)} style={styles.copyBtn}>
+      {copiedKey === key ? OUTPUT_PACK_HE.copied : label}
+    </button>
+  );
+
+  const assetsView = Array.isArray(pack.attachedAssets) ? pack.attachedAssets : [];
 
   return (
     <div style={styles.backdrop} onClick={onClose} role="presentation">
@@ -66,17 +99,44 @@ export default function OutputPackPanel({ project, pack, onClose }) {
         <div style={styles.body}>
           {/* A — Hebrew professional summary */}
           <section style={styles.section}>
-            <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionProfessional}</span>
+            <div style={styles.sectionHead}>
+              <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionProfessional}</span>
+              {copyBtn('summary', OUTPUT_PACK_HE.copySummary, pack.professionalHe)}
+            </div>
             <pre style={styles.textBlock}>{pack.professionalHe}</pre>
           </section>
 
-          {/* B — English media prompt */}
+          {/* B — Hebrew client description */}
           <section style={styles.section}>
             <div style={styles.sectionHead}>
-              <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionPrompt}</span>
-              <button type="button" onClick={copyPrompt} style={styles.copyBtn}>
-                {copied ? OUTPUT_PACK_HE.copied : OUTPUT_PACK_HE.copyPrompt}
-              </button>
+              <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionClient}</span>
+              {copyBtn('client', OUTPUT_PACK_HE.copyClient, pack.clientHe)}
+            </div>
+            <p style={styles.clientText}>{pack.clientHe}</p>
+          </section>
+
+          {/* נכסים ורפרנסים — compact view, only when assets are attached */}
+          {assetsView.length > 0 ? (
+            <section style={styles.section}>
+              <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionAssets}</span>
+              <div style={styles.assetRows}>
+                {assetsView.map((a) => (
+                  <div key={a.assetId} style={styles.assetRow}>
+                    <span style={styles.assetName}>{a.name}</span>
+                    <span style={styles.assetChip}>{a.roleHe}</span>
+                    <span style={styles.assetChip}>{a.fileTypeHe}</span>
+                    <span style={styles.assetPreview}>{a.previewHe}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {/* C — English media prompt: realistic render */}
+          <section style={styles.section}>
+            <div style={styles.sectionHead}>
+              <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionPromptRealistic}</span>
+              {copyBtn('render', OUTPUT_PACK_HE.copyRender, pack.mediaPromptEn)}
             </div>
             <pre style={{ ...styles.textBlock, ...styles.promptBlock }} dir="ltr">
               {pack.mediaPromptEn}
@@ -84,11 +144,42 @@ export default function OutputPackPanel({ project, pack, onClose }) {
             <span style={styles.mediaNote}>{OUTPUT_PACK_HE.mediaNote}</span>
           </section>
 
-          {/* C — Hebrew client description */}
-          <section style={styles.section}>
-            <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionClient}</span>
-            <p style={styles.clientText}>{pack.clientHe}</p>
-          </section>
+          {/* D — English media prompt: design concept / sketch */}
+          {typeof pack.sketchPromptEn === 'string' && pack.sketchPromptEn ? (
+            <section style={styles.section}>
+              <div style={styles.sectionHead}>
+                <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionPromptSketch}</span>
+                {copyBtn('sketch', OUTPUT_PACK_HE.copySketch, pack.sketchPromptEn)}
+              </div>
+              <pre style={{ ...styles.textBlock, ...styles.promptBlock }} dir="ltr">
+                {pack.sketchPromptEn}
+              </pre>
+            </section>
+          ) : null}
+
+          {/* E — English media prompt: client presentation */}
+          {typeof pack.presentationPromptEn === 'string' && pack.presentationPromptEn ? (
+            <section style={styles.section}>
+              <div style={styles.sectionHead}>
+                <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionPromptPresentation}</span>
+                {copyBtn('presentation', OUTPUT_PACK_HE.copyPresentation, pack.presentationPromptEn)}
+              </div>
+              <pre style={{ ...styles.textBlock, ...styles.promptBlock }} dir="ltr">
+                {pack.presentationPromptEn}
+              </pre>
+            </section>
+          ) : null}
+
+          {/* F — Hebrew production notes */}
+          {typeof pack.productionNotesHe === 'string' && pack.productionNotesHe ? (
+            <section style={styles.section}>
+              <div style={styles.sectionHead}>
+                <span style={styles.sectionTitle}>{OUTPUT_PACK_HE.sectionProduction}</span>
+                {copyBtn('production', OUTPUT_PACK_HE.copyProduction, pack.productionNotesHe)}
+              </div>
+              <pre style={styles.textBlock}>{pack.productionNotesHe}</pre>
+            </section>
+          ) : null}
 
           {/* References — existing linkage or honest placeholder */}
           <section style={styles.section}>
@@ -207,6 +298,7 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     flexShrink: 0,
+    whiteSpace: 'nowrap',
   },
   mediaNote: {
     fontFamily: tokens.font.body,
@@ -225,5 +317,45 @@ const styles = {
     fontFamily: tokens.font.body,
     fontSize: '12.5px',
     color: tokens.color.inkSoft,
+  },
+  // Clean 8D — compact attached-assets rows.
+  assetRows: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  assetRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '7px',
+    flexWrap: 'wrap',
+    padding: '7px 11px',
+    borderRadius: tokens.radius.sm,
+    border: `1px solid ${tokens.color.goldFaint}`,
+    background: tokens.color.pearl,
+  },
+  assetName: {
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '46%',
+  },
+  assetChip: {
+    fontFamily: tokens.font.body,
+    fontSize: '10.5px',
+    fontWeight: 600,
+    color: tokens.color.charcoal,
+    background: tokens.color.goldFaint,
+    border: `1px solid ${tokens.color.gold}`,
+    borderRadius: tokens.radius.sm,
+    padding: '1px 7px',
+    whiteSpace: 'nowrap',
+  },
+  assetPreview: {
+    fontFamily: tokens.font.body,
+    fontSize: '10.5px',
+    color: tokens.color.inkFaint,
+    whiteSpace: 'nowrap',
   },
 };
