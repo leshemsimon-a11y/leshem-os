@@ -48,6 +48,21 @@ const useDesignBrief = createUseDesignBrief(React);
 // Clean 7A — confirm text shown before replacing the current Studio session.
 const CONFIRM_REPLACE_HE = 'פתיחת תיק העבודה תחליף את העבודה הנוכחית בסטודיו. להמשיך?';
 
+// Clean 8F — top notice when the ?focus=media deep link cannot resolve the
+// active Work File (the «מדיה והדמיות» button remains visible on each card).
+const MEDIA_FOCUS_NOTICE_HE = 'פתח את תיק העבודה הפעיל כדי לנהל מדיה והדמיות';
+const MEDIA_FOCUS_NOTICE_STYLE = {
+  margin: '0 0 16px',
+  padding: '10px 14px',
+  borderRadius: '7px',
+  border: '1px solid #B8975A',
+  background: '#F2ECDF',
+  color: '#14161A',
+  fontFamily: '"DM Sans", "Helvetica Neue", Arial, sans-serif',
+  fontSize: '13px',
+  fontWeight: 600,
+};
+
 // Page-level container: owns the continue/output wiring so both panels stay
 // purely presentational. Existing public exports only.
 function ProjectsContent() {
@@ -101,6 +116,37 @@ function ProjectsContent() {
   };
   const closeMedia = () => setMediaProjectId(null);
 
+  // ------------------------------------------------------------------
+  // Clean 8F — Media Access From Studio: ?focus=media deep link.
+  // When the Studio's «פתח מדיה והדמיות» routes here, auto-open the ACTIVE
+  // project's Media Workflow once (same local state the buttons above use —
+  // no new store, no new key, no persistence). If the active Work File
+  // cannot be resolved (cleared / archived meanwhile), fall back to a top
+  // notice; the «מדיה והדמיות» button stays visible on every card.
+  // ------------------------------------------------------------------
+  const [mediaFocusNotice, setMediaFocusNotice] = React.useState(false);
+  const mediaFocusHandled = React.useRef(false);
+  React.useEffect(() => {
+    if (mediaFocusHandled.current) return;
+    if (!router.isReady || !projectsStore.hydrated) return;
+    if (router.query.focus !== 'media') {
+      mediaFocusHandled.current = true;
+      return;
+    }
+    mediaFocusHandled.current = true;
+    const wantedId = getActiveWorkId();
+    const found = wantedId
+      ? (projectsStore.projects || []).find((p) => p.id === wantedId) || null
+      : null;
+    if (found) {
+      setActiveId(wantedId);
+      setPackProject(null);
+      setMediaProjectId(found.id);
+    } else {
+      setMediaFocusNotice(true);
+    }
+  }, [router.isReady, router.query.focus, projectsStore.hydrated, projectsStore.projects]);
+
   // Persist media-workflow state ONLY through the existing public
   // updateProject; buildStatePatch upserts the single state record inside
   // the reserved `renders` array and preserves every other record.
@@ -127,6 +173,13 @@ function ProjectsContent() {
 
   return (
     <>
+      {/* Clean 8F — fallback notice when ?focus=media arrives without a
+          resolvable active Work File. Inline style only (page-local). */}
+      {mediaFocusNotice ? (
+        <div style={MEDIA_FOCUS_NOTICE_STYLE} dir="rtl" role="status">
+          {MEDIA_FOCUS_NOTICE_HE}
+        </div>
+      ) : null}
       {projectsStore.hydrated ? (
         <WorkFilesPanel
           projects={projectsStore.active}

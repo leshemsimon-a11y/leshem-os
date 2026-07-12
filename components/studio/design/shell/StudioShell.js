@@ -551,6 +551,14 @@ export default function StudioShell() {
         activeProjectName={activeProject ? activeProject.name : null}
         onOpenProjects={() => router.push('/studio/projects')}
         onClearStudio={handleClearStudio}
+        // Clean 8F — «פתח מדיה והדמיות»: with an active Work File, deep-link
+        // to the projects page which auto-opens the active project's Media
+        // Workflow (?focus=media). Without one, the bar shows the disabled
+        // state + helper text. Routing only — no state, no store calls.
+        onOpenMedia={() =>
+          router.push({ pathname: '/studio/projects', query: { focus: 'media' } })
+        }
+        mediaEnabled={Boolean(activeProject)}
       />
 
       {/* MIDDLE: left stone panel | center canvas | right inspector */}

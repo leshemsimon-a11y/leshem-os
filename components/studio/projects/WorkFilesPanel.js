@@ -28,7 +28,9 @@ export const WORK_FILES_HE = Object.freeze({
   title: 'תיקי עבודה',
   hint: 'בחירת תיק ממשיכה את העבודה בסטודיו — התיק הנבחר נטען לשולחן.',
   continueAction: 'המשך עבודה',
-  openPackAction: 'פתח חבילת פלט',
+  // Clean 8F — card action clarity: three separate, clearly labeled actions
+  // per Work File card — «חבילת פלט» / «מדיה והדמיות» / «המשך עבודה».
+  openPackAction: 'חבילת פלט',
   activeBadge: 'תיק פעיל',
   empty: 'אין עדיין תיקי עבודה שמורים — אפשר לשמור מהסטודיו.',
   createdPrefix: 'נוצר',
@@ -174,8 +176,10 @@ export default function WorkFilesPanel({ projects, activeId, onContinue, onOpenP
                   <button type="button" onClick={() => onOpenPack && onOpenPack(p)} style={styles.packBtn}>
                     {WORK_FILES_HE.openPackAction}
                   </button>
+                  {/* Clean 8F — the media action gets its own gold-accent
+                      style so it is never hidden or mistaken for the pack. */}
                   {typeof onOpenMedia === 'function' ? (
-                    <button type="button" onClick={() => onOpenMedia(p)} style={styles.packBtn}>
+                    <button type="button" onClick={() => onOpenMedia(p)} style={styles.mediaBtn}>
                       {WORK_FILES_HE.mediaAction}
                     </button>
                   ) : null}
@@ -390,6 +394,20 @@ const styles = {
     padding: '6px 15px',
     borderRadius: '999px',
     border: `1px solid ${tokens.color.charcoal}`,
+    background: 'transparent',
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '12px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  // Clean 8F — distinct media action (gold accent border).
+  mediaBtn: {
+    minHeight: '32px',
+    padding: '6px 15px',
+    borderRadius: '999px',
+    border: `1px solid ${tokens.color.gold}`,
     background: 'transparent',
     color: tokens.color.charcoal,
     fontFamily: tokens.font.body,
