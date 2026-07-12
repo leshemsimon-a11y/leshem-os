@@ -23,6 +23,8 @@ import {
   ATTACHED_ROLE_HE,
   buildAttachedAssetRecord,
   upsertAttachedAsset,
+  // Clean 8G — used to seed the attach role from the asset's persisted role.
+  isValidAttachedRole,
 } from '../../../lib/studio/attachedAssets';
 
 const useActiveWork = createUseActiveWork(React);
@@ -38,7 +40,16 @@ const HE = Object.freeze({
 
 export default function AttachToActiveWork({ object, files }) {
   const { activeWorkId } = useActiveWork();
-  const [role, setRole] = useState(ATTACHED_ROLE.DESIGN_REFERENCE);
+  // Clean 8G — the attach role starts from the asset's PERSISTED role (the
+  // intake panel's classification) when valid; the manual select still
+  // overrides freely per attach.
+  const persistedRole = isValidAttachedRole(object.assetRole) ? object.assetRole : null;
+  const [role, setRole] = useState(persistedRole || ATTACHED_ROLE.DESIGN_REFERENCE);
+  // Follow later role classifications made in the intake panel (state only;
+  // never fights an explicit manual selection mid-render cycle beyond this).
+  React.useEffect(() => {
+    if (persistedRole) setRole(persistedRole);
+  }, [persistedRole]);
   const [toast, setToast] = useState(null);
   const timer = React.useRef(null);
   React.useEffect(

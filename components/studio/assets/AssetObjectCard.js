@@ -20,6 +20,9 @@ import AssetNextActions from './AssetNextActions';
 // Clean 8C — «צרף לתיק פעיל»: attach this asset (with a role) to the ACTIVE
 // Work File through the existing public updateProject API only.
 import AttachToActiveWork from './AttachToActiveWork';
+// Clean 8G — «מה לעשות עם הנכס?» intake action area (role classification
+// through the existing public setCatalog; no store internals).
+import AssetIntakePanel from './AssetIntakePanel';
 import AssetThumbnail from './AssetThumbnail';
 import AssetCoverSelector from './AssetCoverSelector';
 import AssetCatalogPanel from './AssetCatalogPanel';
@@ -119,9 +122,18 @@ export default function AssetObjectCard({
         assetsStore={store}
       />
 
-      {/* Clean 8C — attach to the active Work File (disabled + helper when
-          no Active Work exists). */}
-      <AttachToActiveWork object={object} files={files} />
+      {/* Clean 8G — «מה לעשות עם הנכס?»: role classification (persisted via
+          the existing public setCatalog/assetRole), file-type awareness +
+          3DM notice, «פתח פרטים», with the Clean 8C «צרף לתיק פעיל» flow
+          grouped inside (unchanged behavior). */}
+      <AssetIntakePanel
+        object={object}
+        files={files}
+        store={store}
+        onOpenDetails={() => setOpen(true)}
+      >
+        <AttachToActiveWork object={object} files={files} />
+      </AssetIntakePanel>
 
       <div style={styles.actions}>
         <button type="button" onClick={() => setOpen((o) => !o)} style={styles.primary}>
