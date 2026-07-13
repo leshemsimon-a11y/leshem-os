@@ -141,7 +141,7 @@ export const CREATE_HE = Object.freeze({
   assetsFailed: (names) => `חלק מהקבצים לא נשמרו לספרייה (${names}) — הם נשמרו כטקסט בתוך התיק.`,
   openProjects: 'פתח תיק עבודה',
   openStudio: 'פתח בסטודיו',
-  openMedia: 'הכן מדיה והדמיות',
+  openMedia: 'הכן הדמיה',
   createAnother: 'צור עוד תכשיט',
   outputPreviewTitle: 'תצוגת פלט מקדימה',
   packClient: 'תיאור ללקוח',
@@ -579,9 +579,23 @@ export default function CreateFlowShell() {
             <div style={styles.warn}>{CREATE_HE.assetsFailed(failedNames.join(', '))}</div>
           ) : null}
           <div style={styles.successActions}>
+            {/* Clean 8I — «הכן הדמיה» is now the PRIMARY next action: it
+                routes straight to the existing ?focus=media deep link,
+                which auto-opens the Media Workflow where «הכן הדמיה» is
+                itself the panel's primary action (one click → final
+                render package, zero configuration). */}
             <button
               type="button"
               style={styles.primaryBtn}
+              onClick={() =>
+                router.push({ pathname: '/studio/projects', query: { focus: 'media' } })
+              }
+            >
+              {CREATE_HE.openMedia}
+            </button>
+            <button
+              type="button"
+              style={styles.secondaryBtn}
               onClick={() => router.push('/studio/projects')}
             >
               {CREATE_HE.openProjects}
@@ -592,15 +606,6 @@ export default function CreateFlowShell() {
               onClick={() => router.push('/studio/design')}
             >
               {CREATE_HE.openStudio}
-            </button>
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              onClick={() =>
-                router.push({ pathname: '/studio/projects', query: { focus: 'media' } })
-              }
-            >
-              {CREATE_HE.openMedia}
             </button>
             <button type="button" style={styles.ghostBtn} onClick={resetFlow}>
               {CREATE_HE.createAnother}

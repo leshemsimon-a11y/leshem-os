@@ -13,6 +13,16 @@
 // caller so store updates re-render), the pre-built pack, and callbacks that
 // persist through the EXISTING public updateProject API. No API, no external
 // AI service, no render engine, no persistence here, no package.
+//
+// Clean 8I — Render Engine Prep: «הכן הדמיה» is now the panel's PRIMARY
+// action. One click opens the RenderPromptPanel with the finalized render
+// package already built from the Work File (default preset pre-selected —
+// zero configuration required). The finalized package is saved into the
+// project's EXISTING reserved `renders` array through the EXISTING public
+// updateProject (the same array/pattern this panel's own state and results
+// already use; foreign records preserved). «סמן כמוכן להדמיה» reuses the
+// existing onUpdateState callback (mediaStatus → promptReady). No external
+// API, no render engine, no new persistence key, no package.
 
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
@@ -28,6 +38,11 @@ import {
   isSafeLinkUrl,
   isSafeImageUrl,
 } from '../../../lib/studio/mediaWorkflow';
+// Clean 8I — one-click render prompt finalizer (pure helpers + panel) +
+// the EXISTING public updateProject (public export only; no store internals).
+import RenderPromptPanel from './RenderPromptPanel';
+import { buildRenderPackagePatch } from '../../../lib/studio/renderPromptFinalizer';
+import { updateProject } from '../../../lib/studio/designProjects';
 
 export const MEDIA_WORKFLOW_HE = Object.freeze({
   title: 'מדיה והדמיות',
@@ -44,6 +59,9 @@ export const MEDIA_WORKFLOW_HE = Object.freeze({
   markSent: 'סמן כנשלח',
   sentPrefix: 'נשלח',
   noPack: 'אין פרומפטים זמינים — יש לפתוח קודם את חבילת הפלט.',
+  // Clean 8I — one-click render prompt finalizer (primary media action).
+  prepareRender: 'הכן הדמיה',
+  prepareRenderHint: 'המערכת תאסוף את פרטי התיק ותכין פרומפט הדמיה סופי אוטומטית.',
   resultTitle: 'שם תוצאה',
   resultTool: 'כלי',
   resultUrl: 'קישור או URL לתמונה',
@@ -70,6 +88,9 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
   const [formNotes, setFormNotes] = React.useState('');
   const [formStatus, setFormStatus] = React.useState('resultReceived');
   const [formMessage, setFormMessage] = React.useState(null);
+  // Clean 8I — RenderPromptPanel open state (this panel's own local state;
+  // no new store, no persistence key here).
+  const [renderPanelOpen, setRenderPanelOpen] = React.useState(false);
   const timerRef = React.useRef(null);
   React.useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -133,15 +154,38 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
     }
   };
 
+  // Clean 8I — persist the finalized render package into the project's
+  // EXISTING reserved `renders` array through the EXISTING public
+  // updateProject (identical pattern to buildStatePatch/buildResultPatch
+  // above — a foreign-record-preserving upsert). Non-fatal if it fails; the
+  // package still displays in the RenderPromptPanel either way.
+  const persistRenderPackage = (proj, pkg) => {
+    try {
+      const patch = buildRenderPackagePatch(proj, pkg);
+      if (patch) updateProject(proj.id, patch);
+    } catch (e) {
+      console.warn('[media-workflow] render package persistence unavailable', e);
+    }
+  };
+
+  // «סמן כמוכן להדמיה» from inside the RenderPromptPanel — reuses the
+  // EXISTING onUpdateState callback (same call markSent makes above).
+  const markReadyFromRender = (proj) => {
+    if (onUpdateState) {
+      onUpdateState(proj, { mediaStatus: 'promptReady' });
+    }
+  };
+
   return (
-    <div style={styles.backdrop} onClick={onClose} role="presentation">
-      <div
-        style={styles.panel}
-        dir="rtl"
-        role="dialog"
-        aria-label={MEDIA_WORKFLOW_HE.title}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <>
+      <div style={styles.backdrop} onClick={onClose} role="presentation">
+        <div
+          style={styles.panel}
+          dir="rtl"
+          role="dialog"
+          aria-label={MEDIA_WORKFLOW_HE.title}
+          onClick={(e) => e.stopPropagation()}
+        >
         <div style={styles.head}>
           <div style={styles.headText}>
             <span style={styles.title}>{MEDIA_WORKFLOW_HE.title}</span>
@@ -155,6 +199,23 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
         <div style={styles.body}>
           {/* Next action hint */}
           <p style={styles.nextAction}>{mediaNextActionHe(project)}</p>
+
+          {/* Clean 8I — «הכן הדמיה»: the PRIMARY media action. One click
+              opens the finalized render package (default preset already
+              selected) — no configuration required before seeing a result. */}
+          <section style={styles.prepareCard}>
+            <div style={styles.prepareText}>
+              <span style={styles.prepareTitle}>{MEDIA_WORKFLOW_HE.prepareRender}</span>
+              <span style={styles.prepareHint}>{MEDIA_WORKFLOW_HE.prepareRenderHint}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRenderPanelOpen(true)}
+              style={styles.prepareBtn}
+            >
+              {MEDIA_WORKFLOW_HE.prepareRender}
+            </button>
+          </section>
 
           {/* Media status */}
           <section style={styles.section}>
@@ -362,8 +423,20 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
 
           <span style={styles.manualNote}>{MEDIA_WORKFLOW_HE.manualNote}</span>
         </div>
+        </div>
       </div>
-    </div>
+      {/* Clean 8I — RenderPromptPanel overlay, rendered as a SIBLING of the
+          Media Workflow backdrop (not a DOM descendant) so a click on its
+          own backdrop only closes the render panel, never both. */}
+      {renderPanelOpen ? (
+        <RenderPromptPanel
+          project={project}
+          onClose={() => setRenderPanelOpen(false)}
+          onMarkReady={markReadyFromRender}
+          onPersistPackage={persistRenderPackage}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -444,6 +517,44 @@ const styles = {
     fontSize: '12px',
     fontWeight: 600,
     color: tokens.color.charcoal,
+  },
+  // Clean 8I — the primary «הכן הדמיה» action card.
+  prepareCard: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap',
+    padding: '13px 15px',
+    borderRadius: tokens.radius.md,
+    border: `1px solid ${tokens.color.gold}`,
+    background: `linear-gradient(135deg, ${tokens.color.goldFaint}, #FFFFFF)`,
+  },
+  prepareText: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  prepareTitle: {
+    fontFamily: tokens.font.display,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  prepareHint: {
+    fontFamily: tokens.font.body,
+    fontSize: '11.5px',
+    color: tokens.color.inkSoft,
+  },
+  prepareBtn: {
+    minHeight: '36px',
+    padding: '8px 20px',
+    borderRadius: '999px',
+    border: 'none',
+    background: tokens.color.charcoal,
+    color: '#FFFFFF',
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   section: { display: 'flex', flexDirection: 'column', gap: '7px' },
   sectionTitle: {
