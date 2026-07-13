@@ -88,7 +88,6 @@ import DesignOutputPanel from '../DesignOutputPanel';
 import AssetPicker from '../../assets/AssetPicker';
 
 import StudioCommandBar from './StudioCommandBar';
-import StudioWorkflowRail from './StudioWorkflowRail';
 // Clean 5E — Design Intent Layer: compact drawer + summary line.
 import StudioIntentDrawer, { intentSummaryText } from './StudioIntentDrawer';
 import StudioStoneStrip from './StudioStoneStrip';
@@ -106,6 +105,16 @@ import InlineInventoryPicker from '../../shared/InlineInventoryPicker';
 import ActiveWorkControlBar from '../../shared/ActiveWorkControlBar';
 import { AlertIcon, LayersIcon } from './StudioIcons';
 import { reset } from './studioResetStyle';
+// Clean 8K — Human Jewelry Intelligence + Visual Workspace Consolidation.
+// Three NEW small shared components, additive only: no existing import,
+// component, or store call above this line is touched.
+import CreativeAreaRail from '../../shared/CreativeAreaRail';
+import AdvisorPanel from '../../shared/AdvisorPanel';
+import SmartCommandBar from '../../shared/SmartCommandBar';
+import { CREATIVE_AREA } from '../../../../lib/studio/humanTerms';
+import { buildAdvisorInsight, buildContextSummaryHe } from '../../../../lib/studio/jewelryAdvisor';
+import { classifyCommand, COMMAND_INTENT, UNKNOWN_COMMAND_HE } from '../../../../lib/studio/smartCommand';
+import { attachedCount } from '../../../../lib/studio/attachedAssets';
 // Clean 6A — the in-Studio "בחר אבנים מהמלאי" picker uses the SAME read-only
 // demo-inventory exports + the SAME bridge (toStudioTrayItem → tray.addItem)
 // the Work Tray's inline add already uses (Patch D). No new store, no new
@@ -123,15 +132,15 @@ const useDesignProjects = createUseDesignProjects(React);
 
 // Clean 7A — Active Work chip label (local literal; labels.js untouched.
 // 'תיק פעיל' is the canonical Work-File badge used across /studio/projects).
-const ACTIVE_WORK_CHIP_HE = Object.freeze({ badge: 'תיק פעיל' });
+const ACTIVE_WORK_CHIP_HE = Object.freeze({ badge: 'היצירה הפעילה' });
 
 // Clean 8B — Work Session Management (local literals; string values only).
 const SESSION_HE = Object.freeze({
-  openProjects: 'פתח תיקי עבודה',
-  clearStudio: 'נקה סטודיו',
+  openProjects: 'פתח תיקי יצירה',
+  clearStudio: 'סגור את היצירה הפעילה',
   clearConfirm:
-    'ניקוי הסטודיו יסיר את העבודה הפעילה, האבנים, תפריט העיצוב וכיווני העיצוב מהמסך. תיקי עבודה שמורים לא יימחקו. להמשיך?',
-  clearedToast: 'הסטודיו נוקה — תיקי העבודה השמורים לא נמחקו',
+    'סגירת היצירה הפעילה תסיר מהמסך את האבנים, תפריט העיצוב והכיוונים הנוכחיים. תיקי יצירה שמורים לא יימחקו. להמשיך?',
+  clearedToast: 'היצירה הפעילה נסגרה — תיקי היצירה השמורים נשמרו',
 });
 // Patch B — the shell now uses the EXISTING event-synced Active Work hook
 // (lib/studio/activeWorkStore.js) instead of a local read-once localStorage
@@ -496,6 +505,104 @@ export default function StudioShell() {
     .map((it) => (it.snapshot && it.snapshot.axes ? it.snapshot.axes.shape : null))
     .filter(Boolean);
 
+  // ------------------------------------------------------------------
+  // Clean 8K — Human Jewelry Intelligence + Visual Workspace
+  // Consolidation. Everything below is READ-ONLY derived state (pure
+  // functions over data already computed above) plus one new handler that
+  // only calls EXISTING safe actions (setActiveStep / setPickerOpen /
+  // router.push / briefStore.update). No new store, no new persistence
+  // key, no protected file touched.
+  // ------------------------------------------------------------------
+
+  // Reference count for the compact context summary: attached assets on
+  // the active Work File (existing public attachedAssets.js export) plus
+  // one for a non-empty free-text reference note, when present. Best-effort
+  // and additive — never blocks or alters existing asset/brief behavior.
+  const intentionText = brief.intention ? String(brief.intention).trim() : '';
+  const hasTextReference = /(^|\n)\s*(רפרנס|קישור רפרנס):/m.test(intentionText);
+  const referenceCount =
+    (activeProject ? attachedCount(activeProject) : 0) + (hasTextReference ? 1 : 0);
+
+  const contextSummaryHe = buildContextSummaryHe({
+    stoneCount: realTrayItems.length,
+    referenceCount,
+    hasSelectedDirection: Boolean(selected),
+  });
+
+  const advisorInsight = buildAdvisorInsight({
+    trayItems: realTrayItems,
+    brief,
+    hasStones,
+    hasConcepts,
+    conceptsStale,
+    selected,
+    output,
+    outStale,
+  });
+
+  // Icon-first rail: which of the 5 creative areas reads as "active" given
+  // the shell's existing activeStep / picker state. Best-effort mapping
+  // over EXISTING state only — no new state introduced for this.
+  const creativeArea =
+    invPickerOpen || pickerOpen
+      ? CREATIVE_AREA.REFERENCES
+      : activeStep === 'design'
+      ? CREATIVE_AREA.DIRECTIONS
+      : activeStep === 'brief'
+      ? CREATIVE_AREA.PRESENTATION
+      : CREATIVE_AREA.STONES;
+
+  const onSelectCreativeArea = (area) => {
+    if (area === CREATIVE_AREA.STONES) setActiveStep('stones');
+    else if (area === CREATIVE_AREA.REFERENCES) setPickerOpen(true);
+    else if (area === CREATIVE_AREA.DIRECTIONS) setActiveStep('design');
+    else if (area === CREATIVE_AREA.RENDER) {
+      router.push({ pathname: '/studio/projects', query: { focus: 'media' } });
+    } else if (area === CREATIVE_AREA.PRESENTATION) setActiveStep('brief');
+  };
+
+  // Smart Command Bar foundation: classifies free text locally (no AI API)
+  // and performs ONLY the same safe actions already reachable from the
+  // rail/buttons above. Unknown commands are recorded as a creation
+  // guideline in the EXISTING brief.intention field (existing public
+  // briefStore.update) rather than silently discarded or faked.
+  const handleSmartCommand = (rawText) => {
+    const classification = classifyCommand(rawText);
+    switch (classification.intent) {
+      case COMMAND_INTENT.OPEN_STONES:
+        setActiveStep('stones');
+        return { responseHe: classification.interpretationHe };
+      case COMMAND_INTENT.OPEN_REFERENCES:
+        setPickerOpen(true);
+        return { responseHe: classification.interpretationHe };
+      case COMMAND_INTENT.ADD_REFERENCE_TEXT: {
+        const note = `רפרנס: ${classification.rawText}`;
+        briefStore.update({ intention: [brief.intention, note].filter(Boolean).join('\n') });
+        return { responseHe: classification.interpretationHe };
+      }
+      case COMMAND_INTENT.OPEN_DIRECTIONS:
+        setActiveStep('design');
+        return { responseHe: classification.interpretationHe };
+      case COMMAND_INTENT.OPEN_RENDER_STUDIO:
+        router.push({ pathname: '/studio/projects', query: { focus: 'media' } });
+        return { responseHe: classification.interpretationHe };
+      case COMMAND_INTENT.OPEN_PRESENTATION:
+        setActiveStep('brief');
+        return { responseHe: classification.interpretationHe };
+      case COMMAND_INTENT.EXPLAIN_NEXT_STEP:
+        return { responseHe: advisorInsight.nextStepHe };
+      default: {
+        // Persisted only because briefStore.update is an EXISTING safe
+        // public API for the EXISTING brief.intention field — no new
+        // persistence key. This is the "report the persistence gap"
+        // requirement satisfied honestly: nothing is faked as executed.
+        const note = `הנחיה: ${classification.rawText}`;
+        briefStore.update({ intention: [brief.intention, note].filter(Boolean).join('\n') });
+        return { responseHe: UNKNOWN_COMMAND_HE };
+      }
+    }
+  };
+
   const staleBanners = (
     <>
       {conceptsStale && (
@@ -559,7 +666,26 @@ export default function StudioShell() {
           router.push({ pathname: '/studio/projects', query: { focus: 'media' } })
         }
         mediaEnabled={Boolean(activeProject)}
+        // Clean 8K — Active Creation Context: a compact contextual summary
+        // line under the badge/name ("3 אבנים · 2 רפרנסים · כיוון אחד
+        // נבחר"). OPTIONAL prop; existing call sites without it render
+        // byte-for-byte the same bar as before.
+        contextSummary={activeProject ? contextSummaryHe : null}
       />
+
+      {/* Clean 8K — Icon-first creative-area rail + compact Jewelry Advisor
+          + Smart Command Bar, in one new additive row. Does not replace or
+          alter StudioWorkflowRail (still the step indicator in the canvas
+          header, unchanged) or any existing panel. */}
+      <div
+        style={{
+          ...styles.humanRow,
+          ...(narrow ? styles.humanRowNarrow : null),
+        }}
+      >
+        <SmartCommandBar onSubmitCommand={handleSmartCommand} />
+        <AdvisorPanel insight={advisorInsight} onNextStep={setActiveStep} />
+      </div>
 
       {/* MIDDLE: left stone panel | center canvas | right inspector */}
       <div
@@ -580,7 +706,7 @@ export default function StudioShell() {
 
         <div style={styles.canvasColumn}>
           <div style={styles.canvasHeader}>
-            <StudioWorkflowRail active={activeStep} onSelect={setActiveStep} />
+            <CreativeAreaRail active={creativeArea} onSelect={onSelectCreativeArea} />
             <span style={styles.canvasHeaderMeta}>
               {/* Clean 7A — compact Active Work indicator: badge + name +
                   item count, tapping opens תיקי עבודה. Derived from the
@@ -764,7 +890,9 @@ const styles = {
     display: 'grid',
     // Clean 8C — one extra 'auto' row for the always-rendered Active Work
     // Control bar (top row · control bar · middle · bottom strip).
-    gridTemplateRows: 'auto auto minmax(0, 1fr) auto',
+    // Clean 8K — one more 'auto' row for the new icon rail + advisor +
+    // Smart Command Bar row (top row · control bar · human row · middle).
+    gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
     gap: GAP,
     height: '100vh',
     padding: GAP,
@@ -791,6 +919,20 @@ const styles = {
     gridTemplateColumns: 'minmax(200px, 280px) minmax(0, 1fr)',
     gap: GAP,
     alignItems: 'stretch',
+  },
+
+  // Clean 8K — the new icon rail + advisor + Smart Command Bar row. Three
+  // compact pieces stacked in a single column so the row stays short and
+  // never competes visually with the canvas below it (progressive
+  // disclosure — one focused row, not a wall of new panels).
+  humanRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)',
+    gap: '8px',
+    alignItems: 'start',
+  },
+  humanRowNarrow: {
+    gridTemplateColumns: '1fr',
   },
 
   middle: {

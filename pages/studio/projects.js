@@ -46,11 +46,11 @@ const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
 
 // Clean 7A — confirm text shown before replacing the current Studio session.
-const CONFIRM_REPLACE_HE = 'פתיחת תיק העבודה תחליף את העבודה הנוכחית בסטודיו. להמשיך?';
+const CONFIRM_REPLACE_HE = 'פתיחת תיק היצירה תחליף את היצירה הנוכחית בסטודיו. להמשיך?';
 
 // Clean 8F — top notice when the ?focus=media deep link cannot resolve the
 // active Work File (the «מדיה והדמיות» button remains visible on each card).
-const MEDIA_FOCUS_NOTICE_HE = 'פתח את תיק העבודה הפעיל כדי לנהל מדיה והדמיות';
+const MEDIA_FOCUS_NOTICE_HE = 'פתח את היצירה הפעילה כדי לנהל הדמיות ותצוגה';
 const MEDIA_FOCUS_NOTICE_STYLE = {
   margin: '0 0 16px',
   padding: '10px 14px',

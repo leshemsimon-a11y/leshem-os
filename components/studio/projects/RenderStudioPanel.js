@@ -67,7 +67,8 @@ export const RENDER_STUDIO_HE = Object.freeze({
   copied: 'הועתק',
   savePlan: 'שמור תוכנית הדמיה',
   planSaved: 'תוכנית ההדמיה נשמרה ✓',
-  openMedia: 'פתח מדיה והדמיות',
+  // Clean 8K — "מדיה והדמיות" now reads "הדמיות ותצוגה".
+  openMedia: 'פתח הדמיות ותצוגה',
   prepNote: 'תכנון הדמיה בלבד — ללא חיבור לכלי AI חיצוני וללא הפקת תמונות בשלב זה.',
   missingLabel: 'מה חסר לשיפור התוצאה',
   missingNone: 'ההקשר מלא — אין מידע חסר.',

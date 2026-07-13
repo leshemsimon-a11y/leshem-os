@@ -52,7 +52,7 @@ export const NAV_ITEMS = [
   },
   {
     id: 'projects',
-    labelHe: UI_HE.nav.projects,
+    labelHe: 'תיקי יצירה',
     group: 'create',
     glyph: '❒',
     built: true,
@@ -60,11 +60,11 @@ export const NAV_ITEMS = [
   },
   {
     id: 'assets',
-    labelHe: UI_HE.nav.assets,
+    labelHe: 'חומרי עבודה',
     group: 'create',
     glyph: '▣',
     built: true,
-    descHe: 'ספריית נכסים — תמונות, סקיצות, קבצים, תעודות ורפרנסים.',
+    descHe: 'תמונות, סקיצות, מודלים, מסמכים והשראה ליצירות.',
   },
   {
     id: 'models',
@@ -84,11 +84,11 @@ export const NAV_ITEMS = [
   },
   {
     id: 'media',
-    labelHe: UI_HE.nav.media,
+    labelHe: 'הדמיות ותצוגה',
     group: 'visualize',
     glyph: '▦',
     built: false,
-    descHe: 'נכסי מדיה והדמיות להצגה ללקוח.',
+    descHe: 'הדמיות, תוצאות וחומרי הצגה ללקוח.',
   },
   {
     id: 'calculator',

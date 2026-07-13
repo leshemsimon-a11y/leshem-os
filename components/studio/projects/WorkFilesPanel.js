@@ -25,14 +25,20 @@ import { attachedSummaryHe, attachedRoleLabelsHe } from '../../../lib/studio/att
 import { mediaStatusLineHe, mediaResultsCountHe } from '../../../lib/studio/mediaWorkflow';
 
 export const WORK_FILES_HE = Object.freeze({
-  title: 'תיקי עבודה',
+  // Clean 8K — "תיקי עבודה" now reads "תיקי יצירה" per the milestone's
+  // terminology pass ("Work Files → תיקי יצירה"). Internal export name and
+  // component name unchanged.
+  title: 'תיקי יצירה',
   hint: 'בחירת תיק ממשיכה את העבודה בסטודיו — התיק הנבחר נטען לשולחן.',
   continueAction: 'המשך עבודה',
   // Clean 8F — card action clarity: three separate, clearly labeled actions
-  // per Work File card — «חבילת פלט» / «מדיה והדמיות» / «המשך עבודה».
-  openPackAction: 'חבילת פלט',
-  activeBadge: 'תיק פעיל',
-  empty: 'אין עדיין תיקי עבודה שמורים — אפשר לשמור מהסטודיו.',
+  // per Work File card — «ערכת הצגה» / «הדמיות ותצוגה» / «המשך עבודה».
+  // Clean 8K — "חבילת פלט" now reads "ערכת הצגה".
+  openPackAction: 'ערכת הצגה',
+  // Clean 8K — consistent with the Active Creation Context term used in the
+  // Design Studio shell ("היצירה הפעילה").
+  activeBadge: 'היצירה הפעילה',
+  empty: 'אין עדיין תיקי יצירה שמורים — אפשר לשמור מהסטודיו.',
   createdPrefix: 'נוצר',
   updatedPrefix: 'עודכן',
   directionPrefix: 'כיוון',
@@ -43,8 +49,9 @@ export const WORK_FILES_HE = Object.freeze({
   renameAction: 'שנה שם',
   renameSave: 'שמור שם',
   renameCancel: 'ביטול',
-  // Clean 8E — Media Workflow.
-  mediaAction: 'מדיה והדמיות',
+  // Clean 8E — Media Workflow. Clean 8K — "מדיה והדמיות" now reads
+  // "הדמיות ותצוגה".
+  mediaAction: 'הדמיות ותצוגה',
 });
 
 const dateHe = (ts) =>

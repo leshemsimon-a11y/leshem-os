@@ -102,17 +102,18 @@ export const CREATE_HE = Object.freeze({
   warnNoStones: 'לא נבחרו אבנים — הכיוונים יהיו רעיוניים בלבד.',
   warnNoRefs: 'ללא רפרנסים ונכסים — אפשר להוסיף בשלב הקודם.',
   continueToGenerate: 'המשך ליצירת כיוונים',
-  // Step 5 — generate.
+  // Step 5 — generate. Clean 8K — "צור" → "הצע" when generating creative
+  // options; primary action reads "הצע כיוונים" (spec exact phrase).
   step5: 'יצירת כיווני עיצוב',
-  generate: 'צור כיווני עיצוב',
-  regenerate: 'צור כיוונים מחדש',
+  generate: 'הצע כיוונים',
+  regenerate: 'הצע כיוונים מחדש',
   generateHint: 'ניצור שלושה כיוונים מקומיים לפי כל מה שסיכמנו.',
-  generatedBanner: 'נוצרו 3 כיווני עיצוב. בחר כיוון כדי להמשיך.',
-  // Step 6 — select.
+  generatedBanner: 'נוצרו 3 כיווני עיצוב. בחר להמשך.',
+  // Step 6 — select. Clean 8K — "בחר" → "בחר להמשך".
   step6: 'בחירת כיוון',
   selectedPrefix: 'נבחר כיוון: ',
-  selectHint: 'בחר כיוון כדי להמשיך.',
-  nextRecommended: 'הפעולה המומלצת הבאה: שמור כתיק עבודה',
+  selectHint: 'בחר להמשך.',
+  nextRecommended: 'הפעולה המומלצת הבאה: שמור בתיק היצירה',
   continueToSave: 'המשך לשמירה',
   refInfluencePrefix: 'השפעת רפרנסים ומודלים: הכיוון מתחשב ב־',
   moreOptions: 'אפשרויות נוספות',
@@ -120,15 +121,15 @@ export const CREATE_HE = Object.freeze({
   structureLabel: 'מבנה',
   productionLabel: 'ייצור',
   promptHintLabel: 'Prompt hint (EN)',
-  // Step 7 — save.
-  step7: 'שמירת תיק עבודה',
+  // Step 7 — save. Clean 8K — "תיק עבודה" now reads "תיק יצירה".
+  step7: 'שמירת תיק יצירה',
   saveRecapTitle: 'מה יישמר בתיק:',
   saveRecapAssets: (n) =>
     n === 1
       ? 'קובץ אחד יישמר בספריית הנכסים ויצורף לתיק'
       : `${n} קבצים יישמרו בספריית הנכסים ויצורפו לתיק`,
   saveRecapTextRefs: 'רפרנסים טקסטואליים וקישורים יישמרו בתוך התיק',
-  save: 'שמור כתיק עבודה',
+  save: 'שמור כתיק יצירה',
   saving: 'שומר…',
   saveFailed: 'השמירה נכשלה — נסה שוב.',
   // Step 8 — success + output preview.
@@ -139,14 +140,16 @@ export const CREATE_HE = Object.freeze({
       ? 'קובץ אחד נשמר בספריית הנכסים וצורף לתיק ✓'
       : `${n} קבצים נשמרו בספריית הנכסים וצורפו לתיק ✓`,
   assetsFailed: (names) => `חלק מהקבצים לא נשמרו לספרייה (${names}) — הם נשמרו כטקסט בתוך התיק.`,
-  openProjects: 'פתח תיק עבודה',
+  // Clean 8K — "תיק עבודה" now reads "תיקי יצירה" (destination: /studio/projects).
+  openProjects: 'פתח תיקי יצירה',
   openStudio: 'פתח בסטודיו',
   openMedia: 'הכן הדמיה',
   createAnother: 'צור עוד תכשיט',
   outputPreviewTitle: 'תצוגת פלט מקדימה',
   packClient: 'תיאור ללקוח',
   packPrompt: 'Realistic render prompt (EN)',
-  openFullPack: 'פתח חבילת פלט מלאה',
+  // Clean 8K — "חבילת פלט" now reads "ערכת הצגה".
+  openFullPack: 'פתח ערכת הצגה מלאה',
   loading: 'טוען…',
 });
 

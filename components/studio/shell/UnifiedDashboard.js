@@ -137,14 +137,14 @@ const QUICK_LAUNCH = [
 // dashboard entry for /studio/workstation (sandbox, direct URL only).
 const STUDIO_CTA_HE = Object.freeze({
   label: 'פתח סטודיו עיצוב',
-  helper: 'עבודה על אבנים נבחרות, כיווני עיצוב ושמירת תיק עבודה',
+  helper: 'עבודה על אבנים נבחרות, כיווני עיצוב ושמירת תיק יצירה',
 });
 
 // Clean 8A — Create Flow MVP: a clear guided-creation entry. The existing
 // /studio/design entry stays untouched; still no workstation promotion.
 const CREATE_CTA_HE = Object.freeze({
   label: 'צור תכשיט חדש',
-  helper: 'מסלול מהיר לבחירת אבנים, רפרנסים, כיווני עיצוב ושמירת תיק עבודה',
+  helper: 'מסלול מונחה לבחירת אבנים, השראה, כיווני עיצוב ושמירת תיק יצירה',
 });
 
 function CreateGlyph({ size = 18 }) {

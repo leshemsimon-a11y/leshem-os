@@ -24,7 +24,9 @@ import * as React from 'react';
 import { tokens } from '../shared/tokens';
 
 export const OUTPUT_PACK_HE = Object.freeze({
-  title: 'חבילת פלט',
+  // Clean 8K — "חבילת פלט" now reads "ערכת הצגה" per the milestone's
+  // terminology pass. Internal export name and component name unchanged.
+  title: 'ערכת הצגה',
   close: 'סגירה',
   sectionProfessional: 'סיכום מקצועי',
   sectionPrompt: 'Media Prompt (EN)',
@@ -37,15 +39,17 @@ export const OUTPUT_PACK_HE = Object.freeze({
   sectionPromptSketch: 'פרומפט סקיצה / קונספט (EN)',
   sectionPromptPresentation: 'פרומפט מצגת ללקוח (EN)',
   sectionProduction: 'הערות ייצור',
-  sectionAssets: 'נכסים ורפרנסים',
+  // Clean 8K — "נכסים ורפרנסים" now reads "חומרי עבודה והשראה".
+  sectionAssets: 'חומרי עבודה והשראה',
   copySummary: 'העתק סיכום',
   copyClient: 'העתק תיאור לקוח',
   copyRender: 'העתק פרומפט הדמיה',
   copySketch: 'העתק פרומפט סקיצה',
   copyPresentation: 'העתק פרומפט מצגת',
   copyProduction: 'העתק הערות ייצור',
-  // Clean 8E — Media Workflow call-to-action.
-  openMedia: 'העבר למדיה והדמיות',
+  // Clean 8E — Media Workflow call-to-action. Clean 8K — "מדיה והדמיות"
+  // now reads "הדמיות ותצוגה".
+  openMedia: 'העבר להדמיות ותצוגה',
 });
 
 export default function OutputPackPanel({ project, pack, onClose, onOpenMedia }) {

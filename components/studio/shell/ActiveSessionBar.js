@@ -36,7 +36,11 @@ const useDesignProjects = createUseDesignProjects(React);
 const useWorkTray = createUseWorkTray(React);
 const useDesignBrief = createUseDesignBrief(React);
 
-const L = SESSION_BAR_HE;
+const L = Object.freeze({
+  ...SESSION_BAR_HE,
+  activeSession: 'היצירה הפעילה',
+  noActiveSession: 'אין יצירה פעילה',
+});
 
 export default function ActiveSessionBar({ variant = 'desktop' }) {
   const router = useRouter();

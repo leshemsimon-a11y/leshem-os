@@ -44,8 +44,8 @@ export const RENDER_PANEL_HE = Object.freeze({
   copied: 'הועתק',
   markReady: 'סמן כמוכן להדמיה',
   markedReady: 'סומן כמוכן להדמיה ✓',
-  openMedia: 'פתח מדיה והדמיות',
-  statusPrefix: 'סטטוס מדיה נוכחי',
+  openMedia: 'פתח הדמיות ותצוגה',
+  statusPrefix: 'מצב ההדמיה הנוכחי',
   prepNote: 'הכנת הדמיה בלבד — ללא חיבור לכלי AI חיצוני בשלב זה.',
 });
 

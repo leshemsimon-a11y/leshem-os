@@ -14,13 +14,17 @@ import * as React from 'react';
 import { reset } from '../design/shell/studioResetStyle';
 
 const HE = Object.freeze({
-  activeBadge: 'תיק פעיל',
-  noActive: 'אין תיק פעיל',
-  openProjects: 'פתח תיקי עבודה',
-  clearStudio: 'נקה סטודיו',
-  // Clean 8F — Media Access From Studio.
-  openMedia: 'פתח מדיה והדמיות',
-  mediaNeedsWorkFile: 'צריך לשמור או לפתוח תיק עבודה לפני ניהול מדיה והדמיות',
+  // Clean 8K — "Active Work File" is now visibly "היצירה הפעילה" (was
+  // "תיק פעיל"), per the milestone's primary-terms table. Internal prop
+  // names (activeProjectName etc.) are unchanged.
+  activeBadge: 'היצירה הפעילה',
+  noActive: 'אין יצירה פעילה',
+  openProjects: 'פתח תיקי יצירה',
+  clearStudio: 'סגור את היצירה הפעילה',
+  // Clean 8F — Media Access From Studio. Clean 8K — "מדיה והדמיות" is now
+  // visibly "הדמיות ותצוגה".
+  openMedia: 'פתח הדמיות ותצוגה',
+  mediaNeedsWorkFile: 'צריך לשמור או לפתוח תיק יצירה לפני ניהול הדמיות ותצוגה',
 });
 
 export default function ActiveWorkControlBar({
@@ -33,6 +37,11 @@ export default function ActiveWorkControlBar({
   // text; the shell owns the routing — no logic here.
   onOpenMedia,
   mediaEnabled,
+  // Clean 8K — OPTIONAL compact contextual summary line ("3 אבנים · 2
+  // רפרנסים · כיוון אחד נבחר"), shown under the name when provided. Existing
+  // call sites without this prop render byte-for-byte the same bar as
+  // before.
+  contextSummary,
 }) {
   const hasActive = Boolean(activeProjectName);
   const showMedia = typeof onOpenMedia === 'function';
@@ -44,8 +53,11 @@ export default function ActiveWorkControlBar({
           {hasActive ? HE.activeBadge : HE.noActive}
         </span>
         {hasActive ? (
-          <span style={styles.name} title={activeProjectName}>
-            {activeProjectName}
+          <span style={styles.nameGroup}>
+            <span style={styles.name} title={activeProjectName}>
+              {activeProjectName}
+            </span>
+            {contextSummary ? <span style={styles.contextSummary}>{contextSummary}</span> : null}
           </span>
         ) : null}
       </div>
@@ -124,6 +136,23 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     minWidth: 0,
+    maxWidth: '360px',
+  },
+  // Clean 8K — the name + compact context-summary line stack vertically.
+  nameGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1px',
+    minWidth: 0,
+  },
+  contextSummary: {
+    fontFamily: reset.font.body,
+    fontSize: '11px',
+    fontWeight: 500,
+    color: reset.color.textMuted,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     maxWidth: '360px',
   },
   actions: {

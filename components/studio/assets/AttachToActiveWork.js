@@ -30,12 +30,12 @@ import {
 const useActiveWork = createUseActiveWork(React);
 
 const HE = Object.freeze({
-  attach: 'צרף לתיק פעיל',
-  noActive: 'אין תיק פעיל. צור או פתח תיק עבודה כדי לצרף נכס.',
-  rolePlaceholder: 'תפקיד הנכס בתיק',
-  attachedToast: 'הנכס צורף לתיק הפעיל ✓',
-  updatedToast: 'תפקיד הנכס עודכן בתיק הפעיל ✓',
-  attachedToPrefix: 'מצורף לתיק: ',
+  attach: 'צרף ליצירה הפעילה',
+  noActive: 'אין יצירה פעילה. פתח או שמור תיק יצירה כדי לצרף את החומר.',
+  rolePlaceholder: 'תפקיד החומר ביצירה',
+  attachedToast: 'החומר צורף ליצירה הפעילה ✓',
+  updatedToast: 'תפקיד החומר עודכן ביצירה הפעילה ✓',
+  attachedToPrefix: 'מצורף ליצירה: ',
 });
 
 export default function AttachToActiveWork({ object, files }) {

@@ -39,7 +39,10 @@ import {
 import RenderStudioPanel from './RenderStudioPanel';
 
 export const MEDIA_WORKFLOW_HE = Object.freeze({
-  title: 'מדיה והדמיות',
+  // Clean 8K — "מדיה והדמיות" now reads "הדמיות ותצוגה" per the milestone's
+  // terminology pass. Internal export name (MEDIA_WORKFLOW_HE), component
+  // name, and file path are unchanged.
+  title: 'הדמיות ותצוגה',
   close: 'סגירה',
   sectionStatus: 'סטטוס מדיה',
   sectionTool: 'כלי יעד',

@@ -33,7 +33,10 @@ export default function StudioCommandBar({
   // project when one exists (Patch B + 6G semantics, unchanged); the label
   // now says so. Local native literal — labels.js is outside this
   // milestone's approved file list. Same button, no duplicate action.
-  const saveLabel = hasActiveWork ? 'שמור עדכון בתיק פעיל' : L.saveSession;
+  // Clean 8K — "שמור" now reads "שמור בתיק היצירה" / "שמור עדכון בתיק
+  // היצירה" (was "תיק פעיל"), per the milestone's terminology pass. Still a
+  // local literal, still the exact same save action underneath.
+  const saveLabel = hasActiveWork ? 'שמור עדכון בתיק היצירה' : 'שמור בתיק היצירה';
 
   let statusText = L.statusDraft;
   let dot = reset.color.textFaint;

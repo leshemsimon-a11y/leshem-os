@@ -26,11 +26,11 @@ const useActiveWork = createUseActiveWork(React);
 const useDesignProjects = createUseDesignProjects(React);
 
 const HE = Object.freeze({
-  title: 'רפרנסים ונכסים',
-  empty: 'אפשר להוסיף רפרנסים וקבצים דרך ספריית הנכסים.',
-  openAssets: 'פתח ספריית נכסים',
-  activePrefix: 'תיק פעיל: ',
-  noActive: 'אין תיק פעיל כרגע — נכסים שיצורפו יופיעו כאן לאחר שמירת תיק עבודה.',
+  title: 'חומרי עבודה והשראה',
+  empty: 'אפשר להוסיף השראה וקבצים דרך ספריית חומרי העבודה.',
+  openAssets: 'פתח חומרי עבודה',
+  activePrefix: 'היצירה הפעילה: ',
+  noActive: 'אין יצירה פעילה כרגע — חומרי עבודה שיצורפו יופיעו כאן לאחר שמירת תיק יצירה.',
 });
 
 export default function ProjectAssetsStrip() {
