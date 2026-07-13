@@ -42,6 +42,11 @@ export default function AssetLibraryPanel() {
   const [name, setName] = useState('');
   const [objectType, setObjectType] = useState(OBJECT_TYPE.STONE);
   const [description, setDescription] = useState('');
+  // Clean 8H — classic creation is DE-EMPHASIZED behind a collapsed toggle
+  // (Quick Create is the safe primary path); its draft state is NEVER
+  // cleared by collapsing/tab switches — only after a successful save.
+  const [classicOpen, setClassicOpen] = useState(false);
+  const [createdToast, setCreatedToast] = useState(null);
 
   const [fObjectType, setFObjectType] = useState(null);
   const [fFileKind, setFFileKind] = useState(null);
@@ -56,9 +61,15 @@ export default function AssetLibraryPanel() {
   const projects = projectsStore.hydrated ? projectsStore.projects : [];
 
   const handleCreate = async () => {
-    await store.createObject({ title: name, objectType, description, status: 'draft' });
-    setName('');
-    setDescription('');
+    // Clean 8H — no silent loss: fields clear ONLY after the create call
+    // succeeds, and success is announced explicitly.
+    const created = await store.createObject({ title: name, objectType, description, status: 'draft' });
+    if (created && created.objectId) {
+      setName('');
+      setDescription('');
+      setCreatedToast(`הנכס "${created.title}" נוצר ✓`);
+      setTimeout(() => setCreatedToast(null), 2600);
+    }
   };
 
   // Clean 4B.4b — execute the wizard's chosen "next action" after the asset and
@@ -164,7 +175,22 @@ export default function AssetLibraryPanel() {
         <AssetArchiveView objects={allObjects} store={store} />
       ) : (
       <>
+      {/* Clean 8H — classic creation DE-EMPHASIZED: Quick Create above is
+          the safe primary path; the classic metadata-only form is collapsed
+          by default. Collapsing NEVER clears a typed draft — the toggle
+          shows a draft indicator so nothing feels lost. */}
       <section style={styles.createBox}>
+        <button
+          type="button"
+          onClick={() => setClassicOpen((o) => !o)}
+          style={styles.classicToggle}
+        >
+          {classicOpen ? '▾' : '◂'} יצירה קלאסית (מתקדם)
+          {!classicOpen && (name.trim() || description.trim()) ? ' · טיוטה פעילה' : ''}
+        </button>
+        {createdToast ? <div style={styles.createdToast}>{createdToast}</div> : null}
+        {classicOpen ? (
+          <>
         <h2 style={styles.createTitle}>{ASSETS_OBJ_HE.newObjectTitle}</h2>
         <p style={styles.createHint}>{WIZARD_HE.classicHint}</p>
         <div style={styles.createRow}>
@@ -205,6 +231,8 @@ export default function AssetLibraryPanel() {
           {ASSETS_OBJ_HE.createObject}
         </button>
         <p style={styles.localNote}>{ASSETS_HE.localNote}</p>
+          </>
+        ) : null}
       </section>
 
       <AssetFilters
@@ -291,6 +319,9 @@ const styles = {
   caption: { fontFamily: tokens.font.body, fontSize: '14px', lineHeight: 1.6, color: tokens.color.inkSoft, margin: 0, maxWidth: '580px' },
   loading: { fontFamily: tokens.font.body, fontSize: '15px', color: tokens.color.inkFaint, padding: '40px 0', textAlign: 'center' },
   createBox: { display: 'flex', flexDirection: 'column', gap: '10px', padding: '18px', background: tokens.color.canvas, border: `1px solid ${tokens.color.cardEdge}`, borderRadius: tokens.radius.lg, marginBottom: '22px' },
+  // Clean 8H — classic-create de-emphasis toggle + explicit success toast.
+  classicToggle: { alignSelf: 'flex-start', minHeight: '32px', padding: '5px 12px', borderRadius: '999px', border: `1px solid ${tokens.color.cardEdge}`, background: 'transparent', color: tokens.color.inkSoft, fontFamily: tokens.font.body, fontSize: '12px', fontWeight: 700, cursor: 'pointer' },
+  createdToast: { fontFamily: tokens.font.body, fontSize: '12.5px', fontWeight: 700, color: tokens.color.charcoal, background: tokens.color.sageFaint, border: `1px solid ${tokens.color.sage}`, borderRadius: tokens.radius.md, padding: '7px 12px', alignSelf: 'flex-start' },
   createTitle: { fontFamily: tokens.font.display, fontSize: '20px', color: tokens.color.charcoal, margin: 0 },
   createHint: { fontFamily: tokens.font.body, fontSize: '13px', color: tokens.color.inkFaint, margin: 0 },
   createRow: { display: 'flex', gap: '10px', flexWrap: 'wrap' },
