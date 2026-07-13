@@ -14,15 +14,10 @@
 // persist through the EXISTING public updateProject API. No API, no external
 // AI service, no render engine, no persistence here, no package.
 //
-// Clean 8I — Render Engine Prep: «הכן הדמיה» is now the panel's PRIMARY
-// action. One click opens the RenderPromptPanel with the finalized render
-// package already built from the Work File (default preset pre-selected —
-// zero configuration required). The finalized package is saved into the
-// project's EXISTING reserved `renders` array through the EXISTING public
-// updateProject (the same array/pattern this panel's own state and results
-// already use; foreign records preserved). «סמן כמוכן להדמיה» reuses the
-// existing onUpdateState callback (mediaStatus → promptReady). No external
-// API, no render engine, no new persistence key, no package.
+// Clean 8J — «הכן הדמיה» is the single render entry point. One click opens
+// the Render Studio with a complete default catalog plan already prepared.
+// Optional pack/scene/quality controls remain inside that flow; the Clean 8I
+// prompt finalizer is reused underneath. No external API or image generation.
 
 import * as React from 'react';
 import { tokens } from '../shared/tokens';
@@ -38,11 +33,10 @@ import {
   isSafeLinkUrl,
   isSafeImageUrl,
 } from '../../../lib/studio/mediaWorkflow';
-// Clean 8I — one-click render prompt finalizer (pure helpers + panel) +
-// the EXISTING public updateProject (public export only; no store internals).
-import RenderPromptPanel from './RenderPromptPanel';
-import { buildRenderPackagePatch } from '../../../lib/studio/renderPromptFinalizer';
-import { updateProject } from '../../../lib/studio/designProjects';
+// Clean 8J — one clear render entry point. The Render Studio reuses the
+// Clean 8I prompt finalizer internally and adds scenes, packs, quality, cost,
+// and complete batch planning without exposing two overlapping workflows.
+import RenderStudioPanel from './RenderStudioPanel';
 
 export const MEDIA_WORKFLOW_HE = Object.freeze({
   title: 'מדיה והדמיות',
@@ -88,9 +82,9 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
   const [formNotes, setFormNotes] = React.useState('');
   const [formStatus, setFormStatus] = React.useState('resultReceived');
   const [formMessage, setFormMessage] = React.useState(null);
-  // Clean 8I — RenderPromptPanel open state (this panel's own local state;
-  // no new store, no persistence key here).
-  const [renderPanelOpen, setRenderPanelOpen] = React.useState(false);
+  // Clean 8J — one render flow only. It opens with a useful default plan,
+  // while scene/pack/quality controls remain optional.
+  const [renderStudioOpen, setRenderStudioOpen] = React.useState(false);
   const timerRef = React.useRef(null);
   React.useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -154,27 +148,6 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
     }
   };
 
-  // Clean 8I — persist the finalized render package into the project's
-  // EXISTING reserved `renders` array through the EXISTING public
-  // updateProject (identical pattern to buildStatePatch/buildResultPatch
-  // above — a foreign-record-preserving upsert). Non-fatal if it fails; the
-  // package still displays in the RenderPromptPanel either way.
-  const persistRenderPackage = (proj, pkg) => {
-    try {
-      const patch = buildRenderPackagePatch(proj, pkg);
-      if (patch) updateProject(proj.id, patch);
-    } catch (e) {
-      console.warn('[media-workflow] render package persistence unavailable', e);
-    }
-  };
-
-  // «סמן כמוכן להדמיה» from inside the RenderPromptPanel — reuses the
-  // EXISTING onUpdateState callback (same call markSent makes above).
-  const markReadyFromRender = (proj) => {
-    if (onUpdateState) {
-      onUpdateState(proj, { mediaStatus: 'promptReady' });
-    }
-  };
 
   return (
     <>
@@ -210,12 +183,13 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
             </div>
             <button
               type="button"
-              onClick={() => setRenderPanelOpen(true)}
+              onClick={() => setRenderStudioOpen(true)}
               style={styles.prepareBtn}
             >
               {MEDIA_WORKFLOW_HE.prepareRender}
             </button>
           </section>
+
 
           {/* Media status */}
           <section style={styles.section}>
@@ -425,16 +399,10 @@ export default function MediaWorkflowPanel({ project, pack, onClose, onUpdateSta
         </div>
         </div>
       </div>
-      {/* Clean 8I — RenderPromptPanel overlay, rendered as a SIBLING of the
-          Media Workflow backdrop (not a DOM descendant) so a click on its
-          own backdrop only closes the render panel, never both. */}
-      {renderPanelOpen ? (
-        <RenderPromptPanel
-          project={project}
-          onClose={() => setRenderPanelOpen(false)}
-          onMarkReady={markReadyFromRender}
-          onPersistPackage={persistRenderPackage}
-        />
+      {/* Clean 8J — the single Render Studio overlay, rendered as a sibling
+          of the Media Workflow backdrop so closing it keeps the media panel open. */}
+      {renderStudioOpen ? (
+        <RenderStudioPanel project={project} onClose={() => setRenderStudioOpen(false)} />
       ) : null}
     </>
   );
