@@ -19,6 +19,15 @@ export const NAV_GROUPS = [
 // Simple, dependency-free glyph marks (no icon package added).
 export const NAV_ITEMS = [
   {
+    id: 'newCreation',
+    labelHe: 'יצירה חדשה',
+    group: 'create',
+    glyph: '✧',
+    built: true,
+    primary: true,
+    descHe: 'להתחיל יצירה חדשה בליווי הסטודיו.',
+  },
+  {
     id: 'dashboard',
     labelHe: UI_HE.nav.dashboard,
     group: 'create',
@@ -32,6 +41,7 @@ export const NAV_ITEMS = [
     group: 'create',
     glyph: '❖',
     built: true,
+    primary: true,
     descHe: 'ניהול אבנים, פרסלים, חלקים ותכשיטים כמרחב יצירה.',
   },
   {
@@ -52,11 +62,12 @@ export const NAV_ITEMS = [
   },
   {
     id: 'projects',
-    labelHe: 'תיקי יצירה',
+    labelHe: 'היצירות שלי',
     group: 'create',
     glyph: '❒',
     built: true,
-    descHe: 'תיקי עיצוב שמורים — פתיחה, שכפול וניהול.',
+    primary: true,
+    descHe: 'כל היצירות השמורות שלך.',
   },
   {
     id: 'assets',

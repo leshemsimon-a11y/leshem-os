@@ -46,7 +46,8 @@ export default function StudioShell({
 
   // Sections that have a dedicated /studio sub-page route.
   const SECTION_ROUTES = {
-    dashboard: '/studio',
+    newCreation: '/studio',
+    dashboard: '/studio/dashboard-legacy',
     inventory: '/studio/inventory',
     workTray: '/studio/tray',
     builder: '/studio/design',

@@ -18,9 +18,13 @@ function SendIcon({ size = 16 }) {
   );
 }
 
-export default function SmartCommandBar({ onSubmitCommand }) {
+export default function SmartCommandBar({ onSubmitCommand, placeholder }) {
   const [text, setText] = React.useState('');
   const [response, setResponse] = React.useState(null);
+  const effectivePlaceholder =
+    typeof placeholder === 'string' && placeholder.trim()
+      ? placeholder
+      : SMART_COMMAND_HE.label;
 
   const submit = () => {
     const value = text.trim();
@@ -43,9 +47,9 @@ export default function SmartCommandBar({ onSubmitCommand }) {
               submit();
             }
           }}
-          placeholder={SMART_COMMAND_HE.label}
+          placeholder={effectivePlaceholder}
           style={styles.input}
-          aria-label={SMART_COMMAND_HE.label}
+          aria-label={effectivePlaceholder}
         />
         <button
           type="button"

@@ -26,14 +26,23 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
   const isMobile = variant === 'mobile';
   const tray = useWorkTray();
   const trayCount = tray.hydrated ? tray.count : 0;
-  // Patch C — future tools stay reachable but folded away; closed by default.
-  const [futureOpen, setFutureOpen] = React.useState(false);
+  // Clean 8K-R2 — secondary/professional tools stay reachable but folded
+  // away; closed by default. (Renamed from "future tools": this group now
+  // also holds fully BUILT, working destinations that are simply no longer
+  // part of the reduced primary navigation — see navConfig.js's `primary`
+  // flag. Nothing here was deleted or made unreachable.)
+  const [secondaryOpen, setSecondaryOpen] = React.useState(false);
 
-  const builtItems = NAV_ITEMS.filter((item) => item.built);
-  const futureItems = NAV_ITEMS.filter((item) => !item.built);
+  const primaryItems = NAV_ITEMS.filter((item) => item.primary);
+  const secondaryItems = NAV_ITEMS.filter((item) => !item.primary);
 
-  const renderItem = (item, future) => {
+  const renderItem = (item, { quiet = false } = {}) => {
     const isActive = item.id === active;
+    // The "בקרוב" badge is about BUILD STATUS only, never about primary vs
+    // secondary placement — a built-but-secondary item (e.g. the legacy
+    // dashboard) must never look unbuilt.
+    const showFutureBadge = !item.built;
+    const quietStyle = quiet || !item.built;
     return (
       <button
         key={item.id}
@@ -42,18 +51,18 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
         aria-current={isActive ? 'page' : undefined}
         style={{
           ...styles.item,
-          ...(future ? styles.itemFuture : null),
+          ...(quietStyle ? styles.itemFuture : null),
           ...(isActive ? styles.itemActive : null),
         }}
       >
-        <span style={{ ...styles.itemGlyph, ...(future ? styles.itemGlyphFuture : null) }} aria-hidden="true">
+        <span style={{ ...styles.itemGlyph, ...(quietStyle ? styles.itemGlyphFuture : null) }} aria-hidden="true">
           {item.glyph}
         </span>
         <span style={styles.itemLabel}>{item.labelHe}</span>
         {item.id === 'workTray' && trayCount > 0 && (
           <span style={styles.itemCount}>{trayCount}</span>
         )}
-        {future && <span style={styles.itemBadge}>{UI_HE.futureBadge}</span>}
+        {showFutureBadge && <span style={styles.itemBadge}>{UI_HE.futureBadge}</span>}
         {isActive && <span style={styles.activeBar} aria-hidden="true" />}
       </button>
     );
@@ -75,24 +84,24 @@ export default function NavRail({ active, onSelect, variant = 'desktop' }) {
 
       <div style={styles.groups}>
         <div style={styles.group}>
-          {builtItems.map((item) => renderItem(item, false))}
+          {primaryItems.map((item) => renderItem(item, { quiet: false }))}
         </div>
 
-        {futureItems.length > 0 && (
+        {secondaryItems.length > 0 && (
           <div style={styles.group}>
             <button
               type="button"
-              onClick={() => setFutureOpen((v) => !v)}
-              aria-expanded={futureOpen}
-              title={UI_HE.navFutureToolsHint}
+              onClick={() => setSecondaryOpen((v) => !v)}
+              aria-expanded={secondaryOpen}
+              title="מסכים מקצועיים נוספים"
               style={styles.futureToggle}
             >
-              <span style={styles.futureToggleLabel}>{UI_HE.navFutureTools}</span>
+              <span style={styles.futureToggleLabel}>כלים נוספים</span>
               <span style={styles.futureToggleChevron} aria-hidden="true">
-                {futureOpen ? '▾' : '◂'}
+                {secondaryOpen ? '▾' : '◂'}
               </span>
             </button>
-            {futureOpen && futureItems.map((item) => renderItem(item, true))}
+            {secondaryOpen && secondaryItems.map((item) => renderItem(item, { quiet: true }))}
           </div>
         )}
       </div>
