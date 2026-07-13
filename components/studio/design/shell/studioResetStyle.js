@@ -47,4 +47,24 @@ export const reset = {
     display: '"DM Sans", "Helvetica Neue", Arial, sans-serif',
     body: '"DM Sans", "Helvetica Neue", Arial, sans-serif',
   },
+  // Clean 8K-R3 — Atelier Experience System (section 1: "consistent icon
+  // size", "consistent spacing", "short, subtle transitions"). Purely
+  // ADDITIVE — every value above is unchanged, so every existing consumer
+  // of `reset` renders exactly as it did before this milestone.
+  icon: {
+    sm: '14px',
+    md: '18px',
+    lg: '22px',
+  },
+  space: {
+    xs: '4px',
+    sm: '8px',
+    md: '12px',
+    lg: '16px',
+    xl: '24px',
+  },
+  transition: {
+    fast: '120ms ease',
+    base: '180ms ease',
+  },
 };

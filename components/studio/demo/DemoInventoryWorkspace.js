@@ -47,6 +47,18 @@ import {
 
 const useWorkTray = createUseWorkTray(React);
 
+// Clean 8K-R3 — bottom selection bar copy (section 5). Local literals,
+// following this codebase's established pattern (e.g. Clean 8K's
+// StudioCommandBar.js) of keeping small, surface-specific strings local
+// rather than expanding the widely-shared lib/studio/labels.js, which is
+// read by ~60 files including the off-limits /studio/workstation route.
+const INV_SELECTION_HE = Object.freeze({
+  oneSelected: 'נבחרה אבן אחת',
+  manySelected: (n) => `נבחרו ${n} אבנים`,
+  createWithOne: 'צור איתה',
+  createWithMany: 'צור עם האבנים שנבחרו',
+});
+
 const SOURCE_OPTIONS = [
   { value: 'owned', label: 'מלאי שלנו' },
   { value: 'supplier', label: 'ספק' },
@@ -177,17 +189,24 @@ function Chip({ active, onClick, children }) {
 
 // Compact, image-first catalog card. Short title, ONE metadata line, small
 // source/status chips, icon actions. Details live in the drawer, never here.
+// Clean 8K-R3 — Atelier Experience System (section 5: Inventory Visual
+// Reduction). Always visible now: image, name, stone type + weight, and
+// ONE status pill. Inspect / tray-toggle / design actions moved into a
+// hover/focus-revealed control row (real CSS via the scoped <style jsx>
+// block below — not display:none, so the controls stay reachable and
+// focusable by keyboard at all times; only their VISUAL prominence is
+// deferred until hover/focus, per section 8's "no important action
+// available only on hover"). inventoryNo/price kept as a light
+// informational line — not controls, so they don't count against the
+// "always visible" reduction.
 function CatalogCard({ item, active, inTray, onInspect, onToggleTray, onDesign }) {
-  const meta = [
-    item.shapeHe,
-    item.estimatedCarat != null ? `${item.estimatedCarat}ct` : null,
-    item.color,
-  ]
+  const meta = [item.shapeHe, item.estimatedCarat != null ? `${item.estimatedCarat}ct` : null]
     .filter(Boolean)
     .join(' · ');
 
   return (
     <article
+      className="inv-card"
       style={{
         ...styles.card,
         ...(inTray ? styles.cardInTray : null),
@@ -218,10 +237,11 @@ function CatalogCard({ item, active, inTray, onInspect, onToggleTray, onDesign }
         <h3 style={styles.cardTitle}>{item.titleHe}</h3>
         <p style={styles.cardSub}>{meta || '\u00A0'}</p>
         <div style={styles.pills}>
-          <span style={styles.pill}>{getSourceLabelHe(item.sourceType)}</span>
           <span style={styles.pill}>{getStatusLabelHe(item.status)}</span>
         </div>
-        <div style={styles.cardActions}>
+        {/* Hover/focus-revealed action row — see .inv-card-actions rule in
+            the scoped <style jsx> block in the default export below. */}
+        <div className="inv-card-actions" style={styles.cardActions}>
           <button
             type="button"
             style={styles.iconBtn}
@@ -494,6 +514,24 @@ export default function DemoInventoryWorkspace() {
         )}
       </section>
 
+      {/* Clean 8K-R3 — persistent bottom selection bar (section 5): a
+          quiet visual surfacing of the EXISTING Work Tray membership, not
+          a new selection concept. "בחר אבן/אבנים" already happens via the
+          existing tray-toggle action on each card; this bar just makes the
+          resulting count and the one obvious next action visible without
+          requiring a separate Work Tray navigation step. Primary action
+          reuses the EXISTING goDesign() navigation, unchanged. */}
+      {trayIds.size > 0 ? (
+        <div style={styles.selectionBar} dir="rtl" role="status">
+          <span style={styles.selectionText}>
+            {trayIds.size === 1 ? INV_SELECTION_HE.oneSelected : INV_SELECTION_HE.manySelected(trayIds.size)}
+          </span>
+          <button type="button" style={styles.selectionPrimaryBtn} onClick={goDesign}>
+            {trayIds.size === 1 ? INV_SELECTION_HE.createWithOne : INV_SELECTION_HE.createWithMany}
+          </button>
+        </div>
+      ) : null}
+
       {/* Details / edit DRAWER — side panel on desktop, bottom sheet on
           mobile. Holds the existing edit fields (same updateActive wiring),
           never inflating the cards. */}
@@ -604,6 +642,30 @@ export default function DemoInventoryWorkspace() {
       {status !== 'ready' && (
         <div style={styles.toast} role="status">{status}</div>
       )}
+
+      {/* Clean 8K-R3 — hover/focus-reveal for the per-card action row
+          (section 5). Real CSS via Next's built-in styled-jsx (already
+          used elsewhere in this codebase, e.g. components/studio/shell/
+          StudioShell.js's <style jsx global>) since inline style objects
+          can't express :hover. The controls stay in the DOM and in the
+          keyboard tab order at all times — only their VISUAL prominence
+          changes — so :focus-within also reveals them, satisfying section
+          8's "no important action available only on hover". */}
+      <style jsx global>{`
+        .inv-card-actions {
+          opacity: 0;
+          transition: opacity 150ms ease;
+        }
+        .inv-card:hover .inv-card-actions,
+        .inv-card:focus-within .inv-card-actions {
+          opacity: 1;
+        }
+        @media (hover: none) {
+          .inv-card-actions {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </main>
   );
 }
@@ -739,6 +801,42 @@ const styles = {
     borderRadius: tokens.radius.sm, cursor: 'pointer',
   },
   iconBtnOn: { background: tokens.color.sage, color: tokens.color.ivory, borderColor: tokens.color.sage },
+
+  // Clean 8K-R3 — persistent bottom selection bar (section 5).
+  selectionBar: {
+    position: 'sticky',
+    bottom: 0,
+    zIndex: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '12px 16px',
+    marginTop: '4px',
+    background: tokens.color.canvas,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    borderRadius: tokens.radius.md,
+    boxShadow: tokens.shadow.lift,
+  },
+  selectionText: {
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 700,
+    color: tokens.color.charcoal,
+  },
+  selectionPrimaryBtn: {
+    minHeight: '38px',
+    padding: '9px 20px',
+    borderRadius: '999px',
+    border: 'none',
+    background: tokens.color.charcoal,
+    color: tokens.color.ivory,
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
 
   // Drawer — desktop side panel / mobile bottom sheet.
   drawerOverlay: { position: 'fixed', inset: 0, zIndex: 55, display: 'flex', justifyContent: 'flex-start' },

@@ -171,6 +171,21 @@ function ProjectsContent() {
     updateProject(project.id, { name: newName.trim() });
   };
 
+  // Clean 8K-R3 — Atelier Experience System (section 6: Creations Gallery
+  // compact options menu). Both call the EXISTING public
+  // projectsStore.duplicate / .archive hook methods (already exposed by
+  // lib/studio/designProjects.js's createUseDesignProjects — just not
+  // wired into any screen before now). No new persistence, no new store.
+  const handleDuplicate = (project) => {
+    if (!project || !project.id) return;
+    projectsStore.duplicate(project.id);
+  };
+
+  const handleArchive = (project) => {
+    if (!project || !project.id) return;
+    projectsStore.archive(project.id);
+  };
+
   return (
     <>
       {/* Clean 8F — fallback notice when ?focus=media arrives without a
@@ -188,6 +203,8 @@ function ProjectsContent() {
           onOpenPack={openPack}
           onRename={handleRename}
           onOpenMedia={openMedia}
+          onDuplicate={handleDuplicate}
+          onArchive={handleArchive}
         />
       ) : null}
       <DesignProjectsLibrary />

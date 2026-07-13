@@ -1,22 +1,28 @@
 // components/studio/welcome/CreationWorkspace.js
 //
-// LESHEM.S OS — Clean 8K-R2: Welcome Studio + One Flow Experience.
+// LESHEM.S OS — Clean 8K-R3: Atelier Experience System (visual redesign of
+// the Clean 8K-R2 single creation workspace).
 //
-// The single creation workspace (section 7): top bar (creation name / short
-// state / "נשמר אוטומטית"), center content (ONLY the current stage's
-// content — understanding, directions, selected direction, render
-// preparation, results), and a persistent bottom Smart Command field. ONE
-// dominant primary action per stage (section 8); everything else lives
-// under "אפשרויות נוספות".
+// Exactly four visible layers (section 3), never more:
+//   A. Compact top context bar — creation name / short state / "נשמר
+//      אוטומטית" / a compact options control.
+//   B. Large central canvas — the current stage's content only.
+//   C. One-line professional recommendation — ALWAYS shown when available,
+//      across every stage (not a multi-section advisor panel — that would
+//      violate QA item 10's "without a large advisor panel"; the Clean 8K
+//      AdvisorPanel component itself is untouched and still used elsewhere,
+//      this file just stopped rendering it here).
+//   D. Persistent Smart Command at the bottom.
 //
-// Reuses the EXISTING protected panels directly for the parts that already
-// work — DesignConceptPanel (directions) and DesignOutputPanel (output) —
-// exactly the way components/studio/design/shell/StudioShell.js already
-// does. Reuses the Clean 8K AdvisorPanel and SmartCommandBar as-is. This
-// file adds NO new business logic for directions/output generation; it only
+// No permanent left/right detail panels ever render here (there were none
+// to remove — this file never had them). Reuses the EXISTING protected
+// panels directly for the parts that already work — DesignConceptPanel
+// (directions) and DesignOutputPanel (output) — exactly the way
+// components/studio/design/shell/StudioShell.js already does. This file
+// adds NO new business logic for directions/output generation; it only
 // arranges which existing piece is visible for the current stage and wires
-// the small set of path-specific intake actions (Clean 8K-R2 section 3-6)
-// to callbacks owned by the caller (WelcomeCreationFlow.js).
+// the small set of path-specific intake actions to callbacks owned by the
+// caller (WelcomeCreationFlow.js).
 
 import * as React from 'react';
 import { reset } from '../design/shell/studioResetStyle';
@@ -85,16 +91,16 @@ export default function CreationWorkspace({
           <div style={styles.block}>
             <p style={styles.line}>{STONE_FIRST_HE.afterStone}</p>
             <div style={styles.choiceRow}>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseProductOffer('ring')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseProductOffer('ring')}>
                 {STONE_FIRST_HE.offerRing}
               </button>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseProductOffer('pendant')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseProductOffer('pendant')}>
                 {STONE_FIRST_HE.offerPendant}
               </button>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseProductOffer('earrings')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseProductOffer('earrings')}>
                 {STONE_FIRST_HE.offerEarrings}
               </button>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseProductOffer(null)}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseProductOffer(null)}>
                 {STONE_FIRST_HE.offerLetSystemSuggest}
               </button>
             </div>
@@ -105,10 +111,10 @@ export default function CreationWorkspace({
         <div style={styles.block}>
           <p style={styles.line}>{STONE_FIRST_HE.chooseStone}</p>
           <div style={styles.choiceRow}>
-            <button type="button" style={styles.primaryChoiceBtn} onClick={onOpenStonePicker}>
+            <button type="button" className="cw-primary-choice-btn" style={styles.primaryChoiceBtn} onClick={onOpenStonePicker}>
               בחר מהמלאי
             </button>
-            <button type="button" style={styles.choiceBtn} onClick={onOpenUpload}>
+            <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={onOpenUpload}>
               הוסף תמונה
             </button>
           </div>
@@ -134,13 +140,14 @@ export default function CreationWorkspace({
               placeholder={IDEA_FIRST_HE.prompt}
               style={styles.textInput}
             />
-            <button type="button" style={styles.choiceBtn} onClick={onOpenUpload}>
+            <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={onOpenUpload}>
               צרף קובץ
             </button>
           </div>
           <div style={styles.choiceRow}>
             <button
               type="button"
+              className="cw-choice-btn"
               style={styles.choiceBtn}
               onClick={() => {
                 const value = ideaText.trim();
@@ -150,7 +157,7 @@ export default function CreationWorkspace({
             >
               {IDEA_FIRST_HE.matchStones}
             </button>
-            <button type="button" style={styles.primaryChoiceBtn} onClick={submitIdea}>
+            <button type="button" className="cw-primary-choice-btn" style={styles.primaryChoiceBtn} onClick={submitIdea}>
               {IDEA_FIRST_HE.continueAsConcept}
             </button>
           </div>
@@ -165,20 +172,20 @@ export default function CreationWorkspace({
             <p style={styles.line}>{buildCollectionSummaryHe(trayItems)}</p>
             <p style={styles.line}>{COLLECTION_HE.characterPrompt}</p>
             <div style={styles.choiceRow}>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('commercial')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('commercial')}>
                 {COLLECTION_HE.characterCommercial}
               </button>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('luxury')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('luxury')}>
                 {COLLECTION_HE.characterLuxury}
               </button>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('capsule')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('capsule')}>
                 {COLLECTION_HE.characterCapsule}
               </button>
-              <button type="button" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('signature')}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseCollectionCharacter('signature')}>
                 {COLLECTION_HE.characterSignature}
               </button>
             </div>
-            <button type="button" style={styles.primaryChoiceBtn} onClick={onPrimaryAction}>
+            <button type="button" className="cw-primary-choice-btn" style={styles.primaryChoiceBtn} onClick={onPrimaryAction}>
               {COLLECTION_HE.startDeveloping}
             </button>
           </div>
@@ -187,7 +194,7 @@ export default function CreationWorkspace({
       return (
         <div style={styles.block}>
           <p style={styles.line}>{COLLECTION_HE.chooseStones}</p>
-          <button type="button" style={styles.primaryChoiceBtn} onClick={onOpenStonePicker}>
+          <button type="button" className="cw-primary-choice-btn" style={styles.primaryChoiceBtn} onClick={onOpenStonePicker}>
             בחר אבנים מהמלאי
           </button>
         </div>
@@ -198,27 +205,27 @@ export default function CreationWorkspace({
       return (
         <div style={styles.block}>
           <div style={styles.choiceRow}>
-            <button type="button" style={styles.primaryChoiceBtn} onClick={onOpenUpload}>
+            <button type="button" className="cw-primary-choice-btn" style={styles.primaryChoiceBtn} onClick={onOpenUpload}>
               העלה תמונה / סקיצה / מודל
             </button>
             {resumableProjectName ? (
-              <button type="button" style={styles.choiceBtn} onClick={onResumeProject}>
+              <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={onResumeProject}>
                 המשך את {resumableProjectName}
               </button>
             ) : null}
           </div>
           <p style={styles.line}>{EXISTING_HE.whatToDo}</p>
           <div style={styles.choiceRow}>
-            <button type="button" style={styles.choiceBtn} onClick={() => onChooseExistingAction('change')}>
+            <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseExistingAction('change')}>
               {EXISTING_HE.changeDesign}
             </button>
-            <button type="button" style={styles.choiceBtn} onClick={() => onChooseExistingAction('variation')}>
+            <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseExistingAction('variation')}>
               {EXISTING_HE.developVariation}
             </button>
-            <button type="button" style={styles.choiceBtn} onClick={() => onChooseExistingAction('presentation')}>
+            <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseExistingAction('presentation')}>
               {EXISTING_HE.prepareForPresentation}
             </button>
-            <button type="button" style={styles.choiceBtn} onClick={() => onChooseExistingAction('continue')}>
+            <button type="button" className="cw-choice-btn" style={styles.choiceBtn} onClick={() => onChooseExistingAction('continue')}>
               {EXISTING_HE.continueExisting}
             </button>
           </div>
@@ -239,9 +246,6 @@ export default function CreationWorkspace({
             <p style={styles.understandingLine}>
               {buildWelcomeUnderstandingHe({ trayItems, brief })}
             </p>
-            {advisorInsight && advisorInsight.recommendationHe ? (
-              <p style={styles.advisorLine}>{advisorInsight.recommendationHe}</p>
-            ) : null}
           </div>
         );
       case WORKSPACE_STAGE.DIRECTIONS:
@@ -271,22 +275,30 @@ export default function CreationWorkspace({
   // be redundant and could read as non-functional.
   const showExternalActions = stage === WORKSPACE_STAGE.UNDERSTANDING;
 
+  // Layer C — ONE short professional recommendation line, always shown
+  // (any stage) when available. Deliberately just the single
+  // `recommendationHe` sentence, never the full multi-section Advisor
+  // Panel (QA item 10: "without a large advisor panel").
+  const recommendationLine = advisorInsight ? advisorInsight.recommendationHe : null;
+
   return (
     <div style={styles.wrap} dir="rtl">
       <div style={styles.topBar}>
         <span style={styles.creationName}>{creationName || WORKSPACE_HE.untitled}</span>
         <span style={styles.stateLabel}>{stateLabel}</span>
         {isSaved ? <span style={styles.autoSaved}>{WORKSPACE_HE.autoSaved}</span> : null}
-        <button type="button" onClick={onOpenMore} style={styles.moreLink}>
+        <button type="button" onClick={onOpenMore} className="cw-more-link" style={styles.moreLink}>
           {WORKSPACE_HE.moreOptions}
         </button>
       </div>
 
       <div style={styles.center}>{renderCenter()}</div>
 
+      {recommendationLine ? <p style={styles.recommendationLine}>{recommendationLine}</p> : null}
+
       {showExternalActions ? (
         <div style={styles.actionsRow}>
-          <button type="button" onClick={onPrimaryAction} style={styles.primaryBtn}>
+          <button type="button" onClick={onPrimaryAction} className="cw-primary-btn" style={styles.primaryBtn}>
             {primaryLabel}
           </button>
         </div>
@@ -295,6 +307,41 @@ export default function CreationWorkspace({
       <div style={styles.bottomBar}>
         <SmartCommandBar onSubmitCommand={onSubmitCommand} placeholder={WORKSPACE_HE.commandPlaceholder} />
       </div>
+
+      {/* Real CSS hover/focus-visible states — see WelcomeStudio.js for
+          why a scoped styled-jsx block is used instead of inline styles. */}
+      <style jsx>{`
+        .cw-more-link,
+        .cw-primary-btn,
+        :global(.cw-choice-btn),
+        :global(.cw-primary-choice-btn) {
+          transition: background ${reset.transition.fast}, border-color ${reset.transition.fast},
+            opacity ${reset.transition.fast};
+        }
+        .cw-more-link:hover,
+        .cw-more-link:focus-visible {
+          border-color: ${reset.color.borderStrong};
+          color: ${reset.color.text};
+        }
+        .cw-primary-btn:hover,
+        .cw-primary-btn:focus-visible,
+        :global(.cw-primary-choice-btn:hover),
+        :global(.cw-primary-choice-btn:focus-visible) {
+          opacity: 0.88;
+        }
+        :global(.cw-choice-btn:hover),
+        :global(.cw-choice-btn:focus-visible) {
+          border-color: ${reset.color.borderStrong};
+          background: ${reset.color.page};
+        }
+        .cw-more-link:focus-visible,
+        .cw-primary-btn:focus-visible,
+        :global(.cw-choice-btn:focus-visible),
+        :global(.cw-primary-choice-btn:focus-visible) {
+          outline: 2px solid ${reset.color.accent};
+          outline-offset: 2px;
+        }
+      `}</style>
     </div>
   );
 }
@@ -358,6 +405,24 @@ const styles = {
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
+    // Clean 8K-R3 — generous inner breathing room so the canvas reads as
+    // the visually dominant layer (section 3.B), not a cramped strip
+    // between the top bar and the recommendation line.
+    padding: `${reset.space.md} 0`,
+  },
+  // Layer C — one-line professional recommendation (section 3.C). Always
+  // shown across every stage when available; deliberately just one line,
+  // never a boxed panel, so it reads as a quiet aside rather than a
+  // competing focal point.
+  recommendationLine: {
+    margin: 0,
+    flexShrink: 0,
+    fontFamily: reset.font.body,
+    fontSize: '12.5px',
+    fontWeight: 600,
+    color: reset.color.textMuted,
+    paddingInlineStart: reset.space.sm,
+    borderInlineStart: `2px solid ${reset.color.accent}`,
   },
   panelWrap: {
     display: 'flex',
@@ -383,13 +448,6 @@ const styles = {
     fontSize: '15px',
     fontWeight: 600,
     color: reset.color.text,
-  },
-  advisorLine: {
-    margin: 0,
-    fontFamily: reset.font.body,
-    fontSize: '13px',
-    color: reset.color.textMuted,
-    lineHeight: 1.5,
   },
   autoLine: {
     margin: 0,
