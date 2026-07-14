@@ -325,16 +325,6 @@ export default function WelcomeCreationFlow() {
   };
 
   const onChoosePath = (path) => {
-    // Clean 8K-R4 QA — the one proven Golden Path is stone-first. Keep the
-    // other Welcome paths intact for now, but route "יש לי אבן" into the
-    // canonical /studio/create flow instead of the older workspace.
-    if (path === ENTRY_PATH.STONE) {
-      tray.clear();
-      briefStore.clear();
-      clearActiveWork();
-      router.push('/studio/create');
-      return;
-    }
     beginFreshCreation(path);
   };
 
