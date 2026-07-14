@@ -2,30 +2,20 @@
 //
 // LESHEM.S OS — Clean 8A: Create Flow MVP (/studio/create).
 //
-// A guided, mobile-friendly creation flow: what are we creating → style →
-// Work Tray stones → references (text) → free request → 3 local design
-// directions → save as a Work File (existing public designProjects API) +
-// local Output Pack. Mounts the EXISTING app shell like every other studio
-// page — /studio/design and /studio/workstation are untouched. No new
-// packages, APIs, render engine, external AI, or persistence keys.
+// Clean 8K-R4 QA — focused Golden Path route. Keeps the global StudioShell
+// navigation, but hides duplicate Active Session / Work Tray chrome and does
+// not mount the legacy attached-assets strip beneath the guided flow. The
+// flow itself owns the current context and one action per stage.
 
 import StudioShell from '../../components/studio/shell/StudioShell';
 import CreateFlowShell from '../../components/studio/create/CreateFlowShell';
-// Clean 8G — «רפרנסים ונכסים»: read-only strip of the ACTIVE Work File's
-// attached assets + «פתח ספריית נכסים». Mounted BELOW the existing flow —
-// CreateFlowShell itself is untouched.
-import ProjectAssetsStrip from '../../components/studio/projects/ProjectAssetsStrip';
 
 export default function StudioCreatePage() {
   return (
     <StudioShell
-      initialSection="builder"
-      renderContent={() => (
-        <>
-          <CreateFlowShell />
-          <ProjectAssetsStrip />
-        </>
-      )}
+      initialSection="newCreation"
+      hideContextBars
+      renderContent={() => <CreateFlowShell />}
     />
   );
 }

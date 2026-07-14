@@ -407,7 +407,9 @@ export default function DemoInventoryWorkspace() {
     setDrawerOpen(true);
   };
 
-  const goDesign = () => router.push('/studio/design');
+  // Clean 8K-R4 QA — the visible "צור איתה" action must return to the
+  // canonical Golden Path, not bypass it into the legacy Design Studio.
+  const goDesign = () => router.push('/studio/create');
   const goTray = () => router.push('/studio/tray');
 
   const advancedFiltersActive = sourceFilter !== 'all' || statusFilter !== 'all';

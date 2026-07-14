@@ -1,398 +1,415 @@
 // components/studio/create/CreateFlowShell.js
 //
-// LESHEM.S OS — Clean 8H: Guided Create Path + Instant Feedback.
+// LESHEM.S OS — Clean 8K-R4: Golden Path Reset.
 //
-// /studio/create is the MAIN guided creation path — eight visible steps, one
-// primary action per step, instant feedback after every input:
-//   1. הגדרת תיק העבודה (name · type · style · free request + live summary)
-//   2. אבנים ופריטי עבודה (real Work Tray; continue-without allowed)
-//   3. רפרנסים ונכסים (paste text/URL/image, drag, upload — CreateIntakeArea)
-//   4. סיכום מוכן ליצירה («מה המערכת תשתמש בו» + gentle missing-warnings)
-//   5. יצירת כיוונים (3 local structured directions — existing generator)
-//   6. בחירת כיוון («נבחר כיוון: …» → הפעולה המומלצת: שמירה)
-//   7. שמירת תיק עבודה (existing public designProjects API + intake persist)
-//   8. הצלחה ופלט (next actions + output preview)
+// /studio/create is the ONE canonical guided creation path. This milestone
+// REPLACES the prior 8-step flow (Clean 8H) with a single reliable scenario:
 //
-// PERSISTENCE (save time only; session until then — nothing silently lost):
-//   • Work File — projectsStore.save (existing public API) + setActiveWorkId.
-//   • Text/URL references — the brief's EXISTING `intention` free-text field.
-//   • File/image intake — EXISTING PUBLIC assetsStore.createObjectWithFiles
-//     (the Quick Create path) + linkObjectToProject, then attached to the
-//     project as Clean 8C records via the EXISTING public updateProject.
-// No new persistence keys, no store internals, no packages, no APIs.
+//   select stone -> write free-text request -> "מה הבנתי" understanding gate
+//   (confirm or edit) -> exactly 3 product-type-enforced directions -> select
+//   -> refine with free text -> "הכן להצגה" presentation -> "שמור ביצירה"
+//
+// Every stage exposes חזרה, a "שנה בקשה" shortcut back to the request text
+// (once there is a request to change), and a compact options menu (שמור
+// וצא / התחל מחדש / בטל יצירה). No stage is one-way. The Work Tray, Output
+// Pack, Render Plan, and Media Workflow are NOT surfaced anywhere in this
+// component — they remain reachable elsewhere as advanced tools, untouched.
+//
+// PERSISTENCE — existing public APIs only, no new key, no schema change:
+//   • "שמור וצא" / "שמור ביצירה" both call the SAME commitProgress(), which
+//     creates the Work File via the EXISTING projectsStore.save() the FIRST
+//     time, then EXISTING updateProject(id, patch) on every save after that
+//     (tracked locally by `projectId`, mirroring how the app already tracks
+//     activeWorkId elsewhere) — never a duplicate project per save.
+//   • Refinement text is stored in each concept's EXISTING conceptNotes
+//     field (already a free-text field on every concept/direction) — not a
+//     new field.
+//   • Metal preference is stored in the brief's EXISTING metalPreference
+//     field (already valid on designDraft.js's brief schema; Create Flow
+//     simply never populated it before).
+//   • RESUMING an in-progress creation (getActiveWorkId -> getProject) is
+//     gated on lib/studio/goldenPath.js's isCreateFlowProject() marker check
+//     so this never hijacks a project that belongs to the OTHER (/studio/
+//     design) flow. The resume STAGE itself is DERIVED from the existing
+//     brief shape (deriveResumeStage) — it is never itself stored. Known,
+//     accepted gap: if the person closes the tab mid-flow WITHOUT ever
+//     triggering שמור וצא, that in-progress state is not recoverable —
+//     exactly the same "persistence only at an explicit save point" rule
+//     the prior flow already followed; the options menu keeps שמור וצא one
+//     tap away from every stage precisely so this is rarely reached.
+//   • Browser-back safety: each stage push is mirrored into the URL as a
+//     shallow ?stage= query param (first stage via router.replace, every
+//     later one via router.push), so pressing the browser's own back button
+//     moves BETWEEN stages of this same mounted session instead of leaving
+//     the page and losing state. It does not survive a hard refresh or tab
+//     close without an explicit שמור וצא, for the same reason above.
 
 import * as React from 'react';
 import { useRouter } from 'next/router';
 import { tokens } from '../shared/tokens';
 import { CONCEPT_HE } from '../../../lib/studio/labels';
 import { createUseWorkTray } from '../../../lib/studio/workTray';
-import { createUseDesignProjects } from '../../../lib/studio/designProjects';
-import { updateProject } from '../../../lib/studio/designProjects';
-import { setActiveWorkId } from '../../../lib/studio/activeWorkStore';
+import { createUseDesignProjects, updateProject } from '../../../lib/studio/designProjects';
+import { getActiveWorkId, setActiveWorkId, clearActiveWork } from '../../../lib/studio/activeWorkStore';
 import { buildDesignSnapshot, normalizeRole } from '../../../lib/studio/designDraft';
 import {
-  createObjectWithFiles,
-  linkObjectToProject,
-} from '../../../lib/studio/assetsStore';
-import {
-  buildAttachedAssetRecord,
-  upsertAttachedAsset,
-} from '../../../lib/studio/attachedAssets';
-import {
-  CREATE_PRODUCT_OPTIONS,
-  CREATE_STYLE_OPTIONS,
+  productHe,
+  styleHe,
   generateCreateDirections,
   buildCreateBrief,
   buildCreateOutputPack,
-  productHe,
-  styleHe,
 } from '../../../lib/studio/createFlow';
 import {
-  intakeToReferenceText,
-  intakeSummaryHe,
-  intakeCounts,
-  intakeObjectInput,
-  intakeFileRow,
-  isFileKindIntake,
-} from '../../../lib/studio/createIntake';
-import CreateIntakeArea from './CreateIntakeArea';
+  GOLDEN_STAGE,
+  GOLDEN_STAGE_ORDER,
+  previousStage,
+  parseRequestHe,
+  buildRequestUnderstandingHe,
+  enforceDirectionsProductType,
+  expectedProductTypeFor,
+  deriveResumeStage,
+  isCreateFlowProject,
+} from '../../../lib/studio/goldenPath';
 
 const useWorkTray = createUseWorkTray(React);
 const useDesignProjects = createUseDesignProjects(React);
 
-export const CREATE_HE = Object.freeze({
+export const GOLDEN_HE = Object.freeze({
   title: 'יצירת תכשיט',
   stepOf: (i, n) => `שלב ${i} מתוך ${n}`,
   back: 'חזרה',
   next: 'המשך',
-  // Step 1 — define the Work File.
-  step1: 'הגדרת תיק העבודה',
-  nameLabel: 'שם תיק העבודה',
-  namePlaceholder: 'לדוגמה: טבעת קלאסטר אמרלד ללקוחה',
-  nameHelper: 'אפשר להשאיר ריק — ניצור שם חכם לפי הבחירות.',
-  typeLabel: 'סוג התכשיט',
-  styleLabel: 'סגנון',
-  requestLabel: 'מה חשוב לך בעיצוב? (בקשה חופשית)',
-  requestPlaceholder:
-    'לדוגמה: טבעת קלאסטר מודרנית עם האבן המרכזית, שיבוץ נמוך, מראה יוקרתי ועדין.',
-  liveSummary: (typeHe, sHe) =>
-    sHe ? `אנחנו יוצרים: ${typeHe} בסגנון ${sHe}` : `אנחנו יוצרים: ${typeHe}`,
-  step1Hint: 'בחר סוג וסגנון כדי להמשיך.',
-  savedAsPrefix: 'נשמר בשם',
-  // Step 2 — stones.
-  step2: 'אבנים ופריטי עבודה',
-  stonesCount: (n) => (n === 1 ? 'נבחרה אבן אחת לעבודה' : `נבחרו ${n} אבנים לעבודה`),
-  stonesEmpty: 'אפשר להמשיך בלי אבנים, או לחזור למלאי כדי לבחור אבנים.',
-  continueNoStones: 'המשך בלי אבנים',
-  openInventory: 'פתח מלאי',
-  // Step 3 — references / assets.
-  step3: 'רפרנסים ונכסים',
-  // Step 4 — ready-to-generate preview.
-  step4: 'סיכום מוכן ליצירה',
-  previewTitle: 'מה המערכת תשתמש בו:',
-  previewName: 'שם התיק',
-  previewType: 'סוג תכשיט',
-  previewStyle: 'סגנון',
-  previewStones: 'אבנים',
-  previewRefs: 'רפרנסים ונכסים',
-  previewRequest: 'בקשה חופשית',
-  notChosen: 'טרם נבחר',
-  autoName: 'ייווצר שם אוטומטי',
-  noRequest: 'ללא בקשה חופשית',
-  warnNoStones: 'לא נבחרו אבנים — הכיוונים יהיו רעיוניים בלבד.',
-  warnNoRefs: 'ללא רפרנסים ונכסים — אפשר להוסיף בשלב הקודם.',
-  continueToGenerate: 'המשך ליצירת כיוונים',
-  // Step 5 — generate. Clean 8K — "צור" → "הצע" when generating creative
-  // options; primary action reads "הצע כיוונים" (spec exact phrase).
-  step5: 'יצירת כיווני עיצוב',
-  generate: 'הצע כיוונים',
-  regenerate: 'הצע כיוונים מחדש',
-  generateHint: 'ניצור שלושה כיוונים מקומיים לפי כל מה שסיכמנו.',
-  generatedBanner: 'נוצרו 3 כיווני עיצוב. בחר להמשך.',
-  // Step 6 — select. Clean 8K — "בחר" → "בחר להמשך".
-  step6: 'בחירת כיוון',
-  selectedPrefix: 'נבחר כיוון: ',
-  selectHint: 'בחר להמשך.',
-  nextRecommended: 'הפעולה המומלצת הבאה: שמור בתיק היצירה',
-  continueToSave: 'המשך לשמירה',
-  refInfluencePrefix: 'השפעת רפרנסים ומודלים: הכיוון מתחשב ב־',
-  moreOptions: 'אפשרויות נוספות',
-  stoneLayoutLabel: 'שיבוץ',
-  structureLabel: 'מבנה',
-  productionLabel: 'ייצור',
-  promptHintLabel: 'Prompt hint (EN)',
-  // Step 7 — save. Clean 8K — "תיק עבודה" now reads "תיק יצירה".
-  step7: 'שמירת תיק יצירה',
-  saveRecapTitle: 'מה יישמר בתיק:',
-  saveRecapAssets: (n) =>
-    n === 1
-      ? 'קובץ אחד יישמר בספריית הנכסים ויצורף לתיק'
-      : `${n} קבצים יישמרו בספריית הנכסים ויצורפו לתיק`,
-  saveRecapTextRefs: 'רפרנסים טקסטואליים וקישורים יישמרו בתוך התיק',
-  save: 'שמור כתיק יצירה',
-  saving: 'שומר…',
-  saveFailed: 'השמירה נכשלה — נסה שוב.',
-  // Step 8 — success + output preview.
-  step8: 'הצלחה ופלט',
-  saveSuccess: 'התיק נוצר ונשמר בהצלחה.',
-  assetsSaved: (n) =>
-    n === 1
-      ? 'קובץ אחד נשמר בספריית הנכסים וצורף לתיק ✓'
-      : `${n} קבצים נשמרו בספריית הנכסים וצורפו לתיק ✓`,
-  assetsFailed: (names) => `חלק מהקבצים לא נשמרו לספרייה (${names}) — הם נשמרו כטקסט בתוך התיק.`,
-  // Clean 8K — "תיק עבודה" now reads "תיקי יצירה" (destination: /studio/projects).
-  openProjects: 'פתח תיקי יצירה',
-  openStudio: 'פתח בסטודיו',
-  openMedia: 'הכן הדמיה',
-  createAnother: 'צור עוד תכשיט',
-  outputPreviewTitle: 'תצוגת פלט מקדימה',
-  packClient: 'תיאור ללקוח',
-  packPrompt: 'Realistic render prompt (EN)',
-  // Clean 8K — "חבילת פלט" now reads "ערכת הצגה".
-  openFullPack: 'פתח ערכת הצגה מלאה',
+  changeRequest: 'שנה בקשה',
+  optionsToggle: 'אפשרויות',
+  optionSaveExit: 'שמור וצא',
+  optionRestart: 'התחל מחדש',
+  optionCancel: 'בטל יצירה',
   loading: 'טוען…',
+
+  // Stage: stone.
+  stoneTitle: 'בחירת אבן',
+  stonesCount: (n) => (n === 1 ? 'נבחרה אבן אחת ליצירה' : `נבחרו ${n} אבנים ליצירה`),
+  stonesEmpty: 'עדיין לא נבחרה אבן — אפשר להמשיך גם בלי אבן, או לפתוח את המלאי ולבחור אחת.',
+  continueNoStone: 'המשך בלי אבן',
+  openInventory: 'פתח מלאי',
+  replaceStone: 'החלף אבן',
+  requestChanged: 'הבקשה השתנתה — אשר אותה מחדש לפני שנמשיך לכיוונים.',
+  returnToUnderstanding: 'חזור למה הבנתי',
+
+  // Stage: request.
+  requestTitle: 'מה רוצים ליצור?',
+  requestLabel: 'תיאור חופשי של התכשיט',
+  requestPlaceholder: 'לדוגמה: תליון עדין ומודרני בזהב לבן',
+  requestHint: 'אפשר לתאר סוג תכשיט, סגנון ומתכת במשפט אחד חופשי.',
+
+  // Stage: understanding.
+  understandingTitle: 'מה הבנתי',
+  understandingConfirm: 'נכון, הצע כיוונים',
+  understandingEdit: 'שנה את הבקשה',
+  understandingUnclear:
+    'לא זיהיתי סוג תכשיט ברור מהבקשה — אפשר לציין טבעת, תליון, עגילים, צמיד, שרשרת או תכשיט קלאסטר.',
+
+  // Stage: directions.
+  directionsTitle: 'כיוונים',
+  directionSelect: 'בחר להמשך',
+  directionSelectedBadge: 'נבחר ✓',
+  tryAnotherDirection: 'נסה כיוון אחר',
+  sketchPlaceholder: 'תצוגה חזותית תתאפשר בהמשך',
+  stoneRoleLabel: 'תפקיד האבן',
+  productionLabel: 'הערת ייצור',
+
+  // Stage: refine.
+  refineTitle: 'הכיוון שבחרת',
+  refineLabel: 'מה תרצה לשנות או לדייק?',
+  refinePlaceholder: 'לדוגמה: פחות גבוה, יותר עדין, תן לאבן יותר נוכחות…',
+  refineSaved: 'ההנחיה נשמרה ותשמש בהכנת ההדמיה.',
+  prepareForPresentation: 'הכן להצגה',
+
+  // Stage: presentation.
+  presentationTitle: 'הצגה ללקוח',
+  presentationJewelry: 'סוג תכשיט',
+  presentationStone: 'אבן מרכזית',
+  presentationStoneNone: 'ללא אבן מרכזית',
+  presentationDirection: 'כיוון',
+  presentationRefinements: 'דיוקים',
+  presentationNoRefinements: 'ללא דיוקים נוספים',
+  presentationDescription: 'תיאור ללקוח',
+  presentationRenderPlaceholder: 'הדמיה תתאפשר בהמשך.',
+  saveIntoCreation: 'שמור ביצירה',
+  backToRefine: 'חזור לדייק',
+
+  // Saved / terminal.
+  savedTitle: 'התיק נשמר בהצלחה',
+  savedAsPrefix: 'נשמר בשם',
+  openProjects: 'פתח תיקי יצירה',
+  createAnother: 'צור עוד תכשיט',
+  saveFailed: 'השמירה נכשלה — נסה שוב.',
+  saving: 'שומר…',
 });
 
-const TOTAL_STEPS = 8;
+const STAGE_TITLE_HE = Object.freeze({
+  [GOLDEN_STAGE.STONE]: GOLDEN_HE.stoneTitle,
+  [GOLDEN_STAGE.REQUEST]: GOLDEN_HE.requestTitle,
+  [GOLDEN_STAGE.UNDERSTANDING]: GOLDEN_HE.understandingTitle,
+  [GOLDEN_STAGE.DIRECTIONS]: GOLDEN_HE.directionsTitle,
+  [GOLDEN_STAGE.REFINE]: GOLDEN_HE.refineTitle,
+  [GOLDEN_STAGE.PRESENTATION]: GOLDEN_HE.presentationTitle,
+});
+
+function resolveWorkFileName(product, style) {
+  const pHe = productHe(product);
+  const sHe = styleHe(style);
+  if (pHe || sHe) return ['תיק יצירה', pHe, sHe].filter(Boolean).join(' · ');
+  const now = new Date();
+  return `תיק יצירה · ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
 
 export default function CreateFlowShell() {
   const router = useRouter();
   const tray = useWorkTray();
   const projectsStore = useDesignProjects();
 
-  const [step, setStep] = React.useState(1);
-  const [workFileName, setWorkFileName] = React.useState('');
-  const [product, setProduct] = React.useState(null);
-  const [style, setStyle] = React.useState(null);
+  const [stage, setStage] = React.useState(GOLDEN_STAGE.STONE);
   const [requestText, setRequestText] = React.useState('');
-  const [intakeItems, setIntakeItems] = React.useState([]);
   const [directions, setDirections] = React.useState([]);
   const [selectedDirectionId, setSelectedDirectionId] = React.useState(null);
-  const [generatedBanner, setGeneratedBanner] = React.useState(false);
+  const [refinementText, setRefinementText] = React.useState('');
+  const [projectId, setProjectId] = React.useState(null);
+  const [optionsOpen, setOptionsOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState(null);
-  const [savedId, setSavedId] = React.useState(null);
   const [savedName, setSavedName] = React.useState(null);
-  const [persistedCount, setPersistedCount] = React.useState(0);
-  const [failedNames, setFailedNames] = React.useState([]);
+  const [resumeChecked, setResumeChecked] = React.useState(false);
 
-  if (!tray.hydrated) {
-    return <div style={styles.loading}>{CREATE_HE.loading}</div>;
+  const lastPushedStageRef = React.useRef(null);
+  const hasPushedInitialRef = React.useRef(false);
+
+  const hydrated = tray.hydrated && projectsStore.hydrated;
+  const trayItems = Array.isArray(tray.items) ? tray.items : [];
+
+  // -------------------------------------------------------------------
+  // Resume — once, after both stores hydrate. Only ever hydrates local
+  // state from a project this SAME golden path created (isCreateFlowProject
+  // marker check) so a Design Studio active project is never hijacked.
+  // -------------------------------------------------------------------
+  React.useEffect(() => {
+    if (resumeChecked || !hydrated) return;
+    const activeId = getActiveWorkId();
+    const proj = activeId ? projectsStore.get(activeId) : null;
+    if (proj && isCreateFlowProject(proj)) {
+      const b = proj.brief || {};
+      const concepts = Array.isArray(b.concepts) ? b.concepts : [];
+      const selected = concepts.find((c) => c.conceptId === b.selectedConceptId) || null;
+      setProjectId(proj.id);
+      setRequestText(b.designGoal || '');
+      setDirections(concepts);
+      setSelectedDirectionId(b.selectedConceptId || null);
+      setRefinementText(selected ? selected.conceptNotes || '' : '');
+      setStage(deriveResumeStage(b, trayItems));
+    }
+    setResumeChecked(true);
+    // trayItems intentionally excluded — resume runs exactly once; the live
+    // tray is re-read on every subsequent render regardless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeChecked, hydrated]);
+
+  // -------------------------------------------------------------------
+  // Browser-back safety — mirror `stage` into a shallow ?stage= query so
+  // the browser's own back/forward moves between stages of this SAME
+  // mounted session instead of leaving the page. First stage via replace
+  // (no spurious history entry before the flow has actually moved); every
+  // stage change after that via push (an undo-able entry).
+  // -------------------------------------------------------------------
+  React.useEffect(() => {
+    if (!resumeChecked || !router.isReady) return;
+    if (lastPushedStageRef.current === stage) return;
+    lastPushedStageRef.current = stage;
+    const method = hasPushedInitialRef.current ? 'push' : 'replace';
+    hasPushedInitialRef.current = true;
+    router[method]({ pathname: '/studio/create', query: { stage } }, undefined, { shallow: true });
+    // router intentionally excluded from deps — Next.js's router identity is
+    // not stable across renders and would re-trigger this unnecessarily.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, resumeChecked]);
+
+  React.useEffect(() => {
+    if (!resumeChecked || !router.isReady) return;
+    const urlStage = typeof router.query.stage === 'string' ? router.query.stage : null;
+    if (urlStage && GOLDEN_STAGE_ORDER.indexOf(urlStage) !== -1 && urlStage !== lastPushedStageRef.current) {
+      lastPushedStageRef.current = urlStage;
+      setStage(urlStage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query.stage, resumeChecked]);
+
+  if (!hydrated || !resumeChecked) {
+    return <div style={styles.loading}>{GOLDEN_HE.loading}</div>;
   }
 
-  const trayItems = Array.isArray(tray.items) ? tray.items : [];
-  const referenceText = intakeToReferenceText(intakeItems, '');
-  const input = { product, style, trayItems, referenceText, requestText };
-  const pack =
-    directions.length > 0 ? buildCreateOutputPack(input, directions, selectedDirectionId) : null;
-  const selectedDirection =
-    directions.find((d) => d.conceptId === selectedDirectionId) || null;
-  const counts = intakeCounts(intakeItems);
+  // ------------------------------------------------------------------
+  // Derived values (pure, recomputed every render — no separate state to
+  // keep in sync).
+  // ------------------------------------------------------------------
+  const parsed = parseRequestHe(requestText);
+  const understandingHe = buildRequestUnderstandingHe({
+    product: parsed.product,
+    styleMatches: parsed.styleMatches,
+    metalPreference: parsed.metalPreference,
+    trayItems,
+  });
+  const selectedDirection = directions.find((d) => d.conceptId === selectedDirectionId) || null;
+  const directionsWithRefinement = selectedDirectionId
+    ? directions.map((d) => (d.conceptId === selectedDirectionId ? { ...d, conceptNotes: refinementText } : d))
+    : directions;
+  const currentBriefInput = {
+    product: parsed.product,
+    style: parsed.style,
+    trayItems,
+    referenceText: '',
+    requestText,
+    metalPreference: parsed.metalPreference,
+  };
 
   // ------------------------------------------------------------------
   // Actions.
   // ------------------------------------------------------------------
-  const addIntakeItems = (newItems) =>
-    setIntakeItems((prev) => prev.concat(newItems.filter(Boolean)));
-  const removeIntakeItem = (id) =>
-    setIntakeItems((prev) => prev.filter((it) => it.intakeId !== id));
-
   const handleGenerate = () => {
-    const next = generateCreateDirections(input);
-    setDirections(next);
+    const raw = generateCreateDirections(currentBriefInput);
+    const expected = expectedProductTypeFor(parsed.product);
+    const { directions: checked } = enforceDirectionsProductType(raw, expected);
+    setDirections(checked);
     setSelectedDirectionId(null);
-    setGeneratedBanner(true);
-    setStep(6);
+    setStage(GOLDEN_STAGE.DIRECTIONS);
   };
 
-  const resolveWorkFileName = () => {
-    if (workFileName && workFileName.trim()) return workFileName.trim();
-    const pHe = productHe(product);
-    const sHe = styleHe(style);
-    if (pHe || sHe) return ['תיק עיצוב', pHe, sHe].filter(Boolean).join(' · ');
-    return `תיק עיצוב · ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+  const handleSelectDirection = (id) => {
+    const next = selectedDirectionId === id ? null : id;
+    setSelectedDirectionId(next);
+    if (next) {
+      const dir = directions.find((d) => d.conceptId === next);
+      setRefinementText((dir && dir.conceptNotes) || '');
+    }
   };
 
-  // Save — the ONLY persistence moment. Project first (sync, public API),
-  // then intake files through the EXISTING public asset APIs; per-item
-  // failures never lose data (every file item is also echoed as text in the
-  // brief's intention field via referenceText).
-  const handleSave = async () => {
+  const commitProgress = () => {
+    const brief = buildCreateBrief(currentBriefInput, directionsWithRefinement, selectedDirectionId);
+    const name = resolveWorkFileName(parsed.product, parsed.style);
+    const snapshot = buildDesignSnapshot(trayItems, brief);
+    if (projectId) {
+      return updateProject(projectId, { name, trayItems, brief, snapshot });
+    }
+    const saved = projectsStore.save({ name, trayItems, brief, snapshot });
+    if (saved && saved.id) {
+      setProjectId(saved.id);
+      setActiveWorkId(saved.id);
+    }
+    return saved;
+  };
+
+  const handleSaveAndExit = () => {
+    setOptionsOpen(false);
+    const saved = commitProgress();
+    if (saved && saved.id) {
+      router.push('/studio/projects');
+    } else {
+      setSaveError(GOLDEN_HE.saveFailed);
+    }
+  };
+
+  const handleRestart = () => {
+    setOptionsOpen(false);
+    // A real restart must not carry the previous stone selection or active
+    // project into the next creation. Public APIs only; saved files remain.
+    tray.clear();
+    clearActiveWork();
+    setStage(GOLDEN_STAGE.STONE);
+    setRequestText('');
+    setDirections([]);
+    setSelectedDirectionId(null);
+    setRefinementText('');
+    setProjectId(null);
+    setSaveError(null);
+    setSavedName(null);
+    // A prior שמור וצא, if any, stays safely saved as its own Work File —
+    // restarting only clears THIS in-progress local session.
+  };
+
+  const handleCancel = () => {
+    setOptionsOpen(false);
+    tray.clear();
+    clearActiveWork();
+    router.push('/studio');
+  };
+
+  const handleFinalSave = async () => {
     if (saving) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const brief = buildCreateBrief(input, directions, selectedDirectionId);
-      const name = resolveWorkFileName();
-      const saved = projectsStore.save({
-        name,
-        trayItems,
-        brief,
-        snapshot: buildDesignSnapshot(trayItems, brief),
-      });
+      const saved = commitProgress();
       if (!saved || !saved.id) {
-        setSaveError(CREATE_HE.saveFailed);
+        setSaveError(GOLDEN_HE.saveFailed);
         return;
       }
-      setActiveWorkId(saved.id);
-
-      let records = [];
-      let okCount = 0;
-      const failed = [];
-      const fileItems = intakeItems.filter(isFileKindIntake);
-      for (const it of fileItems) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const res = await createObjectWithFiles(
-            intakeObjectInput(it, saved.name || name),
-            [intakeFileRow(it)],
-            0
-          );
-          if (res && res.object) {
-            // eslint-disable-next-line no-await-in-loop
-            await linkObjectToProject(res.object.objectId, saved.id);
-            const record = buildAttachedAssetRecord({
-              object: res.object,
-              files: res.files || [],
-              role: it.suggestedRole,
-              previewFileId: (res.object && res.object.primaryFileId) || null,
-            });
-            if (record) records = upsertAttachedAsset(records, record);
-            okCount += 1;
-          } else {
-            failed.push(it.name);
-          }
-        } catch (e) {
-          failed.push(it.name);
-        }
-      }
-      if (records.length) updateProject(saved.id, { assets: records });
-
-      setPersistedCount(okCount);
-      setFailedNames(failed);
-      setSavedId(saved.id);
-      setSavedName(saved.name || name);
-      setStep(8);
+      setSavedName(saved.name);
+      setStage(GOLDEN_STAGE.SAVED);
     } catch (e) {
-      setSaveError(CREATE_HE.saveFailed);
+      setSaveError(GOLDEN_HE.saveFailed);
     } finally {
       setSaving(false);
     }
   };
 
-  const resetFlow = () => {
-    setStep(1);
-    setWorkFileName('');
-    setProduct(null);
-    setStyle(null);
-    setRequestText('');
-    setIntakeItems([]);
-    setDirections([]);
-    setSelectedDirectionId(null);
-    setGeneratedBanner(false);
-    setSaving(false);
-    setSaveError(null);
-    setSavedId(null);
-    setSavedName(null);
-    setPersistedCount(0);
-    setFailedNames([]);
+  const handleRequestTextChange = (nextText) => {
+    setRequestText(nextText);
+    // Once the source request changes, every downstream direction belongs to
+    // the old brief. Clear it immediately so browser/UI back cannot expose a
+    // stale ring after the person changed the request to a pendant (or vice
+    // versa). The new directions are created only after re-confirmation.
+    if (directions.length || selectedDirectionId || refinementText) {
+      setDirections([]);
+      setSelectedDirectionId(null);
+      setRefinementText('');
+    }
   };
 
+  const handleOpenInventory = () => router.push('/studio/inventory');
+
+  const handleReplaceStone = () => {
+    tray.clear();
+    router.push('/studio/inventory');
+  };
+
+  const jumpToChangeRequest = () => setStage(GOLDEN_STAGE.REQUEST);
+
   // ------------------------------------------------------------------
-  // Step bodies + one primary action per step.
+  // Stage bodies + one primary action per stage.
   // ------------------------------------------------------------------
-  let stepTitle = '';
   let body = null;
   let primary = null; // { label, onClick, disabled }
-  let secondary = null; // optional small secondary in the nav row
+  let secondary = null;
+  const showChangeRequest =
+    stage === GOLDEN_STAGE.UNDERSTANDING ||
+    stage === GOLDEN_STAGE.DIRECTIONS ||
+    stage === GOLDEN_STAGE.REFINE ||
+    stage === GOLDEN_STAGE.PRESENTATION;
 
-  if (step === 1) {
-    stepTitle = CREATE_HE.step1;
-    const pHe = productHe(product);
-    const sHe = styleHe(style);
-    body = (
-      <>
-        <div style={styles.nameGroup}>
-          <label style={styles.nameLabel} htmlFor="cf-work-file-name">
-            {CREATE_HE.nameLabel}
-          </label>
-          <input
-            id="cf-work-file-name"
-            type="text"
-            value={workFileName}
-            onChange={(e) => setWorkFileName(e.target.value)}
-            placeholder={CREATE_HE.namePlaceholder}
-            style={styles.nameInput}
-            dir="rtl"
-          />
-          <span style={styles.helper}>{CREATE_HE.nameHelper}</span>
-        </div>
-        <span style={styles.fieldLabel}>{CREATE_HE.typeLabel}</span>
-        <div style={styles.chips}>
-          {CREATE_PRODUCT_OPTIONS.map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => setProduct(product === o.key ? null : o.key)}
-              style={{ ...styles.chip, ...(product === o.key ? styles.chipOn : null) }}
-              aria-pressed={product === o.key ? 'true' : 'false'}
-            >
-              {o.he}
-            </button>
-          ))}
-        </div>
-        <span style={styles.fieldLabel}>{CREATE_HE.styleLabel}</span>
-        <div style={styles.chips}>
-          {CREATE_STYLE_OPTIONS.map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => setStyle(style === o.key ? null : o.key)}
-              style={{ ...styles.chip, ...(style === o.key ? styles.chipOn : null) }}
-              aria-pressed={style === o.key ? 'true' : 'false'}
-            >
-              {o.he}
-            </button>
-          ))}
-        </div>
-        <span style={styles.fieldLabel}>{CREATE_HE.requestLabel}</span>
-        <textarea
-          value={requestText}
-          onChange={(e) => setRequestText(e.target.value)}
-          placeholder={CREATE_HE.requestPlaceholder}
-          style={styles.textarea}
-          rows={3}
-          dir="rtl"
-        />
-        {/* Live summary — instant feedback for the choices. */}
-        {pHe ? (
-          <div style={styles.liveSummary}>{CREATE_HE.liveSummary(pHe, sHe)}</div>
-        ) : (
-          <span style={styles.helper}>{CREATE_HE.step1Hint}</span>
-        )}
-      </>
-    );
-    primary = {
-      label: CREATE_HE.next,
-      onClick: () => setStep(2),
-      disabled: !(product && style),
-    };
-  } else if (step === 2) {
-    stepTitle = CREATE_HE.step2;
+  if (stage === GOLDEN_STAGE.STONE) {
     body =
       trayItems.length === 0 ? (
         <div style={styles.emptyBox}>
-          <p style={styles.emptyText}>{CREATE_HE.stonesEmpty}</p>
+          <p style={styles.emptyText}>{GOLDEN_HE.stonesEmpty}</p>
         </div>
       ) : (
         <>
-          <div style={styles.banner}>{CREATE_HE.stonesCount(trayItems.length)}</div>
+          <div style={styles.banner}>{GOLDEN_HE.stonesCount(trayItems.length)}</div>
           <div style={styles.stoneList}>
             {trayItems.map((item) => {
               const s = item.snapshot || {};
-              const roleHe =
-                CONCEPT_HE.roleLabels[normalizeRole(item.role)] ||
-                CONCEPT_HE.roleLabels.unassigned;
+              const roleHe = CONCEPT_HE.roleLabels[normalizeRole(item.role)] || CONCEPT_HE.roleLabels.unassigned;
               return (
                 <div key={item.id} style={styles.stoneRow}>
                   {s.primaryImage ? (
@@ -403,9 +420,7 @@ export default function CreateFlowShell() {
                   <span style={styles.stoneText}>
                     <span style={styles.stoneName}>{s.name || '—'}</span>
                     <span style={styles.stoneMeta}>
-                      {[roleHe, s.shapeHe, s.caratWeight ? `${s.caratWeight} קראט` : null]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {[roleHe, s.shapeHe, s.caratWeight ? `${s.caratWeight} קראט` : null].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                 </div>
@@ -415,37 +430,125 @@ export default function CreateFlowShell() {
         </>
       );
     primary = {
-      label: trayItems.length === 0 ? CREATE_HE.continueNoStones : CREATE_HE.next,
-      onClick: () => setStep(3),
+      label: trayItems.length === 0 ? GOLDEN_HE.continueNoStone : GOLDEN_HE.next,
+      onClick: () => setStage(GOLDEN_STAGE.REQUEST),
       disabled: false,
     };
-    secondary = {
-      label: CREATE_HE.openInventory,
-      onClick: () => router.push('/studio/inventory'),
-    };
-  } else if (step === 3) {
-    stepTitle = CREATE_HE.step3;
+    secondary = trayItems.length
+      ? { label: GOLDEN_HE.replaceStone, onClick: handleReplaceStone }
+      : { label: GOLDEN_HE.openInventory, onClick: handleOpenInventory };
+  } else if (stage === GOLDEN_STAGE.REQUEST) {
     body = (
-      <CreateIntakeArea
-        items={intakeItems}
-        onAddItems={addIntakeItems}
-        onRemoveItem={removeIntakeItem}
-      />
+      <>
+        <span style={styles.fieldLabel}>{GOLDEN_HE.requestLabel}</span>
+        <textarea
+          value={requestText}
+          onChange={(e) => handleRequestTextChange(e.target.value)}
+          placeholder={GOLDEN_HE.requestPlaceholder}
+          style={styles.textarea}
+          rows={3}
+          dir="rtl"
+          autoFocus
+        />
+        <span style={styles.helper}>{GOLDEN_HE.requestHint}</span>
+      </>
     );
-    primary = { label: CREATE_HE.next, onClick: () => setStep(4), disabled: false };
-  } else if (step === 4) {
-    stepTitle = CREATE_HE.step4;
+    primary = {
+      label: GOLDEN_HE.next,
+      onClick: () => setStage(GOLDEN_STAGE.UNDERSTANDING),
+      disabled: !requestText.trim(),
+    };
+  } else if (stage === GOLDEN_STAGE.UNDERSTANDING) {
+    body = understandingHe ? (
+      <div style={styles.liveSummary}>{understandingHe}</div>
+    ) : (
+      <div style={styles.warn}>{GOLDEN_HE.understandingUnclear}</div>
+    );
+    primary = {
+      label: GOLDEN_HE.understandingConfirm,
+      onClick: handleGenerate,
+      disabled: !parsed.product,
+    };
+    secondary = { label: GOLDEN_HE.understandingEdit, onClick: jumpToChangeRequest };
+  } else if (stage === GOLDEN_STAGE.DIRECTIONS) {
+    if (directions.length === 0) {
+      body = <div style={styles.warn}>{GOLDEN_HE.requestChanged}</div>;
+      primary = {
+        label: GOLDEN_HE.returnToUnderstanding,
+        onClick: () => setStage(GOLDEN_STAGE.UNDERSTANDING),
+        disabled: !requestText.trim(),
+      };
+    } else {
+      body = (
+        <div style={styles.directionList}>
+          {directions.map((d) => {
+          const on = d.conceptId === selectedDirectionId;
+          return (
+            <button
+              key={d.conceptId}
+              type="button"
+              onClick={() => handleSelectDirection(d.conceptId)}
+              style={{ ...styles.directionCard, ...(on ? styles.directionCardOn : null) }}
+              aria-pressed={on ? 'true' : 'false'}
+            >
+              <span style={styles.sketchPlaceholder}>{GOLDEN_HE.sketchPlaceholder}</span>
+              <span style={styles.directionNameRow}>
+                <span style={styles.directionName}>{d.conceptName}</span>
+                {on ? <span style={styles.selectedBadge}>{GOLDEN_HE.directionSelectedBadge}</span> : null}
+              </span>
+              <span style={styles.directionDesc}>{d.shortDescription}</span>
+              <span style={styles.directionRow}>
+                <b>{GOLDEN_HE.stoneRoleLabel}:</b> {d.stoneLayout}
+              </span>
+              <span style={styles.directionRow}>
+                <b>{GOLDEN_HE.productionLabel}:</b> {d.productionNotes}
+              </span>
+            </button>
+          );
+          })}
+        </div>
+      );
+      primary = {
+        label: GOLDEN_HE.directionSelect,
+        onClick: () => setStage(GOLDEN_STAGE.REFINE),
+        disabled: !selectedDirection,
+      };
+      secondary = { label: GOLDEN_HE.tryAnotherDirection, onClick: handleGenerate };
+    }
+  } else if (stage === GOLDEN_STAGE.REFINE) {
+    body = (
+      <>
+        {selectedDirection ? (
+          <div style={styles.banner}>{selectedDirection.conceptName}</div>
+        ) : null}
+        <span style={styles.fieldLabel}>{GOLDEN_HE.refineLabel}</span>
+        <textarea
+          value={refinementText}
+          onChange={(e) => setRefinementText(e.target.value)}
+          placeholder={GOLDEN_HE.refinePlaceholder}
+          style={styles.textarea}
+          rows={3}
+          dir="rtl"
+        />
+        {refinementText.trim() ? <span style={styles.helper}>{GOLDEN_HE.refineSaved}</span> : null}
+      </>
+    );
+    primary = {
+      label: GOLDEN_HE.prepareForPresentation,
+      onClick: () => setStage(GOLDEN_STAGE.PRESENTATION),
+      disabled: !selectedDirection,
+    };
+  } else if (stage === GOLDEN_STAGE.PRESENTATION) {
+    const pack = buildCreateOutputPack(currentBriefInput, directionsWithRefinement, selectedDirectionId);
+    const stoneName = trayItems.length ? trayItems[0].snapshot && trayItems[0].snapshot.name : null;
     const rows = [
-      [CREATE_HE.previewName, workFileName.trim() || CREATE_HE.autoName],
-      [CREATE_HE.previewType, productHe(product) || CREATE_HE.notChosen],
-      [CREATE_HE.previewStyle, styleHe(style) || CREATE_HE.notChosen],
-      [CREATE_HE.previewStones, String(trayItems.length)],
-      [CREATE_HE.previewRefs, intakeSummaryHe(intakeItems)],
-      [CREATE_HE.previewRequest, requestText.trim() ? requestText.trim() : CREATE_HE.noRequest],
+      [GOLDEN_HE.presentationJewelry, productHe(parsed.product) || '—'],
+      [GOLDEN_HE.presentationStone, stoneName || GOLDEN_HE.presentationStoneNone],
+      [GOLDEN_HE.presentationDirection, selectedDirection ? selectedDirection.conceptName : '—'],
+      [GOLDEN_HE.presentationRefinements, refinementText.trim() || GOLDEN_HE.presentationNoRefinements],
     ];
     body = (
       <>
-        <span style={styles.previewTitle}>{CREATE_HE.previewTitle}</span>
         <div style={styles.previewRows}>
           {rows.map(([k, v]) => (
             <div key={k} style={styles.previewRow}>
@@ -454,216 +557,113 @@ export default function CreateFlowShell() {
             </div>
           ))}
         </div>
-        {trayItems.length === 0 ? <div style={styles.warn}>{CREATE_HE.warnNoStones}</div> : null}
-        {counts.total === 0 ? <div style={styles.warn}>{CREATE_HE.warnNoRefs}</div> : null}
-      </>
-    );
-    primary = { label: CREATE_HE.continueToGenerate, onClick: () => setStep(5), disabled: false };
-  } else if (step === 5) {
-    stepTitle = CREATE_HE.step5;
-    body = <p style={styles.emptyText}>{CREATE_HE.generateHint}</p>;
-    primary = {
-      label: directions.length ? CREATE_HE.regenerate : CREATE_HE.generate,
-      onClick: handleGenerate,
-      disabled: false,
-    };
-  } else if (step === 6) {
-    stepTitle = CREATE_HE.step6;
-    body = (
-      <>
-        {generatedBanner ? <div style={styles.banner}>{CREATE_HE.generatedBanner}</div> : null}
-        <div style={styles.directionList}>
-          {directions.map((d) => {
-            const on = d.conceptId === selectedDirectionId;
-            return (
-              <button
-                key={d.conceptId}
-                type="button"
-                onClick={() => setSelectedDirectionId(on ? null : d.conceptId)}
-                style={{ ...styles.directionCard, ...(on ? styles.directionCardOn : null) }}
-                aria-pressed={on ? 'true' : 'false'}
-              >
-                <span style={styles.directionName}>{d.conceptName}</span>
-                <span style={styles.directionDesc}>{d.shortDescription}</span>
-                <span style={styles.directionRow}>
-                  <b>{CREATE_HE.stoneLayoutLabel}:</b> {d.stoneLayout}
-                </span>
-                <span style={styles.directionRow}>
-                  <b>{CREATE_HE.structureLabel}:</b> {d.designStructure}
-                </span>
-                {counts.total > 0 ? (
-                  <span style={styles.directionRow}>
-                    {CREATE_HE.refInfluencePrefix}
-                    {intakeSummaryHe(intakeItems)}.
-                  </span>
-                ) : null}
-                <span style={styles.directionRow}>
-                  <b>{CREATE_HE.productionLabel}:</b> {d.productionNotes}
-                </span>
-                <span style={{ ...styles.directionRow, ...styles.directionEn }} dir="ltr">
-                  <b>{CREATE_HE.promptHintLabel}:</b> {d.renderBriefText}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {selectedDirection ? (
-          <>
-            <div style={styles.banner}>
-              {CREATE_HE.selectedPrefix}
-              {selectedDirection.conceptName}
-            </div>
-            <span style={styles.helper}>{CREATE_HE.nextRecommended}</span>
-          </>
-        ) : (
-          <span style={styles.helper}>{CREATE_HE.selectHint}</span>
-        )}
-      </>
-    );
-    primary = {
-      label: CREATE_HE.continueToSave,
-      onClick: () => setStep(7),
-      disabled: !selectedDirection,
-    };
-    secondary = { label: CREATE_HE.regenerate, onClick: handleGenerate };
-  } else if (step === 7) {
-    stepTitle = CREATE_HE.step7;
-    body = (
-      <>
-        <span style={styles.previewTitle}>{CREATE_HE.saveRecapTitle}</span>
-        <div style={styles.previewRows}>
-          <div style={styles.previewRow}>
-            <span style={styles.previewKey}>{CREATE_HE.previewName}</span>
-            <span style={styles.previewVal}>{resolveWorkFileName()}</span>
-          </div>
-          {selectedDirection ? (
-            <div style={styles.previewRow}>
-              <span style={styles.previewKey}>{CREATE_HE.step6}</span>
-              <span style={styles.previewVal}>{selectedDirection.conceptName}</span>
-            </div>
-          ) : null}
-          <div style={styles.previewRow}>
-            <span style={styles.previewKey}>{CREATE_HE.previewStones}</span>
-            <span style={styles.previewVal}>{String(trayItems.length)}</span>
-          </div>
-          <div style={styles.previewRow}>
-            <span style={styles.previewKey}>{CREATE_HE.previewRefs}</span>
-            <span style={styles.previewVal}>{intakeSummaryHe(intakeItems)}</span>
-          </div>
-        </div>
-        {counts.files > 0 ? <div style={styles.banner}>{CREATE_HE.saveRecapAssets(counts.files)}</div> : null}
-        {counts.texts + counts.urls > 0 ? (
-          <span style={styles.helper}>{CREATE_HE.saveRecapTextRefs}</span>
-        ) : null}
+        <span style={styles.previewTitle}>{GOLDEN_HE.presentationDescription}</span>
+        <p style={styles.packClient}>{pack.clientHe}</p>
+        <span style={styles.helper}>{GOLDEN_HE.presentationRenderPlaceholder}</span>
         {saveError ? <div style={styles.warn}>{saveError}</div> : null}
       </>
     );
     primary = {
-      label: saving ? CREATE_HE.saving : CREATE_HE.save,
-      onClick: handleSave,
+      label: saving ? GOLDEN_HE.saving : GOLDEN_HE.saveIntoCreation,
+      onClick: handleFinalSave,
       disabled: saving,
     };
+    secondary = { label: GOLDEN_HE.backToRefine, onClick: () => setStage(GOLDEN_STAGE.REFINE) };
   } else {
-    // Step 8 — success + output preview (reached only through a real save).
-    stepTitle = CREATE_HE.step8;
+    // GOLDEN_STAGE.SAVED — terminal confirmation. No Output Pack / Render
+    // Plan / Media Workflow wording or routing here — just confirmation and
+    // two neutral next steps.
     body = (
-      <>
-        <div style={styles.successCard}>
-          <span style={styles.successTitle}>{CREATE_HE.saveSuccess}</span>
-          {savedName ? (
-            <span style={styles.successName}>
-              {CREATE_HE.savedAsPrefix}: {savedName}
-            </span>
-          ) : null}
-          {persistedCount > 0 ? (
-            <span style={styles.successAssets}>{CREATE_HE.assetsSaved(persistedCount)}</span>
-          ) : null}
-          {failedNames.length > 0 ? (
-            <div style={styles.warn}>{CREATE_HE.assetsFailed(failedNames.join(', '))}</div>
-          ) : null}
-          <div style={styles.successActions}>
-            {/* Clean 8I — «הכן הדמיה» is now the PRIMARY next action: it
-                routes straight to the existing ?focus=media deep link,
-                which auto-opens the Media Workflow where «הכן הדמיה» is
-                itself the panel's primary action (one click → final
-                render package, zero configuration). */}
-            <button
-              type="button"
-              style={styles.primaryBtn}
-              onClick={() =>
-                router.push({ pathname: '/studio/projects', query: { focus: 'media' } })
-              }
-            >
-              {CREATE_HE.openMedia}
-            </button>
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              onClick={() => router.push('/studio/projects')}
-            >
-              {CREATE_HE.openProjects}
-            </button>
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              onClick={() => router.push('/studio/design')}
-            >
-              {CREATE_HE.openStudio}
-            </button>
-            <button type="button" style={styles.ghostBtn} onClick={resetFlow}>
-              {CREATE_HE.createAnother}
-            </button>
-          </div>
-        </div>
-        {pack ? (
-          <div style={styles.outputPreview}>
-            <span style={styles.previewTitle}>{CREATE_HE.outputPreviewTitle}</span>
-            <span style={styles.packTitle}>{CREATE_HE.packClient}</span>
-            <p style={styles.packClient}>{pack.clientHe}</p>
-            <span style={styles.packTitle}>{CREATE_HE.packPrompt}</span>
-            <pre style={styles.packBlockEn} dir="ltr">
-              {pack.mediaPromptEn}
-            </pre>
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              onClick={() => router.push('/studio/projects')}
-            >
-              {CREATE_HE.openFullPack}
-            </button>
-          </div>
+      <div style={styles.successCard}>
+        <span style={styles.successTitle}>{GOLDEN_HE.savedTitle}</span>
+        {savedName ? (
+          <span style={styles.successName}>
+            {GOLDEN_HE.savedAsPrefix}: {savedName}
+          </span>
         ) : null}
-      </>
+        <div style={styles.successActions}>
+          <button type="button" style={styles.primaryBtn} onClick={() => router.push('/studio/projects')}>
+            {GOLDEN_HE.openProjects}
+          </button>
+          <button type="button" style={styles.ghostBtn} onClick={handleRestart}>
+            {GOLDEN_HE.createAnother}
+          </button>
+        </div>
+      </div>
     );
     primary = null;
   }
 
+  const stageIndex = GOLDEN_STAGE_ORDER.indexOf(stage);
+  const canGoBack = stage !== GOLDEN_STAGE.STONE && stage !== GOLDEN_STAGE.SAVED;
+
   return (
     <div style={styles.page} dir="rtl">
       <div style={styles.header}>
-        <span style={styles.title}>{CREATE_HE.title}</span>
-        <span style={styles.progress}>{CREATE_HE.stepOf(step, TOTAL_STEPS)}</span>
-      </div>
-      <div style={styles.dots} aria-hidden="true">
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => (
-          <span key={i} style={{ ...styles.dot, ...(i + 1 <= step ? styles.dotOn : null) }} />
-        ))}
+        <span style={styles.title}>{GOLDEN_HE.title}</span>
+        {stage !== GOLDEN_STAGE.SAVED ? (
+          <span style={styles.progress}>{GOLDEN_HE.stepOf(stageIndex + 1, GOLDEN_STAGE_ORDER.length)}</span>
+        ) : null}
       </div>
 
+      {stage !== GOLDEN_STAGE.SAVED ? (
+        <div style={styles.dots} aria-hidden="true">
+          {GOLDEN_STAGE_ORDER.map((s, i) => (
+            <span key={s} style={{ ...styles.dot, ...(i <= stageIndex ? styles.dotOn : null) }} />
+          ))}
+        </div>
+      ) : null}
+
+      {stage !== GOLDEN_STAGE.SAVED ? (
+        <div style={styles.globalToolbar}>
+          <span style={styles.globalToolbarLeft}>
+            {canGoBack ? (
+              <button
+                type="button"
+                style={styles.ghostBtn}
+                onClick={() => {
+                  const prev = previousStage(stage);
+                  if (prev) setStage(prev);
+                }}
+              >
+                {GOLDEN_HE.back}
+              </button>
+            ) : null}
+            {showChangeRequest ? (
+              <button type="button" style={styles.secondarySmallBtn} onClick={jumpToChangeRequest}>
+                {GOLDEN_HE.changeRequest}
+              </button>
+            ) : null}
+          </span>
+          <span style={styles.optionsWrap}>
+            <button type="button" style={styles.secondarySmallBtn} onClick={() => setOptionsOpen((v) => !v)}>
+              {GOLDEN_HE.optionsToggle} ⋯
+            </button>
+            {optionsOpen ? (
+              <div style={styles.optionsMenu}>
+                <button type="button" style={styles.optionsMenuItem} onClick={handleSaveAndExit}>
+                  {GOLDEN_HE.optionSaveExit}
+                </button>
+                <button type="button" style={styles.optionsMenuItem} onClick={handleRestart}>
+                  {GOLDEN_HE.optionRestart}
+                </button>
+                <button type="button" style={styles.optionsMenuItem} onClick={handleCancel}>
+                  {GOLDEN_HE.optionCancel}
+                </button>
+              </div>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
+
       <div style={styles.card}>
-        <span style={styles.stepTitle}>{stepTitle}</span>
+        <span style={styles.stepTitle}>{STAGE_TITLE_HE[stage]}</span>
         {body}
       </div>
 
-      {step < 8 ? (
+      {stage !== GOLDEN_STAGE.SAVED ? (
         <div style={styles.nav}>
-          {step > 1 ? (
-            <button type="button" style={styles.ghostBtn} onClick={() => setStep(step - 1)}>
-              {CREATE_HE.back}
-            </button>
-          ) : (
-            <span />
-          )}
+          <span />
           <span style={styles.navActions}>
             {secondary ? (
               <button type="button" style={styles.secondarySmallBtn} onClick={secondary.onClick}>
@@ -729,6 +729,41 @@ const styles = {
     background: tokens.color.goldFaint,
   },
   dotOn: { background: tokens.color.gold },
+  globalToolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+  },
+  globalToolbarLeft: { display: 'inline-flex', alignItems: 'center', gap: '8px' },
+  optionsWrap: { position: 'relative', display: 'inline-flex' },
+  optionsMenu: {
+    position: 'absolute',
+    top: 'calc(100% + 6px)',
+    left: 0,
+    zIndex: 5,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: '150px',
+    padding: '6px',
+    borderRadius: tokens.radius.md,
+    border: `1px solid ${tokens.color.cardEdge}`,
+    background: '#FFFFFF',
+    boxShadow: tokens.shadow.soft,
+  },
+  optionsMenuItem: {
+    textAlign: 'right',
+    padding: '9px 10px',
+    borderRadius: tokens.radius.sm,
+    border: 'none',
+    background: 'transparent',
+    color: tokens.color.charcoal,
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
   card: {
     display: 'flex',
     flexDirection: 'column',
@@ -750,46 +785,6 @@ const styles = {
     fontSize: '12px',
     fontWeight: 800,
     color: tokens.color.gold,
-  },
-  chips: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  nameGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  nameLabel: {
-    fontFamily: tokens.font.body,
-    fontSize: '12px',
-    fontWeight: 800,
-    color: tokens.color.gold,
-  },
-  nameInput: {
-    width: '100%',
-    boxSizing: 'border-box',
-    minHeight: '42px',
-    padding: '9px 13px',
-    borderRadius: tokens.radius.sm,
-    border: `1px solid ${tokens.color.goldFaint}`,
-    background: tokens.color.pearl,
-    color: tokens.color.charcoal,
-    fontFamily: tokens.font.body,
-    fontSize: '13.5px',
-    fontWeight: 600,
-    outline: 'none',
-  },
-  chip: {
-    minHeight: '40px',
-    padding: '8px 16px',
-    borderRadius: '999px',
-    border: `1px solid ${tokens.color.goldFaint}`,
-    background: tokens.color.pearl,
-    color: tokens.color.charcoal,
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    fontWeight: 700,
-    cursor: 'pointer',
-  },
-  chipOn: {
-    border: `1px solid ${tokens.color.gold}`,
-    background: '#FFFFFF',
-    boxShadow: `0 0 0 1px ${tokens.color.gold}`,
-    color: tokens.color.charcoal,
   },
   liveSummary: {
     fontFamily: tokens.font.body,
@@ -910,6 +905,13 @@ const styles = {
     minWidth: 0,
     overflowWrap: 'anywhere',
   },
+  packClient: {
+    margin: 0,
+    fontFamily: tokens.font.body,
+    fontSize: '13px',
+    color: tokens.color.ink,
+    lineHeight: 1.6,
+  },
   directionList: { display: 'flex', flexDirection: 'column', gap: '10px' },
   directionCard: {
     display: 'flex',
@@ -927,11 +929,31 @@ const styles = {
     background: '#FFFFFF',
     boxShadow: `0 0 0 1px ${tokens.color.gold}`,
   },
+  sketchPlaceholder: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '64px',
+    borderRadius: tokens.radius.sm,
+    background: tokens.color.goldFaint,
+    color: tokens.color.inkFaint,
+    fontFamily: tokens.font.body,
+    fontSize: '11px',
+    fontWeight: 600,
+  },
+  directionNameRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' },
   directionName: {
     fontFamily: tokens.font.display,
     fontSize: '14.5px',
     fontWeight: 700,
     color: tokens.color.charcoal,
+  },
+  selectedBadge: {
+    fontFamily: tokens.font.body,
+    fontSize: '11px',
+    fontWeight: 800,
+    color: tokens.color.gold,
+    flex: '0 0 auto',
   },
   directionDesc: {
     fontFamily: tokens.font.body,
@@ -945,7 +967,6 @@ const styles = {
     color: tokens.color.inkSoft,
     lineHeight: 1.5,
   },
-  directionEn: { fontFamily: tokens.font.body, textAlign: 'left' },
   nav: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' },
   navActions: { display: 'inline-flex', alignItems: 'center', gap: '8px' },
   primaryBtn: {
@@ -957,19 +978,6 @@ const styles = {
     color: '#FFFFFF',
     fontFamily: tokens.font.body,
     fontSize: '13.5px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  secondaryBtn: {
-    minHeight: '44px',
-    padding: '10px 18px',
-    borderRadius: '999px',
-    border: `1px solid ${tokens.color.charcoal}`,
-    background: 'transparent',
-    color: tokens.color.charcoal,
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
     fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
@@ -1022,48 +1030,5 @@ const styles = {
     fontWeight: 700,
     color: tokens.color.inkSoft,
   },
-  successAssets: {
-    fontFamily: tokens.font.body,
-    fontSize: '12.5px',
-    fontWeight: 700,
-    color: tokens.color.charcoal,
-  },
   successActions: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' },
-  outputPreview: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    padding: '14px',
-    borderRadius: tokens.radius.md,
-    border: `1px solid ${tokens.color.goldFaint}`,
-    background: '#FFFFFF',
-  },
-  packTitle: {
-    fontFamily: tokens.font.body,
-    fontSize: '12px',
-    fontWeight: 800,
-    color: tokens.color.gold,
-  },
-  packClient: {
-    margin: 0,
-    fontFamily: tokens.font.body,
-    fontSize: '13px',
-    color: tokens.color.ink,
-    lineHeight: 1.6,
-  },
-  packBlockEn: {
-    margin: 0,
-    fontFamily: tokens.font.body,
-    fontSize: '11.5px',
-    color: tokens.color.inkSoft,
-    background: tokens.color.pearl,
-    border: `1px solid ${tokens.color.goldFaint}`,
-    borderRadius: tokens.radius.sm,
-    padding: '10px 12px',
-    whiteSpace: 'pre-wrap',
-    overflowWrap: 'anywhere',
-    textAlign: 'left',
-    maxHeight: '180px',
-    overflow: 'auto',
-  },
 };

@@ -37,6 +37,9 @@ export default function StudioShell({
   // can present a full-viewport application surface. Scoped to the page that
   // opts in — every other studio page keeps the centered column unchanged.
   fullBleed = false,
+  // Clean 8K-R4 QA — focused guided routes can keep global navigation while
+  // hiding duplicate active-session / Work Tray chrome. Default unchanged.
+  hideContextBars = false,
 }) {
   const [active, setActive] = useState(initialSection);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -116,13 +119,13 @@ export default function StudioShell({
           <main style={styles.mobileMain}>
             <div style={styles.mobileContentWrap}>
               {/* Patch C — session context row (compact) on mobile too. */}
-              <ActiveSessionBar variant="mobile" />
+              {!hideContextBars && <ActiveSessionBar variant="mobile" />}
               <Content />
             </div>
           </main>
 
           {/* Always-nearby Work Tray shortcut (shown only when tray has items) */}
-          <WorkTrayIndicator variant="mobile" />
+          {!hideContextBars && <WorkTrayIndicator variant="mobile" />}
 
           {drawerOpen && (
             <>
@@ -160,8 +163,8 @@ export default function StudioShell({
               {/* Patch C — one persistent session context row across major
                   studio screens. The full-bleed Design Studio keeps its own
                   command bar (same status) — no duplication there. */}
-              {!fullBleed && <ActiveSessionBar variant="desktop" />}
-              {!fullBleed && <WorkTrayIndicator variant="desktop" />}
+              {!fullBleed && !hideContextBars && <ActiveSessionBar variant="desktop" />}
+              {!fullBleed && !hideContextBars && <WorkTrayIndicator variant="desktop" />}
               <Content />
             </div>
           </main>
