@@ -1,74 +1,60 @@
-import { useState } from 'react';
 import styles from './atelier.module.css';
-
-const STONE_VARIANTS = [
-  {
-    id: 'emerald-oval',
-    label: 'אמרלד אובלי',
-    image:
-      '/assets/leshems/starter-pack-v1/01_stones/gemstones/stone_emerald_emeraldcut_vividgreen_thumb_v01.png',
-  },
-  {
-    id: 'ruby-oval',
-    label: 'רובי אובלי',
-    image:
-      '/assets/leshems/starter-pack-v1/01_stones/gemstones/stone_ruby_oval_richred_thumb_v01.png',
-  },
-  {
-    id: 'sapphire-oval',
-    label: 'ספיר אובלי',
-    image:
-      '/assets/leshems/starter-pack-v1/01_stones/gemstones/stone_sapphire_oval_royalblue_thumb_v01.png',
-  },
-];
+import IntakeArea from './IntakeArea';
+import { stoneAvailabilityHe } from '../../lib/atelier/atelierBridge';
 
 const CHIPS = ['תליון', 'טבעת', 'עדין', 'מודרני', 'זהב לבן', 'קלאסטר'];
 
+const EMPTY_STONE_IMAGE =
+  '/assets/leshems/starter-pack-v1/05_empty_states/empty_studio_start_stones_to_jewelry_v01.png';
+
 export default function StoneRequestScreen({
+  centerStone,
+  onOpenStoneDrawer,
   requestText,
   onRequestChange,
   selectedChips,
   onToggleChip,
+  intakeItems,
+  onAddFiles,
+  onAddText,
+  onRemoveIntakeItem,
   onBack,
   onContinue,
+  canContinue,
 }) {
-  const [stoneIndex, setStoneIndex] = useState(0);
-  const stone = STONE_VARIANTS[stoneIndex];
-
-  const showPrev = () =>
-    setStoneIndex((i) => (i - 1 + STONE_VARIANTS.length) % STONE_VARIANTS.length);
-  const showNext = () => setStoneIndex((i) => (i + 1) % STONE_VARIANTS.length);
-  const canContinue = requestText.trim().length > 0 || selectedChips.length > 0;
+  const snapshot = centerStone ? centerStone.snapshot || {} : null;
+  const stoneImage = snapshot ? snapshot.primaryImage || snapshot.boxImage : null;
+  const stoneName = snapshot ? snapshot.titleHe || snapshot.name : null;
 
   return (
     <div className={styles.stoneScreen}>
       <div className={styles.stoneColumn}>
         <div className={styles.stoneImageFrame}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={stone.image} alt={stone.label} className={styles.stoneImage} />
-          <button type="button" className={styles.replaceStoneBtn} onClick={showNext}>
-            החלף אבן
+          {stoneImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={stoneImage} alt={stoneName || ''} className={styles.stoneImage} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={EMPTY_STONE_IMAGE} alt="" className={styles.stoneImageEmpty} />
+          )}
+          <button type="button" className={styles.replaceStoneBtn} onClick={onOpenStoneDrawer}>
+            {centerStone ? 'החלף אבן' : 'בחר אבן מהמלאי'}
           </button>
         </div>
-        <div className={styles.stoneNav}>
-          <button
-            type="button"
-            className={styles.stoneNavBtn}
-            onClick={showPrev}
-            aria-label="האבן הקודמת"
-          >
-            ‹
-          </button>
-          <span className={styles.stoneNavLabel}>{stone.label}</span>
-          <button
-            type="button"
-            className={styles.stoneNavBtn}
-            onClick={showNext}
-            aria-label="האבן הבאה"
-          >
-            ›
-          </button>
-        </div>
+        {snapshot ? (
+          <div className={styles.stoneMeta}>
+            <span className={styles.stoneNavLabel}>{stoneName}</span>
+            <span className={styles.stoneMetaRow}>
+              {[snapshot.stoneTypeHe, snapshot.shapeHe].filter(Boolean).join(' · ')}
+              {snapshot.caratWeight ? ` · ${snapshot.caratWeight} קראט` : ''}
+            </span>
+            {snapshot.status && (
+              <span className={styles.stoneCardBadge}>{stoneAvailabilityHe(snapshot.status)}</span>
+            )}
+          </div>
+        ) : (
+          <p className={styles.stoneMetaEmpty}>עדיין לא נבחרה אבן — לחץ למעלה כדי לפתוח את המלאי.</p>
+        )}
       </div>
 
       <div className={styles.requestColumn}>
@@ -97,17 +83,13 @@ export default function StoneRequestScreen({
             );
           })}
         </div>
-        <div className={styles.attachRow}>
-          <button type="button" className={styles.attachBtn}>
-            צרף תמונה
-          </button>
-          <button type="button" className={styles.attachBtn}>
-            צרף קובץ
-          </button>
-          <button type="button" className={styles.attachBtn}>
-            רפרנס / השראה
-          </button>
-        </div>
+
+        <IntakeArea
+          items={intakeItems}
+          onAddFiles={onAddFiles}
+          onAddText={onAddText}
+          onRemove={onRemoveIntakeItem}
+        />
       </div>
 
       <div className={styles.bottomNav}>

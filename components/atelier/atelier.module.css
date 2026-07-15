@@ -1068,3 +1068,527 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------- */
+/* Clean 10B — Atelier Functional Bridge additions                   */
+/* ---------------------------------------------------------------- */
+
+.creationsBtn {
+  background: none;
+  border: 1px solid var(--a-border);
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  font-size: 0.78rem;
+  color: var(--a-graphite-soft);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.creationsBtn:hover {
+  border-color: var(--a-gold);
+  color: var(--a-graphite);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Drawers (stone inventory / creations) ----------------------------- */
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 40, 33, 0.32);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 60;
+}
+
+.drawerPanel {
+  width: min(480px, 100%);
+  height: 100%;
+  background: var(--a-ivory);
+  border-inline-start: 1px solid var(--a-border);
+  padding: 1.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+
+.drawerTitle {
+  font-family: var(--a-font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.drawerClose {
+  background: none;
+  border: 1px solid var(--a-border);
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--a-graphite-soft);
+}
+
+.drawerClose:hover {
+  border-color: var(--a-gold);
+  color: var(--a-graphite);
+}
+
+.drawerSearch {
+  width: 100%;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: var(--a-radius-m);
+  padding: 0.65rem 0.9rem;
+  font-size: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
+.drawerSearch:focus {
+  outline: none;
+  border-color: var(--a-gold);
+  box-shadow: 0 0 0 3px var(--a-gold-wash);
+}
+
+.drawerGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  flex: 1;
+}
+
+.drawerEmpty {
+  color: var(--a-graphite-soft);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.drawerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--a-border);
+}
+
+/* --- Stone cards (inventory drawer) ------------------------------------ */
+
+.stoneCard {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: var(--a-radius-m);
+  padding: 0.6rem;
+  cursor: pointer;
+  text-align: right;
+  transition: border-color 0.15s ease;
+}
+
+.stoneCard:hover {
+  border-color: var(--a-gold-soft);
+}
+
+.stoneCardSelected {
+  border-color: var(--a-gold);
+  box-shadow: 0 0 0 1px var(--a-gold);
+}
+
+.stoneCardImageWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: var(--a-radius-s);
+  overflow: hidden;
+  background: var(--a-gold-wash);
+}
+
+.stoneCardImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stoneCardPlaceholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #efe6d3, #d6c6a1);
+}
+
+.stoneCardCheck {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  background: var(--a-gold);
+  color: var(--a-ivory);
+  border-radius: 50%;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stoneCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.stoneCardName {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--a-graphite);
+}
+
+.stoneCardMeta {
+  font-size: 0.8rem;
+  color: var(--a-graphite-soft);
+}
+
+.stoneCardMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--a-graphite-soft);
+}
+
+.stoneCardBadge {
+  background: var(--a-gold-wash);
+  color: var(--a-gold);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+/* --- Real stone display on StoneRequestScreen -------------------------- */
+
+.stoneImageEmpty {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3rem;
+  display: block;
+  opacity: 0.85;
+}
+
+.stoneMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: center;
+  text-align: center;
+}
+
+.stoneMetaRow {
+  font-size: 0.85rem;
+  color: var(--a-graphite-soft);
+}
+
+.stoneMetaEmpty {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--a-graphite-soft);
+  margin: 0;
+}
+
+/* --- Universal intake ---------------------------------------------------- */
+
+.intakeArea {
+  margin-top: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.intakeDropzone {
+  border: 1px dashed var(--a-border);
+  border-radius: var(--a-radius-m);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.intakeDropzoneActive {
+  border-color: var(--a-gold);
+  background: var(--a-gold-wash);
+}
+
+.intakeDropzoneText {
+  font-size: 0.82rem;
+  color: var(--a-graphite-soft);
+}
+
+.intakeDropzoneActions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.intakePasteRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.intakePasteInput {
+  flex: 1;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: var(--a-radius-s);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.intakePasteInput:focus {
+  outline: none;
+  border-color: var(--a-gold);
+  box-shadow: 0 0 0 3px var(--a-gold-wash);
+}
+
+.intakePasteAdd {
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: var(--a-radius-s);
+  padding: 0.55rem 1rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--a-graphite-soft);
+}
+
+.intakePasteAdd:hover {
+  border-color: var(--a-gold);
+  color: var(--a-graphite);
+}
+
+.intakeChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.intakeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.4rem 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.intakeChipThumb {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.intakeChipIcon {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--a-gold-wash);
+  color: var(--a-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.intakeChipBody {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  max-width: 9rem;
+}
+
+.intakeChipRole {
+  font-size: 0.68rem;
+  color: var(--a-graphite-soft);
+}
+
+.intakeChipName {
+  font-size: 0.78rem;
+  color: var(--a-graphite);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intakeChipRemove {
+  background: none;
+  border: none;
+  color: var(--a-graphite-faint);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.intakeChipRemove:hover {
+  color: var(--a-graphite);
+}
+
+/* --- Understanding screen ("מה הבנתי") ---------------------------------- */
+
+.understandingScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.understandingCard {
+  width: 100%;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: var(--a-radius-l);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.understandingSentence {
+  font-family: var(--a-font-display);
+  font-size: 1.3rem;
+  line-height: 1.6;
+  color: var(--a-graphite);
+  margin: 0;
+}
+
+.understandingEmpty {
+  font-size: 0.95rem;
+  color: var(--a-graphite-soft);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.understandingReferences {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.understandingActions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* --- Creations drawer ("היצירות שלי") ----------------------------------- */
+
+.creationsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.creationCard {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--a-surface);
+  border: 1px solid var(--a-border);
+  border-radius: var(--a-radius-m);
+  padding: 0.6rem;
+  cursor: pointer;
+  text-align: right;
+  transition: border-color 0.15s ease;
+}
+
+.creationCard:hover {
+  border-color: var(--a-gold-soft);
+}
+
+.creationCardImageWrap {
+  flex-shrink: 0;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: var(--a-radius-s);
+  overflow: hidden;
+  background: var(--a-gold-wash);
+}
+
+.creationCardImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.creationCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.creationCardName {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--a-graphite);
+}
+
+.creationCardMeta {
+  font-size: 0.78rem;
+  color: var(--a-graphite-soft);
+}
+
+/* --- Directions screen addition ----------------------------------------- */
+
+.directionProductionNote {
+  font-size: 0.76rem;
+  color: var(--a-graphite-faint);
+  margin: 0.2rem 0 0;
+}
+
+/* --- Responsive ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+  .drawerPanel {
+    width: 100%;
+  }
+}
+
+.atelierNotice {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(153, 121, 62, 0.22);
+  background: rgba(245, 240, 228, 0.72);
+  color: #5f5140;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 10px;
+}

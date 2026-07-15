@@ -34,11 +34,25 @@ const CREATIVITY_LEVELS = [
   { id: 'free', label: 'חופשי' },
 ];
 
-const PREVIEW =
-  '/assets/leshems/starter-pack-v1/02_jewelry_placeholders/jewel_pendant_solitaire_whitegold_preview_v01.png';
+const PLACEHOLDER_BASE = '/assets/leshems/starter-pack-v1/02_jewelry_placeholders/';
 
-export default function RenderStudioScreen({ selectedDirection, renderConfig, onUpdateConfig, onBack }) {
+// Best-effort real preview: picks an existing safe placeholder image by the
+// selected direction's real productType when available, falling back to the
+// original static pendant preview otherwise (never breaks if productType is
+// missing — Clean 10A's original behavior is preserved as the default).
+function previewImageFor(productType) {
+  if (productType === 'ring' || productType === 'engagementRing' || productType === 'weddingBand') {
+    return `${PLACEHOLDER_BASE}jewel_ring_halo_round_whitegold_preview_v01.png`;
+  }
+  if (productType === 'earrings') {
+    return `${PLACEHOLDER_BASE}jewel_earrings_stud_diamond_preview_v01.png`;
+  }
+  return `${PLACEHOLDER_BASE}jewel_pendant_solitaire_whitegold_preview_v01.png`;
+}
+
+export default function RenderStudioScreen({ direction, renderConfig, onUpdateConfig, onBack }) {
   const [confirmed, setConfirmed] = useState(false);
+  const preview = previewImageFor(direction && direction.productType);
 
   const sceneLabel = SCENES.find((s) => s.id === renderConfig.scene)?.label;
   const angleLabel = ANGLES.find((a) => a.id === renderConfig.angle)?.label;
@@ -50,11 +64,14 @@ export default function RenderStudioScreen({ selectedDirection, renderConfig, on
         <span className={styles.eyebrow}>תצוגה מקדימה</span>
         <div className={`${styles.previewFrame} ${styles[`preview_${renderConfig.scene}`] || ''}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={PREVIEW} alt="תצוגת תליון" className={styles.previewImage} />
+          <img src={preview} alt={(direction && direction.conceptName) || 'תצוגת תכשיט'} className={styles.previewImage} />
         </div>
         <p className={styles.previewMeta}>
           {sceneLabel} · {angleLabel} · {formatLabel}
         </p>
+        {direction && direction.conceptName && (
+          <p className={styles.previewMeta}>{direction.conceptName}</p>
+        )}
       </div>
 
       <div className={styles.controlsColumn}>
@@ -77,7 +94,7 @@ export default function RenderStudioScreen({ selectedDirection, renderConfig, on
                 >
                   <span className={styles.sceneThumbVisual} data-scene={scene.id}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={PREVIEW} alt="" className={styles.sceneThumbImage} />
+                    <img src={preview} alt="" className={styles.sceneThumbImage} />
                   </span>
                   <span className={styles.sceneThumbLabel}>{scene.label}</span>
                 </button>

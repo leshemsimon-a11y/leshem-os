@@ -1,49 +1,12 @@
-import { useState } from 'react';
 import styles from './atelier.module.css';
 
-const DIRECTIONS_PRIMARY = [
-  {
-    id: 'modern-geometric-pendant',
-    title: 'מודרני גיאומטרי',
-    text: 'מסגרת נקייה שמדגישה את האבן ומעניקה לתליון נוכחות מדויקת.',
-    variant: 'geometric',
-  },
-  {
-    id: 'elegant-ribbon-pendant',
-    title: 'אלגנטי זורם',
-    text: 'קווי מתכת רכים עוטפים את האבן ויוצרים תנועה עדינה.',
-    variant: 'ribbon',
-  },
-  {
-    id: 'classic-halo-pendant',
-    title: 'קלאסי מודרני',
-    text: 'הילה מאוזנת שמעצימה את צבע האבן בלי להכביד על העיצוב.',
-    variant: 'halo',
-  },
-];
+// Cycled purely by position so every direction gets a distinct silhouette —
+// this is the SAME deterministic sketch generator approved in Clean 10A,
+// unchanged, now illustrating real generated directions instead of static
+// demo copy.
+const SKETCH_VARIANTS = ['geometric', 'ribbon', 'halo'];
 
-const DIRECTIONS_ALT = [
-  {
-    id: 'quiet-bezel-pendant',
-    title: 'מסגרת עדינה',
-    text: 'שיבוץ נקי וקרוב לאבן למראה שקט, בטוח ומעודן.',
-    variant: 'bezel',
-  },
-  {
-    id: 'sculptural-drop-pendant',
-    title: 'טיפה פיסולית',
-    text: 'מבנה אנכי אלגנטי שמוסיף אורך ונוכחות לתליון.',
-    variant: 'drop',
-  },
-  {
-    id: 'soft-cluster-pendant',
-    title: 'קלאסטר רך',
-    text: 'אבנים קטנות מלוות את המרכז בקומפוזיציה טבעית ומאוזנת.',
-    variant: 'cluster',
-  },
-];
-
-function PendantSketch({ variant }) {
+function ConceptSketch({ variant }) {
   const halo = variant === 'halo' || variant === 'cluster';
   const ribbon = variant === 'ribbon' || variant === 'drop';
   const bezel = variant === 'bezel';
@@ -51,7 +14,7 @@ function PendantSketch({ variant }) {
   const cluster = variant === 'cluster';
 
   return (
-    <svg viewBox="0 0 320 260" className={styles.pendantSketch} role="img" aria-label="סקיצת תליון">
+    <svg viewBox="0 0 320 260" className={styles.pendantSketch} role="img" aria-label="סקיצת כיוון עיצוב">
       <defs>
         <linearGradient id={`stone-${variant}`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#1f7b57" />
@@ -116,17 +79,18 @@ function PendantSketch({ variant }) {
 }
 
 export default function DirectionsScreen({
+  directions,
   selectedDirection,
   onSelectDirection,
   onBack,
   onContinue,
+  onRegenerate,
 }) {
-  const [useAlt, setUseAlt] = useState(false);
-  const directions = useAlt ? DIRECTIONS_ALT : DIRECTIONS_PRIMARY;
+  const list = Array.isArray(directions) ? directions : [];
 
   const choose = (direction) => {
-    onSelectDirection(direction.id);
-    onContinue();
+    onSelectDirection(direction.conceptId);
+    onContinue(direction.conceptId);
   };
 
   return (
@@ -134,29 +98,33 @@ export default function DirectionsScreen({
       <div className={styles.welcomeHead}>
         <span className={styles.eyebrow}>כיווני עיצוב</span>
         <h2 className={styles.heading}>בחר כיוון להמשך</h2>
-        <p className={styles.subheading}>שלוש הצעות לתליון, כולן סביב האבן שבחרת</p>
+        <p className={styles.subheading}>שלוש הצעות סביב האבן והבקשה שכתבת</p>
       </div>
 
       <div className={styles.directionsGrid}>
-        {directions.map((direction, index) => {
-          const selected = selectedDirection === direction.id;
+        {list.map((direction, index) => {
+          const selected = selectedDirection === direction.conceptId;
+          const variant = SKETCH_VARIANTS[index % SKETCH_VARIANTS.length];
           return (
             <div
-              key={direction.id}
+              key={direction.conceptId}
               className={`${styles.directionCard} ${selected ? styles.directionCardSelected : ''}`}
-              onClick={() => onSelectDirection(direction.id)}
+              onClick={() => onSelectDirection(direction.conceptId)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') onSelectDirection(direction.id);
+                if (e.key === 'Enter' || e.key === ' ') onSelectDirection(direction.conceptId);
               }}
             >
               <span className={styles.directionNumber}>0{index + 1}</span>
               <div className={styles.directionImageWrap}>
-                <PendantSketch variant={direction.variant} />
+                <ConceptSketch variant={variant} />
               </div>
-              <h3 className={styles.directionTitle}>{direction.title}</h3>
-              <p className={styles.directionText}>{direction.text}</p>
+              <h3 className={styles.directionTitle}>{direction.conceptName}</h3>
+              <p className={styles.directionText}>{direction.shortDescription}</p>
+              {direction.productionNotes && (
+                <p className={styles.directionProductionNote}>{direction.productionNotes}</p>
+              )}
               <button
                 type="button"
                 className={`${styles.directionChoose} ${selected ? styles.directionChooseSelected : ''}`}
@@ -176,7 +144,7 @@ export default function DirectionsScreen({
         <button type="button" className={styles.backBtn} onClick={onBack}>
           חזור וערוך
         </button>
-        <button type="button" className={styles.ghostBtn} onClick={() => setUseAlt((v) => !v)}>
+        <button type="button" className={styles.ghostBtn} onClick={onRegenerate}>
           הצע שלושה אחרים
         </button>
       </div>

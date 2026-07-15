@@ -7,7 +7,13 @@ const STEPS = [
   { id: 4, label: 'הכנה' },
 ];
 
-export default function AtelierShell({ children, onReset, showReset, currentStep = 1 }) {
+export default function AtelierShell({
+  children,
+  onReset,
+  showReset,
+  currentStep = 1,
+  onOpenCreations,
+}) {
   return (
     <div className={styles.shell} dir="rtl">
       <div className={styles.topBar}>
@@ -41,6 +47,9 @@ export default function AtelierShell({ children, onReset, showReset, currentStep
         )}
 
         <div className={styles.topActions}>
+          <button type="button" className={styles.creationsBtn} onClick={onOpenCreations}>
+            היצירות שלי
+          </button>
           {showReset && (
             <button type="button" className={styles.resetBtn} onClick={onReset}>
               התחלה מחדש
