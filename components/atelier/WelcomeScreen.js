@@ -1,27 +1,26 @@
 import { useState } from 'react';
 import styles from './atelier.module.css';
+import JewelryIcon from './JewelryIcon';
 
 const CHOICES = [
   {
     id: 'stone',
-    title: 'יש לי אבן',
-    sub: 'אני רוצה לעצב סביבה',
-    image:
-      '/assets/leshems/starter-pack-v1/01_stones/gemstones/stone_emerald_emeraldcut_vividgreen_thumb_v01.png',
+    title: 'לעצב סביב אבן',
+    sub: 'בחר אבן מהמלאי והתחל יצירה חיה',
+    icon: 'pendant',
+    primary: true,
   },
   {
     id: 'idea',
-    title: 'יש לי רעיון',
-    sub: 'לתכשיט שאני רוצה ליצור',
-    image:
-      '/assets/leshems/starter-pack-v1/02_jewelry_placeholders/jewel_pendant_solitaire_whitegold_preview_v01.png',
+    title: 'להתחיל מרעיון',
+    sub: 'כתוב מה תרצה ליצור והמערכת תוביל',
+    icon: 'other',
   },
   {
     id: 'inventory',
-    title: 'יש לי מלאי',
-    sub: 'אני רוצה לבנות כיוון או קולקציה',
-    image:
-      '/assets/leshems/starter-pack-v1/05_empty_states/empty_studio_start_stones_to_jewelry_v01.png',
+    title: 'לבנות מהמלאי',
+    sub: 'בחר כמה אבנים לכיוון או קולקציה',
+    icon: 'matchingPiece',
   },
 ];
 
@@ -30,27 +29,30 @@ export default function WelcomeScreen({ intakeText, onIntakeChange, onSelectPath
 
   return (
     <div className={styles.welcomeScreen}>
-      <div className={styles.welcomeHead}>
-        <h1 className={styles.heading}>ברוך הבא לסטודיו התכשיטים שלך</h1>
-        <p className={styles.subheading}>מה ניצור יחד היום?</p>
-      </div>
+      <section className={styles.welcomeHero}>
+        <span className={styles.eyebrow}>LESHEM.S Living Atelier</span>
+        <h1 className={styles.heading}>האבן שלך. תכשיט שנולד סביבה.</h1>
+        <p className={styles.subheading}>
+          מרחב יצירה מונחה שמחבר בין מלאי אמיתי, שיקול דעת מקצועי והדמיה — בלי להעמיס על הדרך.
+        </p>
+      </section>
 
       <div className={styles.choiceGrid}>
         {CHOICES.map((choice) => (
           <button
             key={choice.id}
             type="button"
-            className={styles.choiceCard}
+            className={`${styles.choiceCard} ${choice.primary ? styles.choiceCardPrimary : ''}`}
             onClick={() => onSelectPath(choice.id)}
           >
             <span className={styles.choiceCardImageWrap}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={choice.image} alt="" className={styles.choiceCardImage} />
+              <JewelryIcon type={choice.icon} size={38} />
             </span>
             <span className={styles.choiceCardText}>
               <span className={styles.choiceCardLabel}>{choice.title}</span>
               <span className={styles.choiceCardSub}>{choice.sub}</span>
             </span>
+            <span className={styles.choiceArrow}>←</span>
           </button>
         ))}
       </div>
@@ -58,22 +60,27 @@ export default function WelcomeScreen({ intakeText, onIntakeChange, onSelectPath
       <div className={`${styles.intakeWrap} ${focused ? styles.intakeWrapFocused : ''}`}>
         <textarea
           className={styles.intakeField}
-          placeholder="כתוב לי חופשי מה תרצה ליצור…"
+          placeholder="אפשר גם להתחיל במשפט אחד: תליון עדין סביב אמרלד…"
           value={intakeText}
-          onChange={(e) => onIntakeChange(e.target.value)}
+          onChange={(event) => onIntakeChange(event.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           rows={2}
         />
-        {intakeText.trim().length > 0 && (
-          <button
-            type="button"
-            className={styles.intakeSubmit}
-            onClick={() => onSelectPath('intake')}
-          >
-            המשך
-          </button>
-        )}
+        <button
+          type="button"
+          className={styles.intakeSubmit}
+          onClick={() => onSelectPath('intake')}
+          disabled={!intakeText.trim()}
+        >
+          התחל
+        </button>
+      </div>
+
+      <div className={styles.welcomeTrustRow}>
+        <span>שומר את ההקשר</span>
+        <span>עובד עם המלאי הקיים</span>
+        <span>מוכן למנוע רינדור אמיתי</span>
       </div>
     </div>
   );

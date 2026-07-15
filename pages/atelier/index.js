@@ -8,6 +8,10 @@ import RenderStudioScreen from '../../components/atelier/RenderStudioScreen';
 import InventoryDrawer from '../../components/atelier/InventoryDrawer';
 import CreationsDrawer from '../../components/atelier/CreationsDrawer';
 import * as atelierBridge from '../../lib/atelier/atelierBridge';
+import {
+  createDefaultDesignConfig,
+  normalizeDesignConfig,
+} from '../../lib/atelier/livingAtelier';
 
 const SCREENS = {
   WELCOME: 'welcome',
@@ -26,73 +30,106 @@ const STEP_BY_SCREEN = {
 };
 
 const DEFAULT_RENDER_CONFIG = {
-  scene: 'catalog-white',
-  angle: 'front',
+  scene: 'catalog',
+  angle: 'threeQuarter',
   format: 'square',
-  count: 3,
+  count: 1,
   creativity: 'balanced',
+  quality: 'ultra',
+};
+
+const EMPTY_RENDER_STATE = {
+  status: 'idle',
+  message: '',
+  results: [],
+  progress: 0,
+  total: 0,
+  renderPackage: null,
 };
 
 export default function AtelierPage() {
   const [screen, setScreen] = useState(SCREENS.WELCOME);
 
-  // Stone selection (mirrors the real Work Tray store).
+  // Real Work Tray selection.
   const [trayItems, setTrayItems] = useState([]);
   const [stoneDrawerOpen, setStoneDrawerOpen] = useState(false);
   const [stoneDrawerQuery, setStoneDrawerQuery] = useState('');
   const [stoneDrawerSelectedIds, setStoneDrawerSelectedIds] = useState([]);
 
-  // Universal intake (session-local; attached to the Work File on save).
+  // Universal intake, persisted through the existing Asset Library on save.
   const [intakeItems, setIntakeItems] = useState([]);
 
-  // Request + understanding.
+  // Request + structured living controls.
   const [intakeText, setIntakeText] = useState('');
   const [requestText, setRequestText] = useState('');
-  const [selectedChips, setSelectedChips] = useState([]);
+  const [designConfig, setDesignConfig] = useState(createDefaultDesignConfig);
   const [composedRequestText, setComposedRequestText] = useState('');
   const [understanding, setUnderstanding] = useState(null);
 
-  // Directions + selection.
+  // Directions + real render bridge.
   const [directions, setDirections] = useState([]);
   const [selectedDirectionId, setSelectedDirectionId] = useState(null);
   const [renderConfig, setRenderConfig] = useState(DEFAULT_RENDER_CONFIG);
+  const [renderState, setRenderState] = useState(EMPTY_RENDER_STATE);
 
-  // Work File (real Design Project) + "היצירות שלי".
+  // Real Work File + creations drawer.
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [creationsOpen, setCreationsOpen] = useState(false);
   const [creations, setCreations] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
 
-  // Hydrate the real Work Tray after mount (SSR-safe: localStorage-backed).
   useEffect(() => {
     setTrayItems(atelierBridge.getCurrentTray());
   }, []);
 
   const centerStone = useMemo(() => atelierBridge.getCenterStoneItem(trayItems), [trayItems]);
   const selectedDirectionObj = useMemo(
-    () => directions.find((d) => d.conceptId === selectedDirectionId) || null,
+    () => directions.find((direction) => direction.conceptId === selectedDirectionId) || null,
     [directions, selectedDirectionId]
   );
   const drawerStones = useMemo(
     () => atelierBridge.searchStones(stoneDrawerQuery),
     [stoneDrawerQuery, stoneDrawerOpen]
   );
+  const liveUnderstanding = useMemo(
+    () =>
+      atelierBridge.buildUnderstanding({
+        requestText,
+        trayItems,
+        intakeItems,
+        designConfig,
+      }),
+    [requestText, trayItems, intakeItems, designConfig]
+  );
 
   const goTo = useCallback((next) => setScreen(next), []);
+
+  const handleDesignConfigChange = useCallback((patch) => {
+    setDesignConfig((previous) =>
+      normalizeDesignConfig({
+        ...previous,
+        ...patch,
+        sliders: patch && patch.sliders ? patch.sliders : previous.sliders,
+      })
+    );
+  }, []);
 
   // --- Welcome -------------------------------------------------------------
   const handleSelectPath = useCallback(
     (pathId) => {
-      if (pathId === 'intake' && intakeText.trim()) {
-        setRequestText(intakeText.trim());
-      }
+      if (pathId === 'intake' && intakeText.trim()) setRequestText(intakeText.trim());
       goTo(SCREENS.STONE_REQUEST);
+      if (pathId === 'stone' || pathId === 'inventory') {
+        setStoneDrawerSelectedIds(atelierBridge.getSelectedStoneCardIds(trayItems));
+        setStoneDrawerQuery('');
+        setStoneDrawerOpen(true);
+      }
     },
-    [goTo, intakeText]
+    [goTo, intakeText, trayItems]
   );
 
-  // --- Stone drawer ----------------------------------------------------------
+  // --- Inventory drawer ----------------------------------------------------
   const openStoneDrawer = useCallback(() => {
     setStoneDrawerSelectedIds(atelierBridge.getSelectedStoneCardIds(trayItems));
     setStoneDrawerQuery('');
@@ -100,8 +137,8 @@ export default function AtelierPage() {
   }, [trayItems]);
 
   const toggleStoneSelect = useCallback((id) => {
-    setStoneDrawerSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    setStoneDrawerSelectedIds((previous) =>
+      previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]
     );
   }, []);
 
@@ -116,55 +153,49 @@ export default function AtelierPage() {
     setScreen(SCREENS.STONE_REQUEST);
   }, [stoneDrawerSelectedIds]);
 
-  // --- Universal intake --------------------------------------------------
+  // --- Intake --------------------------------------------------------------
   const handleAddFiles = useCallback((fileList) => {
     const files = Array.from(fileList || []);
-    const newItems = files.map((f) => atelierBridge.classifyFile(f));
-    setIntakeItems((prev) => [...prev, ...newItems]);
+    setIntakeItems((previous) => [...previous, ...files.map((file) => atelierBridge.classifyFile(file))]);
   }, []);
 
   const handleAddText = useCallback((text) => {
     const item = atelierBridge.classifyPastedText(text);
-    if (item) setIntakeItems((prev) => [...prev, item]);
+    if (item) setIntakeItems((previous) => [...previous, item]);
   }, []);
 
   const handleRemoveIntakeItem = useCallback((id) => {
-    setIntakeItems((prev) => {
-      const target = prev.find((it) => it.id === id);
-      if (target && target.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+    setIntakeItems((previous) => {
+      const target = previous.find((item) => item.id === id);
+      if (target?.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
         try {
           URL.revokeObjectURL(target.previewUrl);
-        } catch (e) {
-          // non-fatal
+        } catch (error) {
+          // Non-fatal preview cleanup.
         }
       }
-      return prev.filter((it) => it.id !== id);
+      return previous.filter((item) => item.id !== id);
     });
   }, []);
 
-  const handleToggleChip = useCallback((chip) => {
-    setSelectedChips((prev) =>
-      prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
-    );
-  }, []);
-
-  // --- Stone + request -> understanding -----------------------------------
+  // --- Request -> understanding -------------------------------------------
   const canContinueFromStoneRequest = Boolean(
-    centerStone && atelierBridge.hasCreationIntent({ requestText, selectedChips, intakeItems })
+    centerStone &&
+      liveUnderstanding.product &&
+      atelierBridge.hasCreationIntent({ requestText, intakeItems })
   );
 
   const handleContinueToUnderstanding = useCallback(() => {
     if (!canContinueFromStoneRequest) return;
-    const composed = atelierBridge.composeRequestText(requestText, selectedChips);
+    const composed = atelierBridge.composeRequestText(requestText, []);
     setComposedRequestText(composed);
-    const u = atelierBridge.buildUnderstanding({ requestText: composed, trayItems, intakeItems });
-    setUnderstanding(u);
+    setUnderstanding(liveUnderstanding);
     goTo(SCREENS.UNDERSTANDING);
-  }, [requestText, selectedChips, trayItems, intakeItems, canContinueFromStoneRequest, goTo]);
+  }, [canContinueFromStoneRequest, requestText, liveUnderstanding, goTo]);
 
-  // --- Understanding -> real direction generation + first Work File save --
+  // --- Understanding -> directions + first Work File save -----------------
   const handleConfirmUnderstanding = useCallback(async () => {
-    if (!understanding || !understanding.product || saving) return;
+    if (!understanding?.product || saving) return;
     setSaving(true);
     setSaveNotice('');
     try {
@@ -174,9 +205,11 @@ export default function AtelierPage() {
         trayItems,
         intakeItems,
         requestText: composedRequestText,
+        designConfig: understanding.designConfig || designConfig,
       });
       setDirections(dirs);
       setSelectedDirectionId(null);
+      setRenderState(EMPTY_RENDER_STATE);
 
       let brief = atelierBridge.buildBriefFromAtelier({
         product: understanding.product,
@@ -186,6 +219,7 @@ export default function AtelierPage() {
         requestText: composedRequestText,
         directions: dirs,
         selectedDirectionId: null,
+        designConfig: understanding.designConfig || designConfig,
       });
       const saved = atelierBridge.saveAtelierWorkFile({
         existingProjectId: currentProjectId,
@@ -193,7 +227,7 @@ export default function AtelierPage() {
         trayItems,
         brief,
       });
-      if (!saved || !saved.id) throw new Error('save-failed');
+      if (!saved?.id) throw new Error('save-failed');
       setCurrentProjectId(saved.id);
 
       const persisted = await atelierBridge.persistIntakeFiles({
@@ -209,6 +243,7 @@ export default function AtelierPage() {
         requestText: composedRequestText,
         directions: dirs,
         selectedDirectionId: null,
+        designConfig: understanding.designConfig || designConfig,
       });
       atelierBridge.saveAtelierWorkFile({
         existingProjectId: saved.id,
@@ -220,30 +255,41 @@ export default function AtelierPage() {
         setSaveNotice(`היצירה נשמרה. ${persisted.failedNames.length} קבצים נשארו זמניים וניתן לצרף שוב.`);
       }
       goTo(SCREENS.DIRECTIONS);
-    } catch (e) {
+    } catch (error) {
       setSaveNotice('לא הצלחתי לשמור את היצירה כרגע. אפשר לנסות שוב.');
     } finally {
       setSaving(false);
     }
-  }, [understanding, trayItems, intakeItems, composedRequestText, currentProjectId, goTo, saving]);
+  }, [
+    understanding,
+    saving,
+    trayItems,
+    intakeItems,
+    composedRequestText,
+    designConfig,
+    currentProjectId,
+    goTo,
+  ]);
 
   const handleRegenerateDirections = useCallback(() => {
-    if (!understanding || !understanding.product) return;
+    if (!understanding?.product) return;
     const dirs = atelierBridge.generateDirectionsFor({
       product: understanding.product,
       style: understanding.style,
       trayItems,
       intakeItems,
       requestText: composedRequestText,
+      designConfig: understanding.designConfig || designConfig,
     });
     setDirections(dirs);
     setSelectedDirectionId(null);
-  }, [understanding, trayItems, intakeItems, composedRequestText]);
+    setRenderState(EMPTY_RENDER_STATE);
+  }, [understanding, trayItems, intakeItems, composedRequestText, designConfig]);
 
-  // --- Directions -> select + persist -------------------------------------
+  // --- Directions -> persist selection ------------------------------------
   const persistDirectionSelection = useCallback(
     (conceptId, dirsList) => {
-      if (!understanding) return;
+      if (!understanding) return null;
       const brief = atelierBridge.buildBriefFromAtelier({
         product: understanding.product,
         style: understanding.style,
@@ -252,6 +298,7 @@ export default function AtelierPage() {
         requestText: composedRequestText,
         directions: dirsList,
         selectedDirectionId: conceptId,
+        designConfig: understanding.designConfig || designConfig,
       });
       const saved = atelierBridge.saveAtelierWorkFile({
         existingProjectId: currentProjectId,
@@ -260,30 +307,121 @@ export default function AtelierPage() {
         brief,
       });
       if (saved) setCurrentProjectId(saved.id);
+      return saved;
     },
-    [understanding, trayItems, intakeItems, composedRequestText, currentProjectId]
+    [understanding, trayItems, intakeItems, composedRequestText, designConfig, currentProjectId]
   );
-
-  const handleSelectDirection = useCallback((conceptId) => {
-    setSelectedDirectionId(conceptId);
-  }, []);
 
   const handleChooseDirection = useCallback(
     (conceptId) => {
+      setSelectedDirectionId(conceptId);
       persistDirectionSelection(conceptId, directions);
+      setRenderState(EMPTY_RENDER_STATE);
       goTo(SCREENS.RENDER_STUDIO);
     },
     [persistDirectionSelection, directions, goTo]
   );
 
-  // --- Reset / restart -----------------------------------------------------
+  // --- Real render bridge --------------------------------------------------
+  const handleGenerateRender = useCallback(async () => {
+    if (!currentProjectId || !selectedDirectionId) return;
+    setRenderState((previous) => ({ ...previous, status: 'preparing', message: '' }));
+    const prepared = atelierBridge.prepareAtelierRender({
+      projectId: currentProjectId,
+      renderConfig,
+    });
+    if (!prepared?.package) {
+      setRenderState((previous) => ({
+        ...previous,
+        status: 'error',
+        message: 'לא ניתן היה להכין את בריף ההדמיה.',
+      }));
+      return;
+    }
+
+    const total = Math.max(1, Math.min(3, Number(renderConfig.count) || 1));
+    const newResults = [];
+    setRenderState((previous) => ({
+      ...previous,
+      status: 'generating',
+      renderPackage: prepared.package,
+      progress: 1,
+      total,
+      message: '',
+    }));
+
+    try {
+      for (let index = 0; index < total; index += 1) {
+        setRenderState((previous) => ({
+          ...previous,
+          status: 'generating',
+          progress: index + 1,
+          total,
+        }));
+        // eslint-disable-next-line no-await-in-loop
+        const response = await fetch('/api/atelier/render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: prepared.package.finalPromptEnglish,
+            negativePrompt: prepared.package.negativePromptEnglish,
+            aspectRatio: prepared.package.recommendedAspectRatio,
+            quality: renderConfig.quality,
+          }),
+        });
+        // eslint-disable-next-line no-await-in-loop
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok || !payload.imageBase64) {
+          throw new Error(payload.message || 'מנוע ההדמיה לא החזיר תוצאה.');
+        }
+        const dataUrl = `data:${payload.mimeType || 'image/jpeg'};base64,${payload.imageBase64}`;
+        const result = { dataUrl, saved: false };
+        newResults.push(result);
+        setRenderState((previous) => ({
+          ...previous,
+          results: [...previous.results, result],
+          status: 'saving',
+        }));
+        // eslint-disable-next-line no-await-in-loop
+        await atelierBridge.persistAtelierRenderResult({
+          projectId: currentProjectId,
+          dataUrl,
+          provider: payload.provider,
+          prompt: prepared.package.finalPromptEnglish,
+          index,
+        });
+        result.saved = true;
+        setRenderState((previous) => ({
+          ...previous,
+          results: previous.results.map((item) =>
+            item.dataUrl === dataUrl ? { ...item, saved: true } : item
+          ),
+          status: index + 1 < total ? 'generating' : 'done',
+        }));
+      }
+      setRenderState((previous) => ({
+        ...previous,
+        status: 'done',
+        message: `${newResults.length} תוצאות נוצרו ונשמרו בתיק היצירה.`,
+      }));
+    } catch (error) {
+      setRenderState((previous) => ({
+        ...previous,
+        status: 'error',
+        renderPackage: prepared.package,
+        message: error instanceof Error ? error.message : 'ההדמיה לא הושלמה.',
+      }));
+    }
+  }, [currentProjectId, selectedDirectionId, renderConfig]);
+
+  // --- Reset ---------------------------------------------------------------
   const resetAll = useCallback(() => {
-    intakeItems.forEach((it) => {
-      if (it.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+    intakeItems.forEach((item) => {
+      if (item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
         try {
-          URL.revokeObjectURL(it.previewUrl);
-        } catch (e) {
-          // non-fatal
+          URL.revokeObjectURL(item.previewUrl);
+        } catch (error) {
+          // Non-fatal cleanup.
         }
       }
     });
@@ -292,19 +430,20 @@ export default function AtelierPage() {
     setIntakeItems([]);
     setIntakeText('');
     setRequestText('');
-    setSelectedChips([]);
+    setDesignConfig(createDefaultDesignConfig());
     setComposedRequestText('');
     setUnderstanding(null);
     setDirections([]);
     setSelectedDirectionId(null);
     setRenderConfig(DEFAULT_RENDER_CONFIG);
+    setRenderState(EMPTY_RENDER_STATE);
     setCurrentProjectId(null);
     setSaving(false);
     setSaveNotice('');
     setScreen(SCREENS.WELCOME);
   }, [intakeItems]);
 
-  // --- היצירות שלי -----------------------------------------------------
+  // --- My creations --------------------------------------------------------
   const openCreations = useCallback(() => {
     setCreations(atelierBridge.listAtelierWorkFiles());
     setCreationsOpen(true);
@@ -315,21 +454,27 @@ export default function AtelierPage() {
     if (!result) return;
     const { project, screen: resumeScreen } = result;
     const brief = project.brief || {};
+    const restoredConfig = atelierBridge.getDesignConfigFromBrief(brief);
+    const restoredItems = Array.isArray(brief.references) ? brief.references : [];
+    const restoredRequest = brief.designGoal || '';
+    const restoredUnderstanding = atelierBridge.buildUnderstanding({
+      requestText: restoredRequest,
+      trayItems: project.trayItems || [],
+      intakeItems: restoredItems,
+      designConfig: restoredConfig,
+    });
+
     setTrayItems(project.trayItems || []);
     setCurrentProjectId(project.id);
-    setRequestText(brief.designGoal || '');
-    setComposedRequestText(brief.designGoal || '');
-    setSelectedChips([]);
-    setIntakeItems(Array.isArray(brief.references) ? brief.references : []);
-    setUnderstanding(
-      atelierBridge.buildUnderstanding({
-        requestText: brief.designGoal || '',
-        trayItems: project.trayItems || [],
-        intakeItems: Array.isArray(brief.references) ? brief.references : [],
-      })
-    );
+    setRequestText(restoredRequest);
+    setComposedRequestText(restoredRequest);
+    setDesignConfig(restoredConfig);
+    setIntakeItems(restoredItems);
+    setUnderstanding(restoredUnderstanding);
     setDirections(Array.isArray(brief.concepts) ? brief.concepts : []);
     setSelectedDirectionId(brief.selectedConceptId || null);
+    setRenderConfig(DEFAULT_RENDER_CONFIG);
+    setRenderState(EMPTY_RENDER_STATE);
     setCreationsOpen(false);
     setScreen(resumeScreen);
   }, []);
@@ -343,22 +488,24 @@ export default function AtelierPage() {
       currentStep={currentStep}
       onOpenCreations={openCreations}
     >
-      {screen === SCREENS.WELCOME && (
+      {screen === SCREENS.WELCOME ? (
         <WelcomeScreen
           intakeText={intakeText}
           onIntakeChange={setIntakeText}
           onSelectPath={handleSelectPath}
         />
-      )}
+      ) : null}
 
-      {screen === SCREENS.STONE_REQUEST && (
+      {screen === SCREENS.STONE_REQUEST ? (
         <StoneRequestScreen
           centerStone={centerStone}
+          trayItems={trayItems}
           onOpenStoneDrawer={openStoneDrawer}
           requestText={requestText}
           onRequestChange={setRequestText}
-          selectedChips={selectedChips}
-          onToggleChip={handleToggleChip}
+          designConfig={designConfig}
+          onDesignConfigChange={handleDesignConfigChange}
+          liveUnderstanding={liveUnderstanding}
           intakeItems={intakeItems}
           onAddFiles={handleAddFiles}
           onAddText={handleAddText}
@@ -367,12 +514,12 @@ export default function AtelierPage() {
           onContinue={handleContinueToUnderstanding}
           canContinue={canContinueFromStoneRequest}
         />
-      )}
+      ) : null}
 
-      {screen === SCREENS.UNDERSTANDING && (
+      {screen === SCREENS.UNDERSTANDING ? (
         <UnderstandingScreen
           understanding={understanding}
-          stoneTitle={centerStone ? atelierBridge.trayItemTitle(centerStone) : null}
+          centerStone={centerStone}
           intakeItems={intakeItems}
           onRemoveIntakeItem={handleRemoveIntakeItem}
           onEditRequest={() => goTo(SCREENS.STONE_REQUEST)}
@@ -385,27 +532,33 @@ export default function AtelierPage() {
           busy={saving}
           notice={saveNotice}
         />
-      )}
+      ) : null}
 
-      {screen === SCREENS.DIRECTIONS && (
+      {screen === SCREENS.DIRECTIONS ? (
         <DirectionsScreen
           directions={directions}
           selectedDirection={selectedDirectionId}
-          onSelectDirection={handleSelectDirection}
+          designConfig={understanding?.designConfig || designConfig}
+          stoneShape={centerStone?.snapshot?.shape}
+          onSelectDirection={setSelectedDirectionId}
           onBack={() => goTo(SCREENS.UNDERSTANDING)}
           onContinue={handleChooseDirection}
           onRegenerate={handleRegenerateDirections}
         />
-      )}
+      ) : null}
 
-      {screen === SCREENS.RENDER_STUDIO && (
+      {screen === SCREENS.RENDER_STUDIO ? (
         <RenderStudioScreen
           direction={selectedDirectionObj}
+          designConfig={understanding?.designConfig || designConfig}
+          stoneShape={centerStone?.snapshot?.shape}
           renderConfig={renderConfig}
-          onUpdateConfig={(patch) => setRenderConfig((prev) => ({ ...prev, ...patch }))}
+          onUpdateConfig={(patch) => setRenderConfig((previous) => ({ ...previous, ...patch }))}
           onBack={() => goTo(SCREENS.DIRECTIONS)}
+          onGenerate={handleGenerateRender}
+          renderState={renderState}
         />
-      )}
+      ) : null}
 
       <InventoryDrawer
         open={stoneDrawerOpen}
