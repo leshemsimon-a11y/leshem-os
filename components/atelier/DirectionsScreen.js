@@ -12,6 +12,9 @@ export default function DirectionsScreen({
   selectedDirection,
   designConfig,
   stoneShape,
+  stoneType,
+  stoneTypeHe,
+  specSummaryHe,
   onSelectDirection,
   onBack,
   onContinue,
@@ -30,7 +33,8 @@ export default function DirectionsScreen({
         <div>
           <span className={styles.eyebrow}>שלושה כיוונים</span>
           <h1 className={styles.heading}>אותה אבן. שלוש פרשנויות מקצועיות.</h1>
-          <p className={styles.subheading}>כל כיוון נשען על הבקשה, הרפרנסים והחלטות המבנה שבחרת.</p>
+          <p className={styles.subheading}>כל כיוון נשען על הבקשה, הרפרנסים והרכיבים שבחרת.</p>
+          {specSummaryHe ? <p className={styles.directionsSpecLine}>{specSummaryHe}</p> : null}
         </div>
         <button type="button" className={styles.ghostBtn} onClick={onRegenerate}>
           צור שלושה אחרים
@@ -41,24 +45,10 @@ export default function DirectionsScreen({
         {list.map((direction, index) => {
           const selected = selectedDirection === direction.conceptId;
           const tags = DIRECTION_TAGS[index % DIRECTION_TAGS.length];
-          const visualConfig = {
-            ...designConfig,
-            setting:
-              index === 1
-                ? designConfig.product === 'pendant'
-                  ? 'bezel'
-                  : designConfig.setting
-                : index === 2
-                ? designConfig.product === 'pendant'
-                  ? 'halo'
-                  : designConfig.setting
-                : designConfig.setting,
-            sliders: {
-              ...(designConfig.sliders || {}),
-              presence: Math.min(100, (designConfig.sliders?.presence || 35) + index * 18),
-              richness: Math.min(100, (designConfig.sliders?.richness || 30) + index * 16),
-            },
-          };
+          // Clean 11A.2: all three directions preview the SAME selected
+          // components. The directions differ in design language, not in
+          // what the piece is physically made of — so the chosen card
+          // always matches the render and the production spec.
           return (
             <article
               key={direction.conceptId}
@@ -73,7 +63,14 @@ export default function DirectionsScreen({
               </div>
 
               <div className={styles.directionVisual}>
-                <PendantVisualizer config={visualConfig} shape={stoneShape} variant={index} compact />
+                <PendantVisualizer
+                  config={designConfig}
+                  shape={stoneShape}
+                  stoneType={stoneType}
+                  stoneTypeHe={stoneTypeHe}
+                  variant={index}
+                  compact
+                />
               </div>
 
               <div className={styles.directionBody}>

@@ -7,6 +7,9 @@ import {
   settingOption,
   bailOption,
   chainOption,
+  meleeOption,
+  earringBackOption,
+  componentGroupsFor,
 } from '../../lib/atelier/livingAtelier';
 
 export default function UnderstandingScreen({
@@ -28,9 +31,13 @@ export default function UnderstandingScreen({
   const product = productOption(config.product);
   const style = styleOption(config.style);
   const metal = metalOption(config.metalPreference);
-  const setting = settingOption(config.setting);
-  const bail = bailOption(config.bail);
-  const chain = chainOption(config.chain);
+  const setting = settingOption(config.settingKey);
+  const bail = bailOption(config.bailKey);
+  const chain = chainOption(config.chainKey);
+  const melee = meleeOption(config.meleeKey);
+  const back = earringBackOption(config.earringBackKey);
+  const groups = componentGroupsFor(config.product);
+  const hasMelee = Boolean(melee && melee.key !== 'none' && config.meleeCount > 0);
 
   return (
     <div className={styles.reviewScreen}>
@@ -41,7 +48,13 @@ export default function UnderstandingScreen({
           <p className={styles.subheading}>לפני שאני יוצר שלושה כיוונים, זו התמונה המקצועית שקיבלתי.</p>
         </div>
         <div className={styles.reviewVisual}>
-          <PendantVisualizer config={config} shape={snapshot.shape} compact />
+          <PendantVisualizer
+            config={config}
+            shape={snapshot.shape}
+            stoneType={snapshot.stoneType}
+            stoneTypeHe={snapshot.stoneTypeHe}
+            compact
+          />
         </div>
       </div>
 
@@ -52,6 +65,12 @@ export default function UnderstandingScreen({
               <span className={styles.reviewCardLabel}>הגדרת היצירה</span>
               <p className={styles.understandingSentence}>{understanding.understandingHe}</p>
               <p className={styles.reviewDesignSummary}>{understanding.designSummaryHe}</p>
+              {understanding.specSummaryHe ? (
+                <p className={styles.reviewSpecLine}>
+                  <span>מפרט ייצור</span>
+                  {understanding.specSummaryHe}
+                </p>
+              ) : null}
             </>
           ) : (
             <p className={styles.understandingEmpty}>
@@ -68,17 +87,28 @@ export default function UnderstandingScreen({
         </section>
 
         <aside className={styles.reviewDetailsCard}>
-          <span className={styles.reviewCardLabel}>החלטות מבנה</span>
-          {config.product === 'pendant' ? (
-            <div className={styles.reviewDetailList}>
+          <span className={styles.reviewCardLabel}>רכיבים לייצור</span>
+          <div className={styles.reviewDetailList}>
+            {groups.setting ? (
               <div><span>שיבוץ</span><strong>{setting ? setting.he : 'פתוח'}</strong></div>
-              <div><span>חיבור</span><strong>{bail ? bail.he : 'פתוח'}</strong></div>
+            ) : null}
+            {groups.melee ? (
+              <div>
+                <span>אבני לוואי</span>
+                <strong>{hasMelee ? `${config.meleeCount} · ${melee.he}` : 'ללא'}</strong>
+              </div>
+            ) : null}
+            {groups.bail ? (
+              <div><span>לולאה</span><strong>{bail ? bail.he : 'פתוח'}</strong></div>
+            ) : null}
+            {groups.chain ? (
               <div><span>שרשרת</span><strong>{chain ? chain.he : 'פתוח'}</strong></div>
-              <div><span>רפרנסים</span><strong>{items.length || 'ללא'}</strong></div>
-            </div>
-          ) : (
-            <p className={styles.reviewAsideCopy}>הכיוונים ייבנו מתוך סוג התכשיט, האבן, הסגנון והבקשה החופשית.</p>
-          )}
+            ) : null}
+            {groups.back ? (
+              <div><span>סגירה</span><strong>{back ? back.he : 'פתוח'}</strong></div>
+            ) : null}
+            <div><span>רפרנסים</span><strong>{items.length || 'ללא'}</strong></div>
+          </div>
           <div className={styles.understandingActions}>
             <button type="button" className={styles.ghostBtn} onClick={onEditRequest}>ערוך בקשה</button>
             <button type="button" className={styles.ghostBtn} onClick={onReplaceStone}>החלף אבן</button>

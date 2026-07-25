@@ -29,13 +29,14 @@ const STEP_BY_SCREEN = {
   [SCREENS.RENDER_STUDIO]: 4,
 };
 
+// Clean 11A.2 — presentation choices only. The engine's interpretation and
+// quality tier are no longer client-facing: the manufacturing spec is
+// authoritative and quality is fixed at the studio's standard.
 const DEFAULT_RENDER_CONFIG = {
   scene: 'catalog',
   angle: 'threeQuarter',
   format: 'square',
   count: 1,
-  creativity: 'balanced',
-  quality: 'ultra',
 };
 
 const EMPTY_RENDER_STATE = {
@@ -106,13 +107,7 @@ export default function AtelierPage() {
   const goTo = useCallback((next) => setScreen(next), []);
 
   const handleDesignConfigChange = useCallback((patch) => {
-    setDesignConfig((previous) =>
-      normalizeDesignConfig({
-        ...previous,
-        ...patch,
-        sliders: patch && patch.sliders ? patch.sliders : previous.sliders,
-      })
-    );
+    setDesignConfig((previous) => normalizeDesignConfig({ ...previous, ...patch }));
   }, []);
 
   // --- Welcome -------------------------------------------------------------
@@ -366,7 +361,7 @@ export default function AtelierPage() {
             prompt: prepared.package.finalPromptEnglish,
             negativePrompt: prepared.package.negativePromptEnglish,
             aspectRatio: prepared.package.recommendedAspectRatio,
-            quality: renderConfig.quality,
+            quality: 'ultra',
           }),
         });
         // eslint-disable-next-line no-await-in-loop
@@ -481,6 +476,13 @@ export default function AtelierPage() {
 
   const currentStep = STEP_BY_SCREEN[screen] || 1;
 
+  // Material identity of the center stone, passed to every preview so a
+  // quartz never previews as a diamond, plus the live production spec line.
+  const centerSnapshot = (centerStone && centerStone.snapshot) || {};
+  const activeConfig = (understanding && understanding.designConfig) || designConfig;
+  const activeSpecSummaryHe =
+    (understanding && understanding.specSummaryHe) || liveUnderstanding.specSummaryHe || '';
+
   return (
     <AtelierShell
       onReset={resetAll}
@@ -538,8 +540,11 @@ export default function AtelierPage() {
         <DirectionsScreen
           directions={directions}
           selectedDirection={selectedDirectionId}
-          designConfig={understanding?.designConfig || designConfig}
-          stoneShape={centerStone?.snapshot?.shape}
+          designConfig={activeConfig}
+          stoneShape={centerSnapshot.shape}
+          stoneType={centerSnapshot.stoneType}
+          stoneTypeHe={centerSnapshot.stoneTypeHe}
+          specSummaryHe={activeSpecSummaryHe}
           onSelectDirection={setSelectedDirectionId}
           onBack={() => goTo(SCREENS.UNDERSTANDING)}
           onContinue={handleChooseDirection}
@@ -550,8 +555,11 @@ export default function AtelierPage() {
       {screen === SCREENS.RENDER_STUDIO ? (
         <RenderStudioScreen
           direction={selectedDirectionObj}
-          designConfig={understanding?.designConfig || designConfig}
-          stoneShape={centerStone?.snapshot?.shape}
+          designConfig={activeConfig}
+          stoneShape={centerSnapshot.shape}
+          stoneType={centerSnapshot.stoneType}
+          stoneTypeHe={centerSnapshot.stoneTypeHe}
+          specSummaryHe={activeSpecSummaryHe}
           renderConfig={renderConfig}
           onUpdateConfig={(patch) => setRenderConfig((previous) => ({ ...previous, ...patch }))}
           onBack={() => goTo(SCREENS.DIRECTIONS)}
