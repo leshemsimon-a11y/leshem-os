@@ -4,6 +4,8 @@ import JewelryIcon from './JewelryIcon';
 import {
   ATELIER_PRODUCT_OPTIONS,
   ATELIER_STYLE_OPTIONS,
+} from '../../lib/atelier/livingAtelier';
+import {
   METAL_ALLOY_OPTIONS,
   METAL_COLOR_OPTIONS,
   METALS,
@@ -18,8 +20,8 @@ import {
   meleeSizeOption,
   metalForSelection,
   componentGroupsFor,
-} from '../../lib/atelier/livingAtelier';
-import { meleeTotalCarat } from '../../lib/atelier/componentsBank';
+  meleeTotalCarat,
+} from '../../lib/atelier/componentsBank';
 
 // ---------------------------------------------------------------------------
 // Clean 11A.3 — the palette is now a set of standalone panels.
